@@ -60,8 +60,12 @@ CWARNFLAGS.gcc+=	-Wno-maybe-uninitialized
 
 .if ${MKCRYPTO} != "no"
 
-LDADD+=	-lssl -lcrypto
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
+# wolfSSL migration: replace OpenSSL with wolfSSL
+LDADD+=	-lwolfssl
+DPADD+=	${LIBWOLFSSL}
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 
 .else
 

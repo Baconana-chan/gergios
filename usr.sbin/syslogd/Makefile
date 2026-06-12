@@ -28,7 +28,12 @@ LDADD+=	-lwrap
 DPADD+=	${LIBWRAP}
 
 .if ${MKCRYPTO} != "no"
-LDADD+=	-lssl -lcrypto
+# wolfSSL migration: replace OpenSSL with wolfSSL
+LDADD+=	-lwolfssl
+DPADD+=	${LIBWOLFSSL}
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .else
 CPPFLAGS+=-DDISABLE_TLS -DDISABLE_SIGN
 .endif

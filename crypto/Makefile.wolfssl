@@ -53,6 +53,6 @@ CPPFLAGS+=	-DNO_WOLFSSL_SERVER
 # Performance optimizations
 CPPFLAGS+=	-DFAST_MATH
 CPPFLAGS+=	-DSMALL_STACK
-CPPFLAGS+=	-DSINGLE_THREADED
+# Note: SINGLE_THREADED removed to avoid multi-core processing bug
 
 .endif

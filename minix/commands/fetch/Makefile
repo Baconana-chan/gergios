@@ -19,8 +19,12 @@ DPADD+=	${LIBFETCH}
 LDADD+=	-lfetch
 
 .if ${MKCRYPTO} == "yes"
-DPADD+=	${LIBSSL} ${LIBCRYPTO}
-LDADD+=	-lssl -lcrypto
+# wolfSSL migration: replace OpenSSL with wolfSSL
+DPADD+=	${LIBWOLFSSL}
+LDADD+=	-lwolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .endif
 
 .include <bsd.prog.mk>
