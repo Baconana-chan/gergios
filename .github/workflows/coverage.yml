@@ -7,6 +7,9 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   coverage:
     name: Generate Coverage Report
@@ -15,6 +18,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install coverage tools
       run: |

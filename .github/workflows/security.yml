@@ -9,6 +9,9 @@ on:
     - cron: '0 0 * * 0'  # Weekly on Sunday
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   security-scan:
     name: Security Analysis
@@ -17,10 +20,16 @@ jobs:
       contents: read
       security-events: write
       actions: read
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install security tools
       run: |
@@ -77,10 +86,16 @@ jobs:
     name: OSS-Fuzz Integration
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Set up fuzzing environment
       run: |

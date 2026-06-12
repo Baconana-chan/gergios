@@ -9,6 +9,7 @@ on:
 
 env:
   BUILD_TYPE: Release
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -26,6 +27,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install dependencies
       run: |
@@ -76,10 +83,16 @@ jobs:
   static-analysis:
     name: Static Analysis
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install static analysis tools
       run: |
@@ -113,10 +126,16 @@ jobs:
       contents: read
       security-events: write
       actions: read
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Run CodeQL Analysis
       uses: github/codeql-action/init@v3
@@ -144,10 +163,16 @@ jobs:
   tests:
     name: Run Tests
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install test dependencies
       run: |
@@ -192,12 +217,17 @@ jobs:
   code-quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
+        submodules: false
         fetch-depth: 0
+
+    - name: Disable git submodule cleanup
+      run: |
+        git config --global submodule.recurse false
 
     - name: Install tools
       run: |
