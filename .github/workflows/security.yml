@@ -1,0 +1,96 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Install security tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          clang \
+          clang-tools-extra \
+          python3 \
+          python3-pip
+
+    - name: Run CodeQL Analysis
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp, c
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:cpp"
+
+    - name: Run security scanning script
+      run: |
+        chmod +x scripts/run_security_scan.sh
+        ./scripts/run_security_scan.sh
+      continue-on-error: true
+
+    - name: Upload security results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-results
+        path: |
+          security-results/
+        retention-days: 30
+
+    - name: Run dependency check
+      run: |
+        pip3 install safety bandit
+        safety check --json > safety-report.json || true
+        bandit -r . -f json -o bandit-report.json || true
+      continue-on-error: true
+
+    - name: Upload dependency reports
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+        retention-days: 30
+
+  oss-fuzz:
+    name: OSS-Fuzz Integration
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up fuzzing environment
+      run: |
+        echo "OSS-Fuzz integration placeholder"
+        echo "To enable OSS-Fuzz, register project at https://github.com/google/oss-fuzz"
+        echo "Then add fuzz targets in the codebase"
+
+    - name: OSS-Fuzz build check
+      run: |
+        echo "Checking if fuzz targets exist..."
+        find . -name "*_fuzz*" -o -name "fuzz_*" | head -5 || echo "No fuzz targets found yet"

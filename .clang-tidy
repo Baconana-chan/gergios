@@ -1,0 +1,63 @@
+# Clang-tidy configuration for Minix
+# This file defines the checks and options for static analysis
+
+# Enable most checks, disable some that are too noisy for legacy code
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  cert-*,
+  -cert-err58-cpp,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -cppcoreguidelines-pro-type-reinterpret-cast,
+  -cppcoreguidelines-pro-type-vararg,
+  -cppcoreguidelines-owning-memory,
+  google-*,
+  -google-readability-todo,
+  -google-runtime-references,
+  misc-*,
+  -misc-non-private-member-variables-in-classes,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  readability-*,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity
+
+# Warnings as errors
+WarningsAsErrors: ''
+
+# Check options
+CheckOptions:
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.ConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+# Header filter (only analyze headers in the project)
+HeaderFilterRegex: ''
+
+# Format style
+FormatStyle: file
+
+# System headers (don't analyze system headers)
+SystemHeaders: false
