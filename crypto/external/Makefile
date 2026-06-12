@@ -7,4 +7,9 @@
 SUBDIR+= bsd
 .endif
 
+# wolfSSL integration (GPLv2)
+.if (${MKCRYPTO} != "no") && defined(__MINIX)
+SUBDIR+= gpl2
+.endif
+
 .include <bsd.subdir.mk>

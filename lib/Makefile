@@ -199,6 +199,11 @@ SUBDIR+=	libnpf		# depends on libprop
 SUBDIR+=	../crypto/external/bsd/openssl/lib # depends on libcrypt
 .endif
 
+# wolfSSL integration (replacing OpenSSL)
+.if (${MKCRYPTO} != "no") && defined(__MINIX)
+SUBDIR+=	../crypto/external/gpl2/wolfssl/lib # depends on libcrypt
+.endif
+
 SUBDIR+=	../external/bsd/file/lib	# depends on libz
 
 .if (${MKISCSI} != "no")

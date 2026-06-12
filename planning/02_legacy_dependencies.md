@@ -221,14 +221,28 @@ This document identifies all legacy technology dependencies in the Minix codebas
 ## External Library Dependencies
 
 ### OpenSSL (crypto/)
-- **Status**: Legacy version
+- **Status**: OpenSSL 0.9.8 (extremely outdated, EOL 2015)
 - **Issues**:
-  - May use outdated OpenSSL version
-  - Security vulnerabilities
-  - Limited modern crypto support
-- **Modern Alternative**: Modern OpenSSL, LibreSSL, or Rust crypto libraries
-- **Impact**: High - security and crypto support
-- **Migration Priority**: High
+  - OpenSSL 0.9.8 released in 2005, end-of-life in 2015
+  - Critical security vulnerabilities (Heartbleed, POODLE, CCS injection)
+  - No security patches since 2015
+  - No TLS 1.2 or 1.3 support
+  - Limited modern cipher suites
+  - Outdated cryptographic algorithms
+  - Performance issues on modern hardware
+  - Difficult to build on modern systems
+- **Usage Locations**:
+  - usr.sbin/syslogd/tls.c, syslogd.c, sign.c (TLS and signing)
+  - usr.bin/ftp/ssl.c (FTP SSL/TLS)
+  - usr.bin/passwd/krb5_passwd.c (Kerberos)
+  - lib/libtelnet/pk.c (Telnet encryption)
+  - libexec/httpd/ssl-bozo.c (HTTP server SSL)
+  - games/factor/factor.c (Big number operations)
+  - external/bsd/bind/** (DNSSEC, PKCS#11)
+- **Modern Alternative**: wolfSSL (recommended for embedded systems)
+- **Migration Plan**: See `06_openssl_to_wolfssl_migration.md` for detailed migration strategy
+- **Impact**: Critical - security vulnerabilities, no modern TLS support
+- **Migration Priority**: Critical
 
 ### zlib (common/dist/zlib/)
 - **Status**: Legacy compression library

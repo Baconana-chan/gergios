@@ -1,0 +1,93 @@
+# wolfSSL Integration for Minix
+
+## Overview
+
+This directory contains the wolfSSL (formerly CyaSSL) embedded SSL/TLS library integrated into the Minix build system. wolfSSL is being used to replace OpenSSL 0.9.8 due to security concerns and the end-of-life status of OpenSSL 0.9.8.
+
+## Directory Structure
+
+```
+crypto/external/gpl2/wolfssl/
+├── Makefile              # Main wolfSSL Makefile
+├── README                # This file
+├── lib/                  # Library build directory
+│   └── Makefile          # Library-specific Makefile
+└── dist/                 # wolfSSL source distribution
+    ├── src/              # wolfSSL source code
+    ├── wolfssl/          # wolfSSL headers
+    └── wolfcrypt/        # wolfCrypt cryptographic library
+```
+
+## Build Configuration
+
+The wolfSSL build is configured through `crypto/Makefile.wolfssl`, which includes:
+
+- Minix-specific configuration flags
+- OpenSSL compatibility layer enablement
+- Required cryptographic algorithms
+- Performance optimizations
+- Feature disabling for size reduction
+
+## Building wolfSSL
+
+To build wolfSSL as part of the Minix build system:
+
+```bash
+# From the Minix root directory
+make build
+```
+
+Or to build only wolfSSL:
+
+```bash
+cd crypto/external/gpl2/wolfssl
+make
+```
+
+## Configuration Options
+
+The following wolfSSL features are enabled for Minix:
+
+- OpenSSL compatibility layer (OPENSSL_EXTRA)
+- AES-GCM, ChaCha20-Poly1305
+- ECC, Curve25519, Ed25519
+- DH, RSA, DSA
+- SHA, SHA256, SHA512, MD5
+- Fast math optimizations
+- Small stack configuration
+
+The following features are disabled to reduce size:
+
+- MD4, RC4, PSK, HC128, Rabbit
+- DES3 (can be enabled if needed)
+- Old TLS versions (SSLv2, SSLv3)
+- Client/Server specific builds (both enabled)
+
+## Cross-Compilation
+
+wolfSSL supports cross-compilation for Minix. To cross-compile:
+
+```bash
+./configure --host=i386-pc-minix \
+  --enable-opensslextra \
+  --enable-opensslall \
+  --enable-fastmath \
+  --enable-smallstack
+```
+
+## License
+
+wolfSSL is dual-licensed:
+- GPLv2 or later (used in Minix)
+- Commercial license available from wolfSSL Inc.
+
+## Migration Status
+
+This is part of the OpenSSL to wolfSSL migration plan documented in:
+`planning/06_openssl_to_wolfssl_migration.md`
+
+## References
+
+- wolfSSL Website: https://www.wolfssl.com/
+- wolfSSL Documentation: https://www.wolfssl.com/docs/
+- wolfSSL GitHub: https://github.com/wolfSSL/wolfssl
