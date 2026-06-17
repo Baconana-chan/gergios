@@ -35,7 +35,7 @@
 #define ISC_HMACMD5_KEYLENGTH 64
 
 #ifdef ISC_PLATFORM_OPENSSLHASH
-#include <openssl/hmac.h>
+#include <wolfssl/openssl/hmac.h>
 
 typedef HMAC_CTX isc_hmacmd5_t;
 

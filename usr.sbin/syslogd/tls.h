@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Martin Schütte.
+ * by Martin SchÃ¼tte.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,17 +41,128 @@
  */
 #ifndef _TLS_H
 #define _TLS_H
-#include <openssl/x509v3.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include <openssl/pem.h>
+
+/* wolfSSL OpenSSL compatibility layer includes */
+#include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/rand.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/rsa.h>
+#include <wolfssl/openssl/dsa.h>
+#include <wolfssl/openssl/dh.h>
+#include <wolfssl/openssl/bn.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/asn1.h>
+
+/* WolfSSL may not define these by default; provide fallback */
+
+/* X509_STORE_CTX member access - wolfSSL uses getter functions */
+#ifndef X509_STORE_CTX_get_current_cert
+#define X509_STORE_CTX_get_current_cert(ctx) \
+    wolfSSL_X509_STORE_CTX_get_current_cert(ctx)
+#endif
+#ifndef X509_STORE_CTX_get_error
+#define X509_STORE_CTX_get_error(ctx) \
+    wolfSSL_X509_STORE_CTX_get_error(ctx)
+#endif
+#ifndef X509_STORE_CTX_get_error_depth
+#define X509_STORE_CTX_get_error_depth(ctx) \
+    wolfSSL_X509_STORE_CTX_get_error_depth(ctx)
+#endif
+#ifndef X509_STORE_CTX_get_ex_data
+#define X509_STORE_CTX_get_ex_data(ctx, idx) \
+    wolfSSL_X509_STORE_CTX_get_ex_data((ctx), (idx))
+#endif
+
+/* SSL_get_ex_data_X509_STORE_CTX_idx */
+#ifndef SSL_get_ex_data_X509_STORE_CTX_idx
+#define SSL_get_ex_data_X509_STORE_CTX_idx() 0
+#endif
+
+/* X509_verify_cert_error_string */
+#ifndef X509_verify_cert_error_string
+static inline const char *
+tls_X509_verify_cert_error_string(long n)
+{
+	(void)n;
+	return "X509 verify error (wolfSSL)";
+}
+#define X509_verify_cert_error_string tls_X509_verify_cert_error_string
+#endif
+
+/* SSLeay_version / SSLEAY_VERSION - get wolfSSL version string */
+#ifndef SSLeay_version
+static inline const char *
+tls_SSLeay_version(int type)
+{
+	(void)type;
+	return (const char *)wolfSSL_lib_version_string();
+}
+#define SSLeay_version tls_SSLeay_version
+#endif
+#ifndef SSLEAY_VERSION
+#define SSLEAY_VERSION 0
+#endif
+
+/* NID constants for X509 extension creation */
+#ifndef NID_netscape_comment
+#define NID_netscape_comment 66
+#endif
+#ifndef NID_netscape_ssl_server_name
+#define NID_netscape_ssl_server_name 67
+#endif
+#ifndef NID_netscape_cert_type
+#define NID_netscape_cert_type 68
+#endif
+#ifndef NID_key_usage
+#define NID_key_usage 83
+#endif
+#ifndef NID_basic_constraints
+#define NID_basic_constraints 137
+#endif
+
+#ifndef MBSTRING_ASC
+#define MBSTRING_ASC 0x1001
+#endif
+
+#ifndef EVP_PKEY_DSA
+#define EVP_PKEY_DSA NID_dsa
+#endif
+
+#ifndef EVP_MAX_MD_SIZE
+#define EVP_MAX_MD_SIZE 64
+#endif
+
+#ifndef SSL_FILETYPE_PEM
+#define SSL_FILETYPE_PEM 1
+#endif
+#ifndef SSL_FILETYPE_ASN1
+#define SSL_FILETYPE_ASN1 2
+#endif
+
+/* ERR_error_string_n compatibility - wolfSSL may not have it */
+#ifndef ERR_error_string_n
+static inline void tls_ERR_error_string_n(unsigned long e, char *buf, size_t len)
+{
+	const char *str = wolfSSL_ERR_error_string(e, NULL);
+	if (str)
+		strlcpy(buf, str, len);
+	else
+		buf[0] = '\0';
+}
+#define ERR_error_string_n tls_ERR_error_string_n
+#endif
 
 /* initial size for TLS inbuf, minimum prefix + linelength
  * guaranteed to be accepted */
 #define TLS_MIN_LINELENGTH	   (2048 + 5)
 /* usually the inbuf is enlarged as needed and then kept.
  * if bigger than TLS_PERSIST_LINELENGTH, then shrink
- * to TLS_LARGE_LINELENGTH immediately	*/
+ * to TLS_LARGE_LINELENGTH immediately */
 #define TLS_LARGE_LINELENGTH	  8192
 #define TLS_PERSIST_LINELENGTH	 32768
 
@@ -158,7 +269,7 @@ struct tls_send_msg {
 char *init_global_TLS_CTX(void);
 struct socketEvent *socksetup_tls(const int, const char *, const char *);
 int check_peer_cert(int, X509_STORE_CTX *);
-int accept_cert(const char* , struct tls_conn_settings *, char *, char *);
+int accept_cert(const char*, struct tls_conn_settings *, char *, char *);
 int deny_cert(struct tls_conn_settings *, char *, char *);
 bool read_certfile(X509 **, const char *);
 bool write_x509files(EVP_PKEY *, X509 *, const char *, const char *);

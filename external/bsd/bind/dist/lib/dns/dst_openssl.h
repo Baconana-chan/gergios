@@ -26,16 +26,20 @@
 #include <isc/log.h>
 #include <isc/result.h>
 
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include <openssl/evp.h>
-#include <openssl/conf.h>
-#include <openssl/crypto.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/rand.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/conf.h>
+#include <wolfssl/openssl/crypto.h>
 
-#if !defined(OPENSSL_NO_ENGINE) && defined(CRYPTO_LOCK_ENGINE) && \
-    (OPENSSL_VERSION_NUMBER >= 0x0090707f)
-#define USE_ENGINE 1
-#endif
+/*
+ * ENGINE is not supported by wolfSSL. The USE_ENGINE define
+ * is disabled here and all ENGINE-related code in the BIND
+ * source has been wrapped with #ifdef USE_ENGINE.
+ */
+#undef USE_ENGINE
+#define USE_ENGINE 0
 
 ISC_LANG_BEGINDECLS
 

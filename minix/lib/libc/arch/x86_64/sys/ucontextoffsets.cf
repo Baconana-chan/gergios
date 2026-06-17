@@ -1,0 +1,23 @@
+include <minix/type.h>
+include <sys/ucontext.h>
+include <sys/errno.h>
+include <machine/mcontext.h>
+
+struct __ucontext
+member UC_FLAGS uc_flags
+member UC_LINK uc_link
+member MAGIC uc_mcontext.mc_magic
+member DI uc_mcontext.__gregs[_REG_RDI]
+member SI uc_mcontext.__gregs[_REG_RSI]
+member BP uc_mcontext.__gregs[_REG_RBP]
+member AX uc_mcontext.__gregs[_REG_RAX]
+member BX uc_mcontext.__gregs[_REG_RBX]
+member CX uc_mcontext.__gregs[_REG_RCX]
+member DX uc_mcontext.__gregs[_REG_RDX]
+member PC uc_mcontext.__gregs[_REG_RIP]
+member SP uc_mcontext.__gregs[_REG_RSP]
+define EFAULT EFAULT
+define EINVAL EINVAL
+define MCF_MAGIC MCF_MAGIC
+define _UC_IGNFPU _UC_IGNFPU
+define _UC_IGNSIGM _UC_IGNSIGM

@@ -55,7 +55,10 @@
 #include "dst_openssl.h"
 
 #ifdef USE_ENGINE
+/* wolfSSL: ENGINE API not supported */
+#if 0
 #include <openssl/engine.h>
+#endif
 #endif
 
 static RAND_METHOD *rm = NULL;
@@ -107,6 +110,11 @@ entropy_add(const void *buf, int num, double entropy) {
 #endif
 }
 
+/* wolfSSL: CRYPTO_set_locking_callback and CRYPTO_set_id_callback
+ * are not supported; wolfSSL handles thread safety internally.
+ * Kept as empty stubs for compatibility, but never registered.
+ */
+#if 0
 static void
 lock_callback(int mode, int type, const char *file, int line) {
 	UNUSED(file);
@@ -121,6 +129,7 @@ static unsigned long
 id_callback(void) {
 	return ((unsigned long)isc_thread_self());
 }
+#endif
 
 static void *
 mem_alloc(size_t size) {
@@ -172,17 +181,16 @@ dst__openssl_init(const char *engine) {
 	CRYPTO_set_mem_debug_options(V_CRYPTO_MDEBUG_ALL);
 	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
 #endif
+	/* wolfSSL: Use CRYPTO_set_mem_functions for custom allocators */
 	CRYPTO_set_mem_functions(mem_alloc, mem_realloc, mem_free);
-	nlocks = CRYPTO_num_locks();
-	locks = mem_alloc(sizeof(isc_mutex_t) * nlocks);
-	if (locks == NULL)
-		return (ISC_R_NOMEMORY);
-	result = isc_mutexblock_init(locks, nlocks);
-	if (result != ISC_R_SUCCESS)
-		goto cleanup_mutexalloc;
-	CRYPTO_set_locking_callback(lock_callback);
-	CRYPTO_set_id_callback(id_callback);
+	/* wolfSSL: CRYPTO_num_locks/CRYPTO_set_locking_callback/CRYPTO_set_id_callback
+	 * are not supported. wolfSSL handles internal locking with its own mechanism.
+	 * The lock array is kept as empty (unused) for compatibility but not registered.
+	 */
+	nlocks = 0;
+	locks = NULL;
 
+	/* wolfSSL: ERR_load_crypto_strings() is available via compat layer */
 	ERR_load_crypto_strings();
 
 	rm = mem_alloc(sizeof(RAND_METHOD));
@@ -265,9 +273,12 @@ dst__openssl_destroy(void) {
 #if (OPENSSL_VERSION_NUMBER >= 0x00907000L)
 	CONF_modules_free();
 #endif
+	/* wolfSSL: OBJ_cleanup() and EVP_cleanup() are no-ops with wolfSSL compat layer */
 	OBJ_cleanup();
 	EVP_cleanup();
 #if defined(USE_ENGINE)
+	/* wolfSSL: ENGINE API is not supported */
+#if 0
 	if (e != NULL)
 		ENGINE_free(e);
 	e = NULL;
@@ -275,11 +286,13 @@ dst__openssl_destroy(void) {
 	ENGINE_cleanup();
 #endif
 #endif
-#if (OPENSSL_VERSION_NUMBER >= 0x00907000L)
-	CRYPTO_cleanup_all_ex_data();
 #endif
+#if (OPENSSL_VERSION_NUMBER >= 0x00907000L)
+	/* wolfSSL: CRYPTO_cleanup_all_ex_data() is not supported */
+	/* CRYPTO_cleanup_all_ex_data(); */
+#endif
+	/* wolfSSL: ERR_remove_state() not available; ERR_clear_error() is sufficient */
 	ERR_clear_error();
-	ERR_remove_state(0);
 	ERR_free_strings();
 
 #ifdef  DNS_CRYPTO_LEAKS
@@ -287,7 +300,8 @@ dst__openssl_destroy(void) {
 #endif
 
 	if (locks != NULL) {
-		CRYPTO_set_locking_callback(NULL);
+		/* wolfSSL: CRYPTO_set_locking_callback not supported */
+		/* CRYPTO_set_locking_callback(NULL); */
 		DESTROYMUTEXBLOCK(locks, nlocks);
 		mem_free(locks);
 		locks = NULL;

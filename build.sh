@@ -1,6 +1,26 @@
 #! /usr/bin/env sh
 #	$NetBSD: build.sh,v 1.308 2015/06/27 06:00:28 matt Exp $
 #
+# ======================================================================
+# DEPRECATED: This is the legacy BSD Make (bmake) build system.
+#
+# The MINIX project is migrating to CMake. For new development, testing,
+# and cross-compilation, use the CMake build system instead:
+#
+#   ./releasetools/cmake-build.sh configure i386
+#   ./releasetools/cmake-build.sh build
+#
+# Or with CMake presets:
+#   cmake --preset default
+#   cmake --build --preset default
+#
+# This build.sh script is preserved for backward compatibility and
+# production release builds. It will be removed once CMake reaches
+# production parity (target: next major MINIX release).
+#
+# See docs/dual-build-guide.md for the transition plan.
+# ======================================================================
+#
 # Copyright (c) 2001-2011 The NetBSD Foundation, Inc.
 # All rights reserved.
 #

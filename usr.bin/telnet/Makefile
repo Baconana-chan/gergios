@@ -73,8 +73,12 @@ DPADD+=	${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
 
 .if (${MKCRYPTO} != "no")
 CPPFLAGS+=-DAUTHENTICATION -DENCRYPTION
-LDADD+= -ldes -lcrypto -lcrypt
-DPADD+=	${LIBDES} ${LIBCRYPTO} ${LIBCRYPT}
+# wolfSSL migration: replace OpenSSL with wolfSSL
+LDADD+= -ldes -lwolfssl -lcrypt
+DPADD+=	${LIBDES} ${LIBWOLFSSL} ${LIBCRYPT}
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .endif
 
 .if (${USE_PAM} != "no")

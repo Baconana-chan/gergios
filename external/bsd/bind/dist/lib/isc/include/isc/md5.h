@@ -53,7 +53,7 @@
 #define ISC_MD5_BLOCK_LENGTH 64U
 
 #ifdef ISC_PLATFORM_OPENSSLHASH
-#include <openssl/evp.h>
+#include <wolfssl/openssl/evp.h>
 
 typedef EVP_MD_CTX isc_md5_t;
 

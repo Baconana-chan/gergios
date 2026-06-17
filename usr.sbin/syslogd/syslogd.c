@@ -503,14 +503,14 @@ getgroup:
 	}
 
 #if (!defined(DISABLE_TLS) && !defined(DISABLE_SIGN))
-	/* basic OpenSSL init */
+	/* basic wolfSSL init (OpenSSL compat API) */
 	SSL_load_error_strings();
 	(void) SSL_library_init();
 	OpenSSL_add_all_digests();
-	/* OpenSSL PRNG needs /dev/urandom, thus initialize before chroot() */
+	/* wolfSSL PRNG needs /dev/urandom, thus initialize before chroot() */
 	if (!RAND_status()) {
 		errno = 0;
-		logerror("Unable to initialize OpenSSL PRNG");
+		logerror("Unable to initialize wolfSSL PRNG");
 	} else {
 		DPRINTF(D_TLS, "Initializing PRNG\n");
 	}

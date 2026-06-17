@@ -82,8 +82,9 @@
 #endif
 
 #ifdef OPENSSL
-#include <openssl/opensslv.h>
-#include <openssl/crypto.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/opensslv.h>
+#include <wolfssl/openssl/crypto.h>
 #endif
 #ifdef HAVE_LIBXML2
 #include <libxml/xmlversion.h>
@@ -642,11 +643,11 @@ parse_command_line(int argc, char *argv[]) {
 			printf("compiled by Solaris Studio %x\n", __SUNPRO_C);
 #endif
 #ifdef OPENSSL
-			printf("compiled with OpenSSL version: %s\n",
+			printf("compiled with wolfSSL version: %s\n",
 			       OPENSSL_VERSION_TEXT);
 #ifndef WIN32
-			printf("linked to OpenSSL version: %s\n",
-			       SSLeay_version(SSLEAY_VERSION));
+			printf("linked to wolfSSL version: %s\n",
+			       wolfSSL_lib_version_string());
 #endif
 #endif
 #ifdef HAVE_LIBXML2

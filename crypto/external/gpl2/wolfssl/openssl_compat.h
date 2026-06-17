@@ -1,7 +1,14 @@
-/* openssl_compat.h - OpenSSL compatibility wrappers for wolfSSL
+/* openssl_compat.h - OpenSSL compatibility wrappers for wolfSSL (DEPRECATED)
  * 
- * This header provides compatibility wrappers to ensure smooth migration
- * from OpenSSL to wolfSSL in the Minix codebase.
+ * *** DEPRECATED ***
+ * This file is no longer needed by migrated MINIX components.
+ * All migrated code now uses direct wolfssl/openssl/*.h includes.
+ *
+ * This file is retained for reference but should not be included
+ * by new code. Use individual wolfssl/openssl/*.h headers instead.
+ *
+ * Old components that have not yet been migrated still use this
+ * file for backwards compatibility.
  */
 
 #ifndef OPENSSL_COMPAT_H

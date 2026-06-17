@@ -148,6 +148,68 @@ void makecontext(ucontext_t *ucp, void (*func)(void), int argc, ...)
 	if (stack_top == ucp->uc_stack.ss_sp) {
 		_UC_MACHINE_SET_STACK(ucp, 0);
 	}
+#elif defined(__x86_64__)
+	/* x86_64 ABI:
+	 *   First 6 integer args in RDI, RSI, RDX, RCX, R8, R9
+	 *   Additional args on the stack
+	 *   Stack must be 16-byte aligned before CALL
+	 *
+	 * Context start: ctx_start calls func with args in regs/stack.
+	 * On func return, ctx_start calls resumecontext(ucp).
+	 * ucp is preserved across func call via R12 (callee-saved).
+	 */
+
+	/* Find the top of the stack from which we grow downwards. */
+	stack_top = (unsigned long *) ((uintptr_t) ucp->uc_stack.ss_sp +
+						   ucp->uc_stack.ss_size);
+
+	/* Align to 16 bytes. */
+	stack_top = (unsigned long *) ((uintptr_t) stack_top & ~0xf);
+
+	/* Make room for func pointer, stack arguments beyond first 6, and ucp. */
+	int stack_args = (argc > 6) ? (argc - 6) : 0;
+	stack_top -= (1 + stack_args + 1);  /* func + stack args + ucp */
+
+	/* Clear frame pointer */
+	_UC_MACHINE_SET_RBP(ucp, 0);
+	_UC_MACHINE_SET_STACK(ucp, (reg_t) stack_top);
+	_UC_MACHINE_SET_PC(ucp, (reg_t) ctx_start);
+
+	/* Store func pointer on stack (ctx_start will pop and call it). */
+	*stack_top++ = (uintptr_t) func;
+
+	/* Copy arguments: first 6 to registers, rest to stack. */
+	va_start(ap, argc);
+	int nargs = argc;
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_RDI(ucp, va_arg(ap, uintptr_t));
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_RSI(ucp, va_arg(ap, uintptr_t));
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_RDX(ucp, va_arg(ap, uintptr_t));
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_RCX(ucp, va_arg(ap, uintptr_t));
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_R8(ucp, va_arg(ap, uintptr_t));
+	if (nargs-- > 0)
+		_UC_MACHINE_SET_R9(ucp, va_arg(ap, uintptr_t));
+	/* Remaining args go on the stack. */
+	while (nargs-- > 0) {
+		*stack_top++ = va_arg(ap, uintptr_t);
+	}
+	va_end(ap);
+
+	/* Store ucp on stack for ctx_start. */
+	*stack_top = (uintptr_t) ucp;
+
+	/* Set R12 (callee-saved) to point to ucp, so ctx_start can find it
+	 * after func returns. */
+	_UC_MACHINE_SET_R12(ucp, (reg_t) stack_top);
+
+	/* If we ran out of stack space, invalidate stack pointer. */
+	if (stack_top == ucp->uc_stack.ss_sp) {
+		_UC_MACHINE_SET_STACK(ucp, 0);
+	}
 #elif defined(__arm__)
 	/* The caller provides a pointer to a stack that we can use to run our
 	   context on. When the context starts, control is given to the

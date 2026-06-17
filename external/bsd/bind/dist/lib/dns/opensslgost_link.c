@@ -34,10 +34,16 @@
 #include "dst_parse.h"
 #include "dst_gost.h"
 
-#include <openssl/err.h>
-#include <openssl/objects.h>
-#include <openssl/rsa.h>
-#include <openssl/engine.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/rsa.h>
+/* wolfSSL: ENGINE API not supported; GOST requires ENGINE which wolfSSL doesn't provide.
+ * HAVE_OPENSSL_GOST must be undefined in the build config for wolfSSL.
+ * The engine.h include is wrapped in #if 0 since wolfSSL doesn't provide it. */
+#if 0
+#include <wolfssl/openssl/engine.h>
+#endif
 
 static ENGINE *e = NULL;
 static const EVP_MD *opensslgost_digest;

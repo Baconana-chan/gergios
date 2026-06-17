@@ -47,14 +47,18 @@
 #include "dst_openssl.h"
 #include "dst_parse.h"
 
-#include <openssl/err.h>
-#include <openssl/objects.h>
-#include <openssl/rsa.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/rsa.h>
 #if OPENSSL_VERSION_NUMBER > 0x00908000L
-#include <openssl/bn.h>
+#include <wolfssl/openssl/bn.h>
 #endif
 #ifdef USE_ENGINE
+/* wolfSSL: ENGINE API not supported */
+#if 0
 #include <openssl/engine.h>
+#endif
 #endif
 
 /*

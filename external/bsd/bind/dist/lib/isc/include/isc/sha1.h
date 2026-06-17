@@ -38,7 +38,7 @@
 #define ISC_SHA1_BLOCK_LENGTH 64U
 
 #ifdef ISC_PLATFORM_OPENSSLHASH
-#include <openssl/evp.h>
+#include <wolfssl/openssl/evp.h>
 
 typedef EVP_MD_CTX isc_sha1_t;
 

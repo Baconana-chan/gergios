@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Martin Schütte.
+ * by Martin SchÃ¼tte.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,10 +44,12 @@
 
 #include <netinet/in.h>
 #include <resolv.h>
-#include <openssl/x509v3.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include <openssl/pem.h>
+#include <wolfssl/openssl/x509v3.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/rand.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/dsa.h>
 
 /* default Signature Group value,
  * defines signature strategy:
@@ -120,11 +122,14 @@
 /* length of generated DSA keys for signing */
 #define SIGN_GENCERT_BITS 1024
 
+/* SSL_CHECK_ONE - wrapper for wolfSSL EVP operations.
+ * wolfSSL EVP functions may return SSL_SUCCESS (1) or SSL_FAILURE (0).
+ * This macro logs errors and returns false (for bool-returning functions). */
 #define SSL_CHECK_ONE(exp) do {						\
 	if ((exp) != 1) {				     		\
 		DPRINTF(D_SIGN, #exp " failed in %d: %s\n", __LINE__,	\
 		    ERR_error_string(ERR_get_error(), NULL));	     	\
-		return 1;					     	\
+		return false;						\
 	}								\
 } while (/*CONSTCOND*/0)
 

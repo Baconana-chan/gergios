@@ -1,0 +1,114 @@
+# cmake/options.cmake
+# MINIX-specific build options (mapped from MK* and USE* variables in bsd.own.mk)
+#
+# This file replicates the option handling from share/mk/bsd.own.mk
+# and minix.service.mk for the CMake build.
+#
+# Usage: cmake -DUSE_WATCHDOG=ON -DUSE_SMP=ON ..
+
+include(CMakeDependentOption)
+
+# ============================================================================
+# MK* variables (default YES)
+# ============================================================================
+
+# These correspond to the _MKVARS.yes list in bsd.own.mk
+option(MKCRYPTO "Enable crypto support" ON)
+option(MKCXX "Enable C++ support" ON)
+option(MKATF "Enable ATF/Automated Test Framework" ON)
+option(MKDOC "Build documentation" ON)
+option(MKMAN "Build man pages" ON)
+option(MKNLS "Build NLS support" ON)
+option(MKPROFILE "Build profiling libraries" OFF)
+option(MKPIC "Build position-independent code" ON)
+option(MKDEBUG "Build with debug symbols" OFF)
+
+# MINIX-specific MK* options
+option(MKSYSDEBUG "Enable system debugging" ON)
+option(MKLIVEUPDATE "Enable live update support" ON)
+option(MKLLVMCMDS "Build LLVM tools" ON)
+option(MKSMALL "Build small footprint variant" OFF)
+option(MKBITCODE "Build with LLVM bitcode" OFF)
+option(MKMAGIC "Build with MAGIC pass" OFF)
+option(MKASR "Build with ASR (Address Space Randomization)" OFF)
+option(MKCOVERAGE "Build with coverage profiling" OFF)
+
+# ============================================================================
+# USE_* variables (default YES, depend on MK*)
+# ============================================================================
+
+# i386-only options (from bsd.own.mk: _MKVARS.yes adds these
+# only when MACHINE_ARCH == "i386")
+if(MACHINE_ARCH STREQUAL "i386")
+    cmake_dependent_option(USE_WATCHDOG "Enable watchdog driver" ON
+        "MKSYSDEBUG" OFF)
+    cmake_dependent_option(USE_ACPI "Enable ACPI support" ON
+        "MKSYSDEBUG" OFF)
+    cmake_dependent_option(USE_APIC "Enable APIC support" ON
+        "MKSYSDEBUG" OFF)
+    cmake_dependent_option(USE_DEBUGREG "Enable debug registers" ON
+        "MKSYSDEBUG" OFF)
+    cmake_dependent_option(USE_PCI "Enable PCI support" ON
+        "MKSYSDEBUG" OFF)
+else()
+    # Force OFF on non-i386
+    set(USE_WATCHDOG OFF CACHE BOOL "Watchdog (i386 only)" FORCE)
+    set(USE_ACPI OFF CACHE BOOL "ACPI (i386 only)" FORCE)
+    set(USE_APIC OFF CACHE BOOL "APIC (i386 only)" FORCE)
+    set(USE_DEBUGREG OFF CACHE BOOL "Debug registers (i386 only)" FORCE)
+    set(USE_PCI OFF CACHE BOOL "PCI (i386 only)" FORCE)
+endif()
+
+cmake_dependent_option(USE_SYSDEBUG "Enable system debugging routines" ON
+    "MKSYSDEBUG" OFF)
+
+cmake_dependent_option(USE_LIVEUPDATE "Enable live update" ON
+    "MKLIVEUPDATE" OFF)
+
+cmake_dependent_option(USE_BITCODE "Enable LLVM bitcode" ON
+    "MKBITCODE" OFF)
+
+cmake_dependent_option(USE_MAGIC "Enable MAGIC runtime library" ON
+    "MKMAGIC" OFF)
+
+cmake_dependent_option(USE_ASR "Enable ASR rerandomization" ON
+    "MKASR" OFF)
+
+# SMP (not from bsd.own.mk directly, but used in MINIX)
+option(CONFIG_SMP "Enable symmetric multiprocessing" OFF)
+set(CONFIG_MAX_CPUS "4" CACHE STRING "Maximum number of CPUs for SMP")
+
+# ============================================================================
+# Compile definitions from options
+# ============================================================================
+
+# Map USE_* options to -D defines
+if(USE_WATCHDOG)
+    add_compile_definitions(USE_WATCHDOG=1)
+endif()
+if(USE_ACPI)
+    add_compile_definitions(USE_ACPI)
+endif()
+if(USE_APIC)
+    add_compile_definitions(USE_APIC)
+endif()
+if(USE_DEBUGREG)
+    add_compile_definitions(USE_DEBUGREG)
+endif()
+if(USE_SYSDEBUG)
+    add_compile_definitions(USE_SYSDEBUG=1)
+endif()
+if(USE_LIVEUPDATE)
+    add_compile_definitions(USE_UPDATE=1)
+endif()
+if(USE_PCI)
+    add_compile_definitions(USE_PCI)
+endif()
+if(CONFIG_SMP)
+    add_compile_definitions(CONFIG_SMP)
+    add_compile_definitions(CONFIG_MAX_CPUS=${CONFIG_MAX_CPUS})
+endif()
+if(MKCOVERAGE)
+    # Coverage profiling flags (equivalent to scripts/generate_coverage.sh)
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+endif()

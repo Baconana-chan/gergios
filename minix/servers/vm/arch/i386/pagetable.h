@@ -7,6 +7,9 @@
 
 #include "vm.h"
 
+/* 32-bit page table entry type for i386 */
+typedef u32_t pt_entry_t;
+
 /* Mapping flags. */
 #define PTF_WRITE	I386_VM_WRITE
 #define PTF_READ	I386_VM_READ

@@ -41,8 +41,9 @@
 
 #ifndef NO_SSL_SUPPORT
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
 
 #ifndef USE_ARG
 #define USE_ARG(x)	/*LINTED*/(void)&(x)

@@ -40,7 +40,7 @@
 #include <pwd.h>
 #include <unistd.h>
 
-#include <openssl/ui.h>
+#include <termios.h>
 #include <krb5.h>
 
 #include "extern.h"
@@ -54,6 +54,52 @@ pwkrb5_warn(const char *msg, krb5_context context, krb5_error_code ret)
 	    krb5_free_error_message(context, errtxt);
     } else
 	    warnx("%s: %d", msg, ret);
+}
+
+/*
+ * Replacement for OpenSSL UI_UTIL_read_pw_string().
+ * Reads a password from stdin with echo disabled.
+ * If verify is non-zero, reads the password twice to confirm.
+ * Returns 0 on success, -1 on error.
+ */
+static int
+read_pw_string(char *buf, size_t len, const char *prompt, int verify)
+{
+    struct termios term, old;
+    char buf2[BUFSIZ];
+
+    if (tcgetattr(fileno(stdin), &term) == -1)
+	return -1;
+    old = term;
+    term.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL);
+    if (tcsetattr(fileno(stdin), TCSAFLUSH, &term) == -1)
+	return -1;
+
+    (void)fputs(prompt, stderr);
+    if (fgets(buf, (int)len, stdin) == NULL) {
+	(void)tcsetattr(fileno(stdin), TCSAFLUSH, &old);
+	return -1;
+    }
+    buf[strcspn(buf, "\n")] = '\0';
+
+    if (verify) {
+	(void)fputs("\n", stderr);
+	(void)fputs(prompt, stderr);
+	if (fgets(buf2, (int)sizeof(buf2), stdin) == NULL) {
+	    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &old);
+	    return -1;
+	}
+	buf2[strcspn(buf2, "\n")] = '\0';
+	if (strcmp(buf, buf2) != 0) {
+	    (void)fputs("\nPasswords do not match.\n", stderr);
+	    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &old);
+	    return -1;
+	}
+    }
+
+    (void)fputs("\n", stderr);
+    (void)tcsetattr(fileno(stdin), TCSAFLUSH, &old);
+    return 0;
 }
 
 #ifdef USE_PAM
@@ -188,9 +234,9 @@ pwkrb5_process(const char *username, int argc, char **argv)
 	krb5_data_zero(&result_code_string);
 	krb5_data_zero(&result_string);
 
-	/* XXX use getpass? It has a broken interface. */
-	if (UI_UTIL_read_pw_string(pwbuf, sizeof(pwbuf),
-				   "New password: ", 1) != 0)
+	/* read new password with echo disabled */
+	if (read_pw_string(pwbuf, sizeof(pwbuf),
+			   "New password: ", 1) != 0)
 		goto bad;
 
 	ret = krb5_set_password(context, &cred, pwbuf, NULL,
@@ -337,8 +383,8 @@ krb5_chpw(const char *username)
     krb5_data_zero (&result_code_string);
     krb5_data_zero (&result_string);
 
-    /* XXX use getpass? It has a broken interface. */
-    if(UI_UTIL_read_pw_string(pwbuf, sizeof(pwbuf), "New password: ", 1) != 0)
+    /* read new password with echo disabled */
+    if(read_pw_string(pwbuf, sizeof(pwbuf), "New password: ", 1) != 0)
         return 1;
 
     ret = krb5_set_password (context, &cred, pwbuf, NULL,

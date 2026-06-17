@@ -55,12 +55,13 @@
 #include <dst/dst.h>
 
 #ifdef OPENSSL
-#include <openssl/dh.h>
-#include <openssl/dsa.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/objects.h>
-#include <openssl/rsa.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/dh.h>
+#include <wolfssl/openssl/dsa.h>
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/rsa.h>
 #endif
 
 ISC_LANG_BEGINDECLS

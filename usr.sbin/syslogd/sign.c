@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Martin Schütte.
+ * by Martin SchÃ¼tte.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,7 +39,7 @@
  * sign.c
  * syslog-sign related code for syslogd
  *
- * Martin Schütte
+ * Martin SchÃ¼tte
  */
 /*
  * Issues with the current internet draft:
@@ -95,11 +95,11 @@ sign_global_init(struct filed *Files)
 	/* signature algorithm */
 	/* can probably be merged with the hash algorithm/context but
 	 * I leave the optimization for later until the RFC is ready */
-	GlobalSign.sigctx = EVP_MD_CTX_create();
+	GlobalSign.sigctx = EVP_MD_CTX_new();
 	EVP_MD_CTX_init(GlobalSign.sigctx);
 
 	/* the signature algorithm depends on the type of key */
-	if (EVP_PKEY_DSA == EVP_PKEY_type(GlobalSign.pubkey->type)) {
+	if (EVP_PKEY_DSA == EVP_PKEY_type(EVP_PKEY_id(GlobalSign.pubkey))) {
 		GlobalSign.sig = EVP_dss1();
 		GlobalSign.sig_len_b64 = SIGN_B64SIGLEN_DSS;
 /* this is the place to add non-DSA key types and algorithms
@@ -115,14 +115,14 @@ sign_global_init(struct filed *Files)
 	assert(GlobalSign.keytype == 'C' || GlobalSign.keytype == 'K');
 	assert(GlobalSign.pubkey_b64 && GlobalSign.privkey &&
 	    GlobalSign.pubkey);
-	assert(GlobalSign.privkey->pkey.dsa->priv_key);
+	/* wolfSSL: cannot access DSA internal struct members */
+	assert(GlobalSign.privkey != NULL);
 
 	GlobalSign.gbc = 0;
 	STAILQ_INIT(&GlobalSign.SigGroups);
 
-	/* hash algorithm */
-	OpenSSL_add_all_digests();
-	GlobalSign.mdctx = EVP_MD_CTX_create();
+	/* hash algorithm - OpenSSL_add_all_digests() is no-op with wolfSSL compat */
+	GlobalSign.mdctx = EVP_MD_CTX_new();
 	EVP_MD_CTX_init(GlobalSign.mdctx);
 
 	/* values for SHA-1 */
@@ -191,7 +191,7 @@ sign_get_keys(void)
 		 */
 		FREE_SSL(ssl);
 
-		if (EVP_PKEY_DSA != EVP_PKEY_type(pubkey->type)) {
+		if (EVP_PKEY_DSA != EVP_PKEY_type(EVP_PKEY_id(pubkey))) {
 			DPRINTF(D_SIGN, "X.509 cert has no DSA key\n");
 			EVP_PKEY_free(pubkey);
 			privkey = NULL;
@@ -483,11 +483,11 @@ sign_global_free(void)
 		GlobalSign.pubkey = NULL;
 	}
 	if(GlobalSign.mdctx) {
-		EVP_MD_CTX_destroy(GlobalSign.mdctx);
+		EVP_MD_CTX_free(GlobalSign.mdctx);
 		GlobalSign.mdctx = NULL;
 	}
 	if(GlobalSign.sigctx) {
-		EVP_MD_CTX_destroy(GlobalSign.sigctx);
+		EVP_MD_CTX_free(GlobalSign.sigctx);
 		GlobalSign.sigctx = NULL;
 	}
 	FREEPTR(GlobalSign.pubkey_b64);

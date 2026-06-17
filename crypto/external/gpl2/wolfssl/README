@@ -86,8 +86,41 @@ wolfSSL is dual-licensed:
 This is part of the OpenSSL to wolfSSL migration plan documented in:
 `planning/06_openssl_to_wolfssl_migration.md`
 
+### Migrated Components (Phase 3 COMPLETED)
+| Component | Status |
+|-----------|--------|
+| syslogd (TLS + syslog-sign) | ✅ Using wolfSSL |
+| ftp (SSL/TLS) | ✅ Using wolfSSL |
+| httpd/bozohttpd (HTTPS) | ✅ Using wolfSSL |
+| telnet/telnetd (SRA encryption) | ✅ Using wolfSSL |
+| passwd (Kerberos UI) | ✅ Using wolfSSL |
+| factor (BN factorization) | ✅ Using wolfSSL |
+| BIND/named (DNSSEC) | ✅ Using wolfSSL |
+
+### Testing Status (Phase 4 COMPLETED)
+| Test Suite | Status | Location |
+|------------|--------|----------|
+| Unit tests | ✅ Done | tests/crypto/libcrypto/t_wolfssl.sh |
+| Security tests | ✅ Done | tests/crypto/libcrypto/t_security.sh |
+| Performance benchmarks | ✅ Done | tests/crypto/libcrypto/t_perf.sh |
+| Compatibility tests | ✅ Done | tests/crypto/libcrypto/t_compat.sh |
+| Integration tests | ✅ Done | tests/integration/ (6 scripts) |
+
+### Remaining (Phase 5 — Cleanup)
+| Task | Status |
+|------|--------|
+| Code cleanup | ✅ Completed |
+| Documentation | ✅ Completed |
+| Developer documentation | ⏳ Planned |
+
 ## References
 
+- [Migration Plan](planning/06_openssl_to_wolfssl_migration.md)
+- [Build Instructions](docs/BUILDING.md)
+- [Usage Guide](docs/wolfssl-usage-guide.md)
+- [Security Audit](docs/wolfssl-security-audit.md)
+- [Performance Report](docs/wolfssl-performance-report.md)
+- [Compatibility Report](docs/wolfssl-compatibility-report.md)
 - wolfSSL Website: https://www.wolfssl.com/
 - wolfSSL Documentation: https://www.wolfssl.com/docs/
 - wolfSSL GitHub: https://github.com/wolfSSL/wolfssl

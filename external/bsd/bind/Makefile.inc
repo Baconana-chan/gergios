@@ -90,7 +90,10 @@ LIBDPLIBS+=      pthread  ${NETBSDSRCDIR}/lib/libpthread
 .endif
 
 .if ${NAMED_USE_OPENSSL} == "yes"
-CPPFLAGS+=-DOPENSSL -DUSE_ISC_SPNEGO
+CPPFLAGS+=-DOPENSSL -DUSE_ISC_SPNEGO -DWOLFSSL_BIND
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .if ${MKKERBEROS} != "no"
 CPPFLAGS+=-DGSSAPI
 .endif
@@ -107,13 +110,13 @@ LIBDPLIBS+=	$L ${NETBSDSRCDIR}/crypto/external/bsd/heimdal/lib/lib$L
 .endif
 .endif
 .if !defined (LIB) || empty(LIB)
-LDADD+= -lcrypto -lcrypt
-DPADD+= ${LIBCRYPTO} ${LIBCRYPT}
+LDADD+= -lwolfssl -lcrypt
+DPADD+= ${LIBWOLFSSL} ${LIBCRYPT}
 .else
-.if exists(${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libcrypto)
-LIBDPLIBS+=	crypto ${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libcrypto
+.if exists(${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/lib/libwolfssl)
+LIBDPLIBS+=	wolfssl ${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/lib/libwolfssl
 .else
-LIBDPLIBS+=	crypto ${NETBSDSRCDIR}/lib/libcrypto
+LIBDPLIBS+=	wolfssl ${NETBSDSRCDIR}/lib/libwolfssl
 .endif
 .endif
 .endif

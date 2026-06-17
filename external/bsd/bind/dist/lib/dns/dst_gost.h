@@ -26,7 +26,7 @@
 #define ISC_GOST_DIGESTLENGTH 32U
 
 #ifdef HAVE_OPENSSL_GOST
-#include <openssl/evp.h>
+#include <wolfssl/openssl/evp.h>
 
 typedef EVP_MD_CTX isc_gost_t;
 #endif

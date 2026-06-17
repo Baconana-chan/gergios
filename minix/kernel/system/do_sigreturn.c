@@ -41,6 +41,12 @@ int do_sigreturn(struct proc * caller, message * m_ptr)
                 (rp->p_reg.psw & ~X86_FLAGS_USER);
 #endif
 
+#if defined(__x86_64__)
+  /* Restore user bits of rflags from sc, maintain system bits from proc. */
+  sc.sc_rflags = (sc.sc_rflags & X86_FLAGS_USER) |
+                 (rp->p_reg.psw & ~X86_FLAGS_USER);
+#endif
+
 #if defined(__i386__)
   /* Write back registers we allow to be restored, i.e.
    * not the segment ones.
@@ -55,6 +61,28 @@ int do_sigreturn(struct proc * caller, message * m_ptr)
   rp->p_reg.pc = sc.sc_eip;
   rp->p_reg.psw = sc.sc_eflags;
   rp->p_reg.sp = sc.sc_esp;
+#endif
+
+#if defined(__x86_64__)
+  /* Write back registers we allow to be restored. */
+  rp->p_reg.r15 = sc.sc_r15;
+  rp->p_reg.r14 = sc.sc_r14;
+  rp->p_reg.r13 = sc.sc_r13;
+  rp->p_reg.r12 = sc.sc_r12;
+  rp->p_reg.r11 = sc.sc_r11;
+  rp->p_reg.r10 = sc.sc_r10;
+  rp->p_reg.r9 = sc.sc_r9;
+  rp->p_reg.r8 = sc.sc_r8;
+  rp->p_reg.di = sc.sc_rdi;
+  rp->p_reg.si = sc.sc_rsi;
+  rp->p_reg.fp = sc.sc_rbp;
+  rp->p_reg.bx = sc.sc_rbx;
+  rp->p_reg.dx = sc.sc_rdx;
+  rp->p_reg.cx = sc.sc_rcx;
+  rp->p_reg.retreg = sc.sc_rax;
+  rp->p_reg.pc = sc.sc_rip;
+  rp->p_reg.psw = sc.sc_rflags;
+  rp->p_reg.sp = sc.sc_rsp;
 #endif
 
 #if defined(__arm__)
@@ -82,7 +110,7 @@ int do_sigreturn(struct proc * caller, message * m_ptr)
 
   if(sc.sc_magic != SC_MAGIC) { printf("kernel sigreturn: corrupt signal context\n"); }
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   if (sc.sc_flags & MF_FPU_INITIALIZED)
   {
 	memcpy(rp->p_seg.fpu_state, &sc.sc_fpu_state, FPU_XFP_SIZE);

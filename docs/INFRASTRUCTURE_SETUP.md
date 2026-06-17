@@ -137,6 +137,48 @@ Security checks include:
 - Common security issue detection
 - Hardcoded credential detection
 
+## wolfSSL Integration
+
+wolfSSL has replaced OpenSSL 0.9.8 for the following components:
+- syslogd (TLS + syslog-sign)
+- ftp (SSL/TLS)
+- httpd/bozohttpd (HTTPS)
+- telnet/telnetd (SRA encryption)
+- passwd (Kerberos UI)
+- factor (BN factorization)
+- BIND/named (DNSSEC)
+
+### Build Configuration
+
+wolfSSL is configured via `crypto/Makefile.wolfssl` and
+`crypto/external/gpl2/wolfssl/config.h`. The OpenSSL compatibility layer
+(`OPENSSL_EXTRA`) enables most OpenSSL API calls to work unchanged.
+
+### Running wolfSSL Tests
+
+```bash
+# Unit tests for wolfSSL migration
+cd tests/crypto/libcrypto
+atf-run t_wolfssl        # API migration tests
+atf-run t_security        # Security tests
+atf-run t_perf            # Performance benchmarks
+atf-run t_compat          # Compatibility tests
+
+# Integration tests
+cd tests/integration
+atf-run t_syslogd_tls
+atf-run t_ftp_ssl
+atf-run t_httpd_ssl
+atf-run t_telnet_encrypt
+atf-run t_bind_dnssec
+atf-run t_cross_component
+```
+
+For more details, see:
+- [Build Instructions](BUILDING.md)
+- [wolfSSL Usage Guide](wolfssl-usage-guide.md)
+- [Migration Plan](../planning/06_openssl_to_wolfssl_migration.md)
+
 ## Local Development Setup
 
 ### Prerequisites

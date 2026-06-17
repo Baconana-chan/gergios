@@ -27,6 +27,9 @@ int do_sigsend(struct proc * caller, message * m_ptr)
 #if defined(__i386__)
   reg_t new_fp;
 #endif
+#if defined(__x86_64__)
+  reg_t new_fp;
+#endif
 
   if (!isokendpt(m_ptr->m_sigcalls.endpt, &proc_nr)) return EINVAL;
   if (iskerneln(proc_nr)) return EPERM;
@@ -88,6 +91,52 @@ int do_sigsend(struct proc * caller, message * m_ptr)
   }
 #endif
 
+#if defined(__x86_64__)
+  fr.sf_sc.sc_r15 = rp->p_reg.r15;
+  fr.sf_sc.sc_r14 = rp->p_reg.r14;
+  fr.sf_sc.sc_r13 = rp->p_reg.r13;
+  fr.sf_sc.sc_r12 = rp->p_reg.r12;
+  fr.sf_sc.sc_r11 = rp->p_reg.r11;
+  fr.sf_sc.sc_r10 = rp->p_reg.r10;
+  fr.sf_sc.sc_r9 = rp->p_reg.r9;
+  fr.sf_sc.sc_r8 = rp->p_reg.r8;
+  fr.sf_sc.sc_rdi = rp->p_reg.di;
+  fr.sf_sc.sc_rsi = rp->p_reg.si;
+  fr.sf_sc.sc_rbp = rp->p_reg.fp;
+  fr.sf_sc.sc_rbx = rp->p_reg.bx;
+  fr.sf_sc.sc_rdx = rp->p_reg.dx;
+  fr.sf_sc.sc_rcx = rp->p_reg.cx;
+  fr.sf_sc.sc_rax = rp->p_reg.retreg;
+  fr.sf_sc.sc_gs = 0;
+  fr.sf_sc.sc_fs = 0;
+  fr.sf_sc.sc_es = 0;
+  fr.sf_sc.sc_ds = 0;
+  fr.sf_sc.sc_rip = rp->p_reg.pc;
+  fr.sf_sc.sc_cs = rp->p_reg.cs;
+  fr.sf_sc.sc_rflags = rp->p_reg.psw;
+  fr.sf_sc.sc_rsp = rp->p_reg.sp;
+  fr.sf_sc.sc_ss = rp->p_reg.ss;
+  fr.sf_fp = rp->p_reg.fp;
+  fr.sf_signum = smsg.sm_signo;
+  new_fp = (reg_t) &frp->sf_fp;
+  fr.sf_scpcopy = fr.sf_scp;
+  fr.sf_ra_sigreturn = smsg.sm_sigreturn;
+  fr.sf_ra = rp->p_reg.pc;
+
+  fr.sf_sc.trap_style = rp->p_seg.p_kern_trap_style;
+
+  if (fr.sf_sc.trap_style == KTS_NONE) {
+	printf("do_sigsend: sigsend an unsaved process\n");
+	return EINVAL;
+  }
+
+  if (proc_used_fpu(rp)) {
+	/* save the FPU context before saving it to the sig context */
+	save_fpu(rp);
+	memcpy(&fr.sf_sc.sc_fpu_state, rp->p_seg.fpu_state, FPU_XFP_SIZE);
+  }
+#endif
+
 #if defined(__arm__)
   fr.sf_sc.sc_spsr = rp->p_reg.psr;
   fr.sf_sc.sc_r0 = rp->p_reg.retreg;
@@ -135,6 +184,8 @@ int do_sigsend(struct proc * caller, message * m_ptr)
   rp->p_reg.pc = (reg_t) smsg.sm_sighandler;
 
 #if defined(__i386__)
+  rp->p_reg.fp = new_fp;
+#elif defined(__x86_64__)
   rp->p_reg.fp = new_fp;
 #elif defined(__arm__)
   /* use the ARM link register to set the return address from the signal

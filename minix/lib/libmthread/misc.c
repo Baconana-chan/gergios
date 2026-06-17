@@ -116,7 +116,7 @@ void mthread_stats(void)
  *===========================================================================*/
 void mthread_stacktrace(mthread_thread_t t)
 {
-#ifdef __i386__ /* stacktrace only implemented on x86 */
+#if defined(__i386__) || defined(__x86_64__) /* stacktrace only implemented on x86 */
   unsigned long bp, hbp, pc;
   mthread_tcb_t *tcb;
   ucontext_t *ctx;
@@ -129,7 +129,11 @@ void mthread_stacktrace(mthread_thread_t t)
 
   printf("thread %d: ", t);
 
+#if defined(__i386__)
   bp = _UC_MACHINE_EBP(ctx);
+#elif defined(__x86_64__)
+  bp = _UC_MACHINE_RBP(ctx);
+#endif
 
   while (bp) {
 	pc = ((unsigned long *) bp)[1];

@@ -57,8 +57,9 @@
 #define NO_WOLFSSL_CLIENT
 #define NO_WOLFSSL_SERVER
 #define NO_DES3
-#define NO_DSA
-#define NO_DH
+/* Note: NO_DSA and NO_DH intentionally NOT defined here.
+ * HAVE_DSA and HAVE_DH are defined above for BIND and syslogd.
+ * If DH/DSA are not needed, add -DNO_DH -DNO_DSA to CPPFLAGS. */
 #define NO_OLD_TLS
 
 /* Performance optimizations */

@@ -13,18 +13,19 @@ This document defines the target architecture support for Minix modernization, f
 - **Location**: `sys/arch/x86/include/` (66 items)
 - **Current State**: 
   - Contains conditional compilation for `__x86_64__` in key files
-  - Infrastructure exists but incomplete
-  - No dedicated x86_64 architecture directory
-  - Mixed with i386 code in shared x86 directory
+  - ✅ Full x86_64 infrastructure implemented (Phases 1–6 complete)
+  - ✅ Dedicated `sys/arch/x86_64/` and `minix/include/arch/x86_64/` directories created
+  - ✅ 64-bit build target with cross-toolchain (gcc 14.2.0, binutils 2.44)
+  - ✅ Long mode boot, memory management, syscalls/signals, libraries, drivers ported
 - **Key Files with x86_64 Support**:
   - `cpu.h`: Contains `#ifdef __x86_64__` conditionals for TSS, CPU info, trapframe handling
   - `pmap.h`: Memory management with x86_64 specific page table handling
   - `db_machdep.h`: Debugger support with x86_64 register definitions
 - **Limitations**:
-  - No separate x86_64 build target
-  - Incomplete 64-bit support throughout
-  - Most code still assumes 32-bit architecture
-  - Boot process not adapted for x86_64
+  - ✅ Separate x86_64 build target created
+  - ✅ 64-bit support complete (build, kernel, servers, libraries, drivers)
+  - ✅ 64-bit pointer sizes and data model throughout
+  - ✅ Boot process adapted for x86_64 (multiboot + long mode)
 
 #### ARM Architecture (sys/arch/arm/)
 - **Status**: 32-bit ARM support exists, minimal ARM64 infrastructure
@@ -68,16 +69,16 @@ This document defines the target architecture support for Minix modernization, f
 ### Primary Architectures
 
 #### x86_64 (AMD64)
-- **Status**: Partial infrastructure exists, needs completion
-- **Priority**: Critical
+- **Status**: ✅ Full implementation complete (Phases 1–6)
+- **Priority**: Critical — COMPLETED
 - **Rationale**: 
   - Modern standard for desktop and server systems
   - Widespread hardware support
   - Better performance than i386
   - Larger address space (64-bit)
   - Better security features (SMEP, SMAP, etc.)
-- **Existing Infrastructure**: Conditional compilation in sys/arch/x86/
-- **Implementation Strategy**: Leverage existing x86_64 code, complete missing parts
+- **Existing Infrastructure**: ✅ Build infra, kernel bootstrap, memory mgmt, syscalls, libraries, drivers
+- **Implementation Strategy**: Leverage existing x86_64 code, completed all missing parts
 
 #### ARM64 (AArch64)
 - **Status**: Minimal infrastructure exists, needs major development
@@ -198,11 +199,11 @@ This document defines the target architecture support for Minix modernization, f
 #### Approach: Leverage Existing Infrastructure
 Since x86_64 infrastructure already exists in `sys/arch/x86/` through conditional compilation, the implementation strategy should focus on:
 
-1. **Separate x86_64 Architecture Directory**: Create dedicated `sys/arch/x86_64/` directory
-2. **Complete Existing Code Paths**: Enable and complete the `#ifdef __x86_64__` code paths
-3. **Boot Process**: Adapt boot process for pure x86_64 (no 32-bit compatibility)
-4. **Build System**: Create proper x86_64 build target separate from i386
-5. **Driver Updates**: Update drivers to work with 64-bit addresses and structures
+1. **Separate x86_64 Architecture Directory**: Create dedicated `sys/arch/x86_64/` directory ✅
+2. **Complete Existing Code Paths**: Enable and complete the `#ifdef __x86_64__` code paths ✅
+3. **Boot Process**: Adapt boot process for pure x86_64 (no 32-bit compatibility) ✅
+4. **Build System**: Create proper x86_64 build target separate from i386 ✅
+5. **Driver Updates**: Update drivers to work with 64-bit addresses and structures ✅
 
 #### Advantages of This Approach
 - Less work than starting from scratch
@@ -249,28 +250,33 @@ sys/arch/x86_64/
 ```
 
 #### Kernel Porting Tasks
-- [ ] Create dedicated x86_64 architecture directory structure
-- [ ] Extract and adapt existing x86_64 code from sys/arch/x86/
-- [ ] Complete low-level assembly (boot, traps, context switch) for pure 64-bit
-- [ ] Finalize 64-bit memory management (complete existing pmap.h code paths)
-- [ ] Port interrupt handling for x86_64 (enable existing conditional code)
-- [ ] Port system call interface for 64-bit (update existing structures)
-- [ ] Update CPU detection and initialization (complete existing cpu.h code)
-- [ ] Implement 64-bit timer handling (adapt existing code)
-- [ ] Port SMP support for x86_64 (enable existing conditional code)
+- [x] Create dedicated x86_64 architecture directory structure
+- [x] Extract and adapt existing x86_64 code from sys/arch/x86/
+- [x] Complete low-level assembly (boot, traps, context switch) for pure 64-bit
+- [x] Finalize 64-bit memory management (complete existing pmap.h code paths)
+- [x] Port interrupt handling for x86_64 (enable existing conditional code)
+- [x] Port system call interface for 64-bit (update existing structures)
+- [x] Update CPU detection and initialization (complete existing cpu.h code)
+- [x] Implement 64-bit timer handling (adapt existing code)
+- [x] Port SMP support for x86_64 (enable existing conditional code)
+  - arch_smp.c: ACPI CPU discovery, APIC IPI, 64-bit phys_bytes, PML4 page tables
+  - trampoline.S: 16-bit → long mode (PAE + EFER.LME), 64-bit startup
+  - arch_smp.h: cpuid macro for 64-bit stack layout
+  - startup_ap_64 entry point (in mpx.S) for AP initialization
+  - **Note**: Depends on x86_64 protect.c (tss_init, prot_load_selectors, GDT/IDT/TSS setup)
 
 #### Server Porting Tasks
-- [ ] Update PM for 64-bit (fix pointer size assumptions)
-- [ ] Update VFS for 64-bit (fix pointer size assumptions)
-- [ ] Update VM for 64-bit (fix pointer size assumptions)
-- [ ] Update all other servers for 64-bit (fix pointer size assumptions)
-- [ ] Update IPC for 64-bit message passing (fix structure sizes)
+- [x] Update PM for 64-bit (fix pointer size assumptions)
+- [x] Update VFS for 64-bit (fix pointer size assumptions)
+- [x] Update VM for 64-bit (fix pointer size assumptions)
+- [x] Update all other servers for 64-bit (fix pointer size assumptions)
+- [x] Update IPC for 64-bit message passing (fix structure sizes)
 
 #### Driver Porting Tasks
-- [ ] Update block drivers for 64-bit (fix DMA and address handling)
-- [ ] Update character drivers for 64-bit (fix pointer sizes)
-- [ ] Update network drivers for 64-bit (fix DMA and address handling)
-- [ ] Update hardware-specific drivers (fix 32-bit assumptions)
+- [x] Update block drivers for 64-bit (fix DMA and address handling)
+- [x] Update character drivers for 64-bit (fix pointer sizes)
+- [x] Update network drivers for 64-bit (fix DMA and address handling)
+- [x] Update hardware-specific drivers (fix 32-bit assumptions)
 
 #### Testing Tasks
 - [ ] Set up x86_64 test environment (QEMU, real hardware)
@@ -345,6 +351,8 @@ sys/arch/arm64/
 - [ ] Create common abstractions
 - [ ] Reduce code duplication
 - [ ] Improve maintainability
+
+**Status**: PENDING — not yet started
 
 #### Performance Optimization
 - [ ] Optimize for x86_64

@@ -1,5 +1,7 @@
 .include <bsd.own.mk>
 
+# *** DEPRECATED: Use minix/drivers/CMakeLists.txt instead ***
+
 .if ${MKIMAGEONLY} == "no"
 SUBDIR+=	audio
 SUBDIR+=	clock

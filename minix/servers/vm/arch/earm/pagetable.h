@@ -7,6 +7,9 @@
 
 #include "vm.h"
 
+/* 32-bit page table entry type for ARM */
+typedef u32_t pt_entry_t;
+
 /* Mapping flags. */
 #define PTF_WRITE	ARM_VM_PTE_RW
 #define PTF_READ	ARM_VM_PTE_RO

@@ -156,6 +156,20 @@ int do_trace(struct proc * caller, message * m_ptr)
 		SETPSW(rp, tr_data);
 	else
 		*(reg_t *) ((char *) &rp->p_reg + i) = (reg_t) tr_data;
+#elif defined(__x86_64__)
+	/* In x86_64 long mode, CS and SS are the only critical segment
+	 * registers. DS, ES, FS, GS are mostly flat/unused for user code.
+	 * Protect CS and SS from modification.
+	 */
+	if (i == (int) &((struct proc *) 0)->p_reg.cs ||
+	    i == (int) &((struct proc *) 0)->p_reg.ss)
+		return(EFAULT);
+
+	if (i == (int) &((struct proc *) 0)->p_reg.psw)
+		/* only selected bits are changeable */
+		SETPSW(rp, tr_data);
+	else
+		*(reg_t *) ((char *) &rp->p_reg + i) = (reg_t) tr_data;
 #elif defined(__arm__)
 	if (i == (int) &((struct proc *) 0)->p_reg.psr) {
 		/* only selected bits are changeable */

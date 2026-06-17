@@ -29,6 +29,10 @@ CPPFLAGS+= -DKRB5
 .if ${USE_PAM} != "no" && ${MKCRYPTO} != "no"
 SRCS+=	sra.c pk.c
 CPPFLAGS+= -DSRA
+# wolfSSL migration: include paths for wolfSSL OpenSSL compatibility layer
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .endif
 
 .for f in auth enc_des kerberos5 pk

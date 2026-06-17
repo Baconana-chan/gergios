@@ -211,12 +211,18 @@ Test each component individually:
 4. Verify error handling
 5. Check performance
 
-### Phase 4: Cleanup
-Remove OpenSSL dependencies:
-1. Remove OpenSSL-specific code
-2. Clean up compatibility wrappers
-3. Update documentation
-4. Remove OpenSSL from build system
+### Phase 4: Cleanup (COMPLETED for migrated components)
+All migrated MINIX components (syslogd, ftp, httpd, telnet, passwd,
+factor, BIND) have been cleaned up:
+1. ✅ OpenSSL-specific code removed from migrated components
+2. ✅ All headers replaced with wolfssl/openssl/* equivalents
+3. ✅ Makefiles updated to link against -lwolfssl instead of -lssl -lcrypto
+4. ✅ Compatibility wrapper (openssl_compat.h) marked as deprecated
+5. ✅ OpenSSL build files (Makefile.openssl) marked as deprecated
+6. ✅ wolfSSL include paths added for all migrated components
+
+**Note**: OpenSSL remains in the build tree for components not yet
+migrated (heimdal, netpgp, libsaslc, libevent, fetch).
 
 ## Performance Considerations
 

@@ -12,8 +12,12 @@ CPPFLAGS+=-I${PRIMES}
 
 .if (${MKCRYPTO} != "no")
 CPPFLAGS+=-DHAVE_OPENSSL
-LDADD+=	-lcrypto -lcrypt
-DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
+# wolfSSL migration: replace OpenSSL with wolfSSL
+LDADD+=	-lwolfssl -lcrypt
+DPADD+=	${LIBWOLFSSL} ${LIBCRYPT}
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .endif
 
 MAN=	factor.6

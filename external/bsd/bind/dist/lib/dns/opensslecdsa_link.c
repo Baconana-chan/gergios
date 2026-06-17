@@ -37,10 +37,11 @@
 #include "dst_openssl.h"
 #include "dst_parse.h"
 
-#include <openssl/err.h>
-#include <openssl/objects.h>
-#include <openssl/ecdsa.h>
-#include <openssl/bn.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/err.h>
+#include <wolfssl/openssl/objects.h>
+#include <wolfssl/openssl/ecdsa.h>
+#include <wolfssl/openssl/bn.h>
 
 #ifndef NID_X9_62_prime256v1
 #error "P-256 group is not known (NID_X9_62_prime256v1)"

@@ -30,8 +30,12 @@ BINMODE=4555
 CPPFLAGS+= -DKERBEROS5
 SRCS+=	krb5_passwd.c
 
-DPADD+=	${LIBKRB5} ${LIBCRYPTO} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN} ${LIBCRYPT}
-LDADD+=	-lkrb5 -lcrypto -lasn1 -lcom_err -lroken -lcrypt
+# wolfSSL migration: replace OpenSSL with wolfSSL
+DPADD+=	${LIBKRB5} ${LIBWOLFSSL} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN} ${LIBCRYPT}
+LDADD+=	-lkrb5 -lwolfssl -lasn1 -lcom_err -lroken -lcrypt
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .ifdef OVERRIDE_HEIMDAL_KPASSWD
 LINKS+=	${BINDIR}/passwd ${BINDIR}/kpasswd
 MAN+=	kpasswd.1

@@ -33,7 +33,7 @@ int do_getmcontext(struct proc * caller, message * m_ptr)
   if (iskerneln(proc_nr)) return(EPERM);
   rp = proc_addr(proc_nr);
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   if (!proc_used_fpu(rp))
 	return(OK);	/* No state to copy */
 #endif
@@ -45,7 +45,7 @@ int do_getmcontext(struct proc * caller, message * m_ptr)
 	return(r);
 
   mc.mc_flags = 0;
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   /* Copy FPU state */
   if (proc_used_fpu(rp)) {
 	/* make sure that the FPU context is saved into proc structure first */
@@ -88,7 +88,7 @@ int do_setmcontext(struct proc * caller, message * m_ptr)
 		(vir_bytes) &mc, (phys_bytes) sizeof(mcontext_t))) != OK)
 	return(r);
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   /* Copy FPU state */
   if (mc.mc_flags & _MC_FPU_SAVED) {
 	rp->p_misc_flags |= MF_FPU_INITIALIZED;

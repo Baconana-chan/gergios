@@ -51,7 +51,8 @@
 #include "dst_openssl.h"
 #include "dst_parse.h"
 
-#include <openssl/dsa.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/dsa.h>
 
 static isc_result_t openssldsa_todns(const dst_key_t *key, isc_buffer_t *data);
 

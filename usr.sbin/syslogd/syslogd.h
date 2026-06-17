@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Martin Schütte.
+ * by Martin SchÃ¼tte.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -91,7 +91,7 @@
 
 #ifndef DISABLE_TLS
 #include <netinet/tcp.h>
-#include <openssl/ssl.h>
+#include <wolfssl/openssl/ssl.h>
 #endif /* !DISABLE_TLS */
 
 #include <sys/stdint.h>

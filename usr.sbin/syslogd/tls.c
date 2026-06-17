@@ -5,7 +5,7 @@
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Martin Schütte.
+ * by Martin SchÃ¼tte.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,7 +41,7 @@
  * implements the TLS init and handshake callbacks with all required
  * checks from http://tools.ietf.org/html/draft-ietf-syslog-transport-tls-13
  *
- * Martin Schütte
+ * Martin SchÃ¼tte
  */
 
 #include <sys/cdefs.h>
@@ -85,9 +85,7 @@ static const char *TLS_CONN_STATES[] = {
 
 DH *get_dh1024(void);
 /* DH parameter precomputed with "openssl dhparam -C -2 1024" */
-#ifndef HEADER_DH_H
-#include <openssl/dh.h>
-#endif
+/* wolfSSL: Use DH_set0_pqg to set DH parameters */
 DH *
 get_dh1024(void)
 {
@@ -105,15 +103,27 @@ get_dh1024(void)
 		0x88,0xEC,0xA6,0xBA,0x9F,0x4F,0x85,0x43 };
 	static const unsigned char dh1024_g[]={ 0x02 };
 	DH *dh;
+	BIGNUM *bn_p, *bn_g;
 
 	if ((dh=DH_new()) == NULL)
 		return NULL;
-	dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
-	dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
-	if ((dh->p == NULL) || (dh->g == NULL)) {
+	bn_p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
+	bn_g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
+	if ((bn_p == NULL) || (bn_g == NULL)) {
+		BN_free(bn_p);
+		BN_free(bn_g);
 		DH_free(dh);
 		return NULL;
 	}
+	/* wolfSSL: use DH_set0_pqg to set DH parameters (p, q, g).
+	 * q is set to NULL for compatibility. */
+	if (DH_set0_pqg(dh, bn_p, NULL, bn_g) != 1) {
+		BN_free(bn_p);
+		BN_free(bn_g);
+		DH_free(dh);
+		return NULL;
+	}
+	/* DH_set0_pqg takes ownership of bn_p and bn_g on success */
 	return dh;
 }
 
@@ -699,13 +709,14 @@ check_peer_cert(int preverify_ok, X509_STORE_CTX *ctx)
 	    (conn_info->accepted ? ", cb was already called" : ""));
 
 	if (Debug && !preverify_ok) {
+		cur_cert = X509_STORE_CTX_get_current_cert(ctx);
 		DPRINTF(D_TLS, "openssl verify error:"
 		    "num=%d:%s:depth=%d:%s\t\n", cur_err,
 		    X509_verify_cert_error_string(cur_err),
 		    cur_depth, cur_subjectline);
 		if (cur_err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) {
 			X509_NAME_oneline(
-			    X509_get_issuer_name(ctx->current_cert),
+			    X509_get_issuer_name(cur_cert),
 			    cur_issuerline, sizeof(cur_issuerline));
 			DPRINTF(D_TLS, "openssl verify error:missing "
 			    "cert for issuer=%s\n", cur_issuerline);
@@ -1986,8 +1997,9 @@ write_x509files(EVP_PKEY *pkey, X509 *cert,
 	}
 	if (!PEM_write_PrivateKey(keyfile, pkey, NULL, NULL, 0, NULL, NULL))
 		logerror("Unable to write key to \"%s\"", keyfilename);
-	if (!X509_print_fp(certfile, cert)
-	    || !PEM_write_X509(certfile, cert))
+	/* Use PEM_write_X509 for certificate output (X509_print_fp may not be
+	 * available in wolfSSL). The text representation is informative only. */
+	if (!PEM_write_X509(certfile, cert))
 		logerror("Unable to write certificate to \"%s\"",
 		    certfilename);
 

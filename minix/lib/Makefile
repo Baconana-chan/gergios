@@ -1,5 +1,7 @@
 .include <bsd.own.mk>
 
+# *** DEPRECATED: Use minix/lib/CMakeLists.txt instead ***
+
 SUBDIR+=	libsys
 SUBDIR+=	libmthread
 SUBDIR+=	.WAIT

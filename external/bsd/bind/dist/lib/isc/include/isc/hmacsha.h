@@ -39,7 +39,7 @@
 #define ISC_HMACSHA512_KEYLENGTH ISC_SHA512_BLOCK_LENGTH
 
 #ifdef ISC_PLATFORM_OPENSSLHASH
-#include <openssl/hmac.h>
+#include <wolfssl/openssl/hmac.h>
 
 typedef HMAC_CTX isc_hmacsha1_t;
 typedef HMAC_CTX isc_hmacsha224_t;

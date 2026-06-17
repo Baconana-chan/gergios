@@ -1,4 +1,6 @@
 # Makefile for kernel
+# *** DEPRECATED: Use minix/kernel/CMakeLists.txt instead ***
+# CMake build: cmake --build build --target kernel
 .include <bsd.own.mk>
 
 PROG=		kernel

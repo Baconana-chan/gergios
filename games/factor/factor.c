@@ -73,7 +73,8 @@ __RCSID("$NetBSD: factor.c,v 1.27 2014/10/02 21:36:37 ast Exp $");
 #include <inttypes.h>
 
 #ifdef HAVE_OPENSSL
-#include <openssl/bn.h>
+/* wolfSSL OpenSSL compatibility layer for BN operations */
+#include <wolfssl/openssl/bn.h>
 #else
 typedef long	BIGNUM;
 typedef u_long	BN_ULONG;

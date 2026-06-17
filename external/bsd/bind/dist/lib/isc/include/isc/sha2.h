@@ -81,7 +81,7 @@
 /*** SHA-256/384/512 Context Structures *******************************/
 
 #ifdef ISC_PLATFORM_OPENSSLHASH
-#include <openssl/evp.h>
+#include <wolfssl/openssl/evp.h>
 
 typedef EVP_MD_CTX isc_sha256_t;
 typedef EVP_MD_CTX isc_sha512_t;

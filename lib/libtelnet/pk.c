@@ -49,7 +49,8 @@ __RCSID("$NetBSD: pk.c,v 1.4 2005/02/19 22:55:35 christos Exp $");
 
 #include <sys/time.h>
 #include <des.h>
-#include <openssl/bn.h>
+/* wolfSSL OpenSSL compatibility layer for BN operations */
+#include <wolfssl/openssl/bn.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

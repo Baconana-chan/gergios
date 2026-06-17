@@ -47,11 +47,12 @@ __RCSID("$NetBSD: ssl.c,v 1.5 2015/09/16 15:32:53 joerg Exp $");
 
 #include <netinet/tcp.h>
 #include <netinet/in.h>
-#include <openssl/crypto.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/crypto.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
 
 #include "ssl.h"
 

@@ -9,6 +9,10 @@ SUBDIR+=bf bn cast conf des dh dsa ec ecdh ecdsa engine evp hmac lhash \
 	md2 md4 md5 rand rc2 rc4 ripemd rsa sha sha1 srp x509v3
 
 SUBDIR+=idea mdc2
+SUBDIR+=wolfssl_migrate
+SUBDIR+=wolfssl_security
+SUBDIR+=wolfssl_perf
+SUBDIR+=wolfssl_compat
 
 .if ${MKCRYPTO_RC5} != "no"
 SUBDIR+=rc5
@@ -21,6 +25,10 @@ TESTS_SH+=	t_ciphers
 TESTS_SH+=	t_hashes
 TESTS_SH+=	t_libcrypto
 TESTS_SH+=	t_pubkey
+TESTS_SH+=	t_wolfssl
+TESTS_SH+=	t_security
+TESTS_SH+=	t_perf
+TESTS_SH+=	t_compat
 
 .include <bsd.test.mk>
 

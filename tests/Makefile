@@ -23,6 +23,10 @@ TESTS_SUBDIRS+=		modules
 TESTS_SUBDIRS+=		crypto
 . endif
 
+. if ${MKCRYPTO} != "no"
+TESTS_SUBDIRS+=		integration
+. endif
+
 . if ${MKIPFILTER} != "no"
 TESTS_SUBDIRS+=		ipf
 . endif

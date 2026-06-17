@@ -39,7 +39,7 @@
 #include <isc/util.h>
 
 #ifdef OPENSSL_LEAKS
-#include <openssl/err.h>
+#include <wolfssl/openssl/err.h>
 #endif
 
 /* See task.c about the following definition: */
@@ -823,7 +823,8 @@ run(void *uap) {
 	UNLOCK(&manager->lock);
 
 #ifdef OPENSSL_LEAKS
-	ERR_remove_state(0);
+	/* wolfSSL: ERR_remove_state() may not be available */
+	ERR_clear_error();
 #endif
 
 	return ((isc_threadresult_t)0);

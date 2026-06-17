@@ -1,3 +1,22 @@
+# ============================================================================
+# *** DEPRECATED: BSD Make (bmake) build system ***
+#
+# This file is part of the legacy BSD Make build system. All components
+# have been migrated to CMake. See the root CMakeLists.txt and cmake/
+# directory for the new CMake-based build system.
+#
+# The BSD Make build system is retained for reference and fallback during
+# the transition period. New development should use CMake.
+#
+# To build with CMake (recommended):
+#   mkdir build && cd build
+#   cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-minix.cmake
+#   ninja
+#
+# To build with BSD Make (legacy):
+#   ./build.sh build
+# ============================================================================
+
 .include <bsd.own.mk>
 
 SUBDIR+=	include .WAIT

@@ -36,6 +36,8 @@ struct utsname uts_val = {
   OS_VERSION,		/* O.S. version (e.g. Minix 3.3.0 (GENERIC)) */
 #if defined(__i386__)
   "i386",		/* machine (cpu) type */
+#elif defined(__x86_64__)
+  "x86_64",		/* machine (cpu) type */
 #elif defined(__arm__)
   "evbarm",		/* machine (cpu) type */
 #else
@@ -46,6 +48,8 @@ struct utsname uts_val = {
 static char *uts_tbl[] = {
 #if defined(__i386__)
   "i386",		/* architecture */
+#elif defined(__x86_64__)
+  "x86_64",		/* architecture */
 #elif defined(__arm__)
   "evbarm",		/* architecture */
 #endif

@@ -34,27 +34,27 @@ This document outlines the timeline and process for deprecating i386 (32-bit x86
 #### Preparation
 - [ ] Assess i386 user base
 - [ ] Identify critical i386 dependencies
-- [ ] Create migration guide for users
+- [x] Create migration guide for users
 - [ ] Set up migration support channels
 - [ ] Prepare FAQ for deprecation questions
 
 #### Documentation
-- [ ] Document i386 deprecation
-- [ ] Create migration guide
-- [ ] Document x86_64/ARM64 benefits
-- [ ] Provide hardware upgrade recommendations
+- [x] Document i386 deprecation
+- [x] Create migration guide
+- [x] Document x86_64/ARM64 benefits
+- [x] Provide hardware upgrade recommendations
 - [ ] Create troubleshooting guide
 
-**Status**: i386 still supported, deprecation announced
+**Status**: i386 still supported, deprecation announced, x86_64 migration infrastructure in progress
 
 ### Phase 2: Soft Deprecation
 
 #### Build System Changes
-- [ ] Add deprecation warnings to i386 builds
+- [x] Add deprecation warnings to i386 builds
 - [ ] Make x86_64 the default build target
 - [ ] Update CI/CD to prioritize x86_64
 - [ ] Reduce i386 test coverage
-- [ ] Mark i386 as deprecated in documentation
+- [x] Mark i386 as deprecated in documentation
 
 #### Feature Changes
 - [ ] No new features for i386
@@ -70,7 +70,7 @@ This document outlines the timeline and process for deprecating i386 (32-bit x86
 - [ ] Feedback collection
 - [ ] Timeline reminders
 
-**Status**: i386 supported but deprecated, warnings in place
+**Status**: i386 supported but deprecated, deprecation warnings in build scripts
 
 ### Phase 3: Hard Deprecation
 

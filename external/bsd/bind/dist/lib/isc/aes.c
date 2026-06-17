@@ -32,7 +32,7 @@
 #ifdef ISC_PLATFORM_WANTAES
 #if HAVE_OPENSSL_EVP_AES
 
-#include <openssl/evp.h>
+#include <wolfssl/openssl/evp.h>
 
 void
 isc_aes128_crypt(const unsigned char *key, const unsigned char *in,
