@@ -10,7 +10,7 @@
 
 #define PATH_DEV_FBD	"/dev/fbd"
 
-static void __dead
+static _Noreturn void
 usage(void)
 {
 

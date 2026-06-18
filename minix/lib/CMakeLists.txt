@@ -47,13 +47,7 @@ endif()
 # Architecture-specific libraries
 # ============================================================================
 
-if(MACHINE_ARCH STREQUAL "i386")
-    add_subdirectory(libacpi)
-    add_subdirectory(libhgfs)
-    add_subdirectory(libvassert)
-    add_subdirectory(libvboxfs)
-    add_subdirectory(libvirtio)
-elseif(MACHINE_ARCH STREQUAL "earm")
+if(MACHINE_ARCH STREQUAL "earm")
     add_subdirectory(libclkconf)
     add_subdirectory(libgpio)
     add_subdirectory(libi2cdriver)

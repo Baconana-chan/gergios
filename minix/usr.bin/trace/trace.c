@@ -441,7 +441,7 @@ detach_running(int force)
 /*
  * Print command usage.
  */
-static void __dead
+static _Noreturn void
 usage(void)
 {
 

@@ -186,7 +186,7 @@ bdev_read(dev_t dev, u64_t pos, char *data, size_t count, int flags)
 
 /* Fake some libsys functions */
 
-__dead void
+_Noreturn void
 panic(const char *fmt, ...)
 {
 	va_list va;

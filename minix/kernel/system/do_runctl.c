@@ -24,7 +24,7 @@ int do_runctl(struct proc * caller, message * m_ptr)
  * sending (ending the delay). Used by PM for safe signal delivery.
  */
   int proc_nr, action, flags;
-  register struct proc *rp;
+  struct proc *rp;
 
   /* Extract the message parameters and do sanity checking. */
   if (!isokendpt(m_ptr->RC_ENDPT, &proc_nr)) return(EINVAL);

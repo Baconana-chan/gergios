@@ -36,7 +36,7 @@ static void check_parent(struct mproc *child, int try_cleanup);
 static int tell_parent(struct mproc *child, vir_bytes addr);
 static void tell_tracer(struct mproc *child);
 static void tracer_died(struct mproc *child);
-static void cleanup(register struct mproc *rmp);
+static void cleanup(struct mproc *rmp);
 
 /*===========================================================================*
  *				do_fork					     *
@@ -45,8 +45,8 @@ int
 do_fork(void)
 {
 /* The process pointed to by 'mp' has forked.  Create a child process. */
-  register struct mproc *rmp;	/* pointer to parent */
-  register struct mproc *rmc;	/* pointer to child */
+  struct mproc *rmp;	/* pointer to parent */
+  struct mproc *rmc;	/* pointer to child */
   pid_t new_pid;
   static unsigned int next_child = 0;
   int i, n = 0, s;
@@ -146,8 +146,8 @@ int
 do_srv_fork(void)
 {
 /* The process pointed to by 'mp' has forked.  Create a child process. */
-  register struct mproc *rmp;	/* pointer to parent */
-  register struct mproc *rmc;	/* pointer to child */
+  struct mproc *rmp;	/* pointer to parent */
+  struct mproc *rmc;	/* pointer to child */
   int s;
   pid_t new_pid;
   static unsigned int next_child = 0;
@@ -266,7 +266,7 @@ do_exit(void)
  *===========================================================================*/
 void
 exit_proc(
-	register struct mproc *rmp,	/* pointer to the process to be terminated */
+	struct mproc *rmp,	/* pointer to the process to be terminated */
 	int exit_status,		/* the process' exit status (for parent) */
 	int dump_core			/* flag indicating whether to dump core */
 )
@@ -275,7 +275,7 @@ exit_proc(
  * parent is waiting, release the rest, else keep the process slot and
  * become a zombie.
  */
-  register int proc_nr, proc_nr_e;
+  int proc_nr, proc_nr_e;
   int r;
   pid_t procgrp;
   clock_t user_time, sys_time;
@@ -482,7 +482,7 @@ do_wait4(void)
  * If a child has already exited, the routine tell_parent() sends the reply
  * to awaken the caller.
  */
-  register struct mproc *rp;
+  struct mproc *rp;
   vir_bytes addr;
   int i, pidarg, options, children, waited_for;
 
@@ -794,7 +794,7 @@ tracer_died(
  *===========================================================================*/
 static void
 cleanup(
-	register struct mproc *rmp	/* tells which process is exiting */
+	struct mproc *rmp	/* tells which process is exiting */
 )
 {
   /* Release the process table entry and reinitialize some field. */

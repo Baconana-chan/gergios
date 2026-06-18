@@ -4,28 +4,7 @@
 # Replicates minix/lib/libsys/Makefile
 
 # Architecture-specific sources
-if(MACHINE_ARCH STREQUAL "i386")
-    set(LIBSYS_ARCH_SOURCES
-        arch/i386/get_randomness.c
-        arch/i386/getidle.c
-        arch/i386/ser_putc.c
-        arch/i386/spin.c
-        arch/i386/sys_eniop.c
-        arch/i386/sys_in.c
-        arch/i386/sys_out.c
-        arch/i386/sys_readbios.c
-        arch/i386/sys_sdevio.c
-        arch/i386/sys_umap_remote.c
-        arch/i386/sys_vinb.c
-        arch/i386/sys_vinl.c
-        arch/i386/sys_vinw.c
-        arch/i386/sys_voutb.c
-        arch/i386/sys_voutl.c
-        arch/i386/sys_voutw.c
-        arch/i386/tsc_util.c
-        arch/i386/vbox.c
-    )
-elseif(MACHINE_ARCH STREQUAL "earm")
+if(MACHINE_ARCH STREQUAL "earm")
     set(LIBSYS_ARCH_SOURCES
         arch/earm/frclock_util.c
         arch/earm/spin.c

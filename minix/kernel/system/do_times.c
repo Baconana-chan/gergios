@@ -22,7 +22,7 @@
 int do_times(struct proc * caller, message * m_ptr)
 {
 /* Handle sys_times().  Retrieve the accounting information. */
-  register const struct proc *rp;
+  const struct proc *rp;
   int proc_nr;
   endpoint_t e_proc_nr;
 

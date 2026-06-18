@@ -1,8 +1,6 @@
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=	acpi
-.endif # ${MACHINE_ARCH} == "i386"
+# NOTE: i386-specific power driver (acpi) removed in Phase 4 i386 deprecation.
 
 .if ${MACHINE_ARCH} == "earm"
 SUBDIR+=	tps65217

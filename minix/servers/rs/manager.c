@@ -41,8 +41,8 @@ endpoint_t endpoint;
 struct rproc *target_rp;
 {
   int control_allowed = 0;
-  register struct rproc *rp;
-  register struct rprocpub *rpub;
+  struct rproc *rp;
+  struct rprocpub *rpub;
   char *proc_name;
   int c;
 

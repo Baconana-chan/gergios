@@ -1,0 +1,54 @@
+# Fuzz — cargo-fuzz targets for Rust-C FFI boundaries
+#
+# This directory contains fuzz targets for the GergiOS Rust components.
+# Fuzz testing uses cargo-fuzz (libFuzzer-based) to find panics, crashes,
+# and memory safety issues at FFI boundaries.
+#
+# Requirements:
+#   - Nightly Rust toolchain
+#   - Unix-like OS (Linux/macOS — NOT supported on Windows)
+#   - C++ compiler with C++11 support
+#
+# Setup:
+#   cargo install cargo-fuzz
+#
+# Running:
+#   cargo +nightly fuzz run <target_name>
+#
+# Available targets:
+#   fuzz_minixrs_message  — Fuzz Message struct parse/validation
+#   fuzz_audiobuf_ringpos — Fuzz RingPos buffer operations
+#   fuzz_procfspath_pid   — Fuzz PID parsing
+#   fuzz_netparse_tcp     — Fuzz TCP header parsing
+#   fuzz_netparse_udp     — Fuzz UDP header parsing
+#   fuzz_netparse_dns     — Fuzz DNS header parsing
+
+[package]
+name = "gergios-fuzz"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.5"
+
+[dependencies.minix-rs]
+path = "../minix-rs"
+
+[dependencies.audio-buf]
+path = "../audio-buf"
+
+[dependencies.procfs-path]
+path = "../procfs-path"
+
+[dependencies.net-parse]
+path = "../net-parse"
+
+# Prevent compiler from optimizing away panics
+# (we want to catch them in the fuzzer)
+[profile.release]
+panic = "abort"
+debug = 1

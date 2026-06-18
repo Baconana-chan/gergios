@@ -20,7 +20,7 @@
  */
 #define MAXDESCLEN	1024	/* from NetBSD */
 #define SCRATCH_SIZE	MAX(PAGE_SIZE, sizeof(struct sysctldesc) + MAXDESCLEN)
-static char scratch[SCRATCH_SIZE] __aligned(sizeof(int32_t));
+_Alignas(sizeof(int32_t)) static char scratch[SCRATCH_SIZE];
 
 unsigned int mib_nodes;		/* how many nodes are there in the tree? */
 unsigned int mib_objects;	/* how many memory objects are allocated? */

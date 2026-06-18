@@ -27,8 +27,8 @@ CPPFLAGS+=-DKERBEROS5
 DPADD+=	${LIBKRB5} ${LIBASN1}
 LDADD+= -lkrb5 -lasn1
 
-DPADD+=	${LIBCRYPTO} ${LIBROKEN} ${LIBCOM_ERR}
-LDADD+=	-lcrypto -lroken -lcom_err
+DPADD+=	${LIBHCRYPTO} ${LIBROKEN} ${LIBCOM_ERR}
+LDADD+=	-lhcrypto -lroken -lcom_err
 .endif
 
 .if (${USE_SKEY} != "no")

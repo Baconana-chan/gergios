@@ -31,12 +31,13 @@
 
 /* header file to define the sizes for various digest arrays */
 
+/* wolfSSL migration: replace OpenSSL with wolfSSL */
 #ifdef HAVE_OPENSSL_MD5_H
-#include <openssl/md5.h>
+#include <wolfssl/openssl/md5.h>
 #endif
 
 #ifdef HAVE_OPENSSL_SHA_H
-#include <openssl/sha.h>
+#include <wolfssl/openssl/sha.h>
 #endif
 
 /* Apple */

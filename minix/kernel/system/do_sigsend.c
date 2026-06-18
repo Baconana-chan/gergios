@@ -21,7 +21,7 @@ int do_sigsend(struct proc * caller, message * m_ptr)
 /* Handle sys_sigsend, POSIX-style signal handling. */
 
   struct sigmsg smsg;
-  register struct proc *rp;
+  struct proc *rp;
   struct sigframe_sigcontext fr, *frp;
   int proc_nr, r;
 #if defined(__i386__)

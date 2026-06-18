@@ -134,23 +134,14 @@ set(LIBMINC_LIBC_TIME_SOURCES
 )
 
 # Architecture-specific sources (from minix/lib/libc/arch/${MACHINE_CPU})
-if(MACHINE_CPU STREQUAL "i386")
-    set(LIBMINC_ARCH_SOURCES
-        ${LIBMINIXCDIR}/arch/i386/sys/brksize.S
-        ${LIBMINIXCDIR}/arch/i386/sys/_do_kernel_call_intr.S
-        ${LIBMINIXCDIR}/arch/i386/sys/ipc_minix_kerninfo.S
-        ${LIBMINIXCDIR}/arch/i386/sys/_ipc.S
-        ${LIBMINIXCDIR}/arch/i386/sys/ucontext.S
-    )
-else()
-    set(LIBMINC_ARCH_SOURCES
-        ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/brksize.S
-        ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/_do_kernel_call_intr.S
-        ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/ipc_minix_kerninfo.S
-        ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/_ipc.S
-        ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/ucontext.S
-    )
-endif()
+# NOTE: i386-specific arch sources removed in Phase 4 i386 deprecation.
+set(LIBMINC_ARCH_SOURCES
+    ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/brksize.S
+    ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/_do_kernel_call_intr.S
+    ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/ipc_minix_kerninfo.S
+    ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/_ipc.S
+    ${LIBMINIXCDIR}/arch/${MACHINE_CPU}/sys/ucontext.S
+)
 
 # MINIX syscall wrappers (from minix/lib/libc/sys)
 set(LIBMINC_MINIX_SYS_SOURCES

@@ -13,7 +13,7 @@ LIB=		heimntlm
 
 LIBDPLIBS+=	asn1	${.CURDIR}/../libasn1 \
 		com_err	${.CURDIR}/../libcom_err \
-		crypto	${SSLBASE}/lib/libcrypto \
+		hcrypto	${HEIMBASE}/lib/libhcrypto \
 		krb5	${.CURDIR}/../libkrb5 \
 		roken	${.CURDIR}/../libroken
 

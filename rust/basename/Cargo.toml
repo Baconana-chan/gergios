@@ -1,0 +1,7 @@
+[package]
+name = "basename"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX basename utility — strip directory and suffix from filenames"
+
+[dependencies]

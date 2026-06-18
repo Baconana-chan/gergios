@@ -642,7 +642,10 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_OPENPTY 1
 
 /* define to use openssl's libcrypto */
-#define HAVE_OPENSSL 1
+/* #undef HAVE_OPENSSL */
+
+/* Use heimdal's own libhcrypto instead of OpenSSL */
+#define HAVE_HCRYPTO 1
 
 /* Define to enable basic OSF C2 support. */
 /* #undef HAVE_OSFC2 */

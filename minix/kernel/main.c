@@ -116,8 +116,8 @@ void kmain(kinfo_t *local_cbi)
 {
 /* Start the ball rolling. */
   struct boot_image *ip;	/* boot image pointer */
-  register struct proc *rp;	/* process pointer */
-  register int i, j;
+  struct proc *rp;		/* process pointer */
+  int i, j;
   static int bss_test;
 
   /* bss sanity check */
@@ -405,7 +405,7 @@ void cstart(void)
 /* Perform system initializations prior to calling main(). Most settings are
  * determined with help of the environment strings passed by MINIX' loader.
  */
-  register char *value;				/* value in key=value pair */
+  char *value;				/* value in key=value pair */
 
   /* low-level initialization */
   prot_init();
@@ -486,8 +486,8 @@ char *get_value(
 /* Get environment value - kernel version of getenv to avoid setting up the
  * usual environment array.
  */
-  register const char *namep;
-  register char *envp;
+  const char *namep;
+  char *envp;
 
   for (envp = (char *) params; *envp != 0;) {
 	for (namep = name; *namep != 0 && *namep == *envp; namep++, envp++)

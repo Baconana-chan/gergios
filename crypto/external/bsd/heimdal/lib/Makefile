@@ -6,6 +6,7 @@ HEIMBASE=${.CURDIR}/..
 
 .if (${MKKERBEROS} != "no")
 SUBDIR = \
+	libhcrypto	\
 	libheimbase	\
 	libcom_err	\
 	libroken	\

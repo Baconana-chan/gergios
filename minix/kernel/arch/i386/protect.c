@@ -22,8 +22,8 @@
 char *video_mem = (char *) MULTIBOOT_VIDEO_BUFFER;
 
 /* Storage for gdt, idt and tss. */
-struct segdesc_s gdt[GDT_SIZE] __aligned(DESC_SIZE);
-struct gatedesc_s idt[IDT_SIZE] __aligned(DESC_SIZE);
+_Alignas(DESC_SIZE) struct segdesc_s gdt[GDT_SIZE];
+_Alignas(DESC_SIZE) struct gatedesc_s idt[IDT_SIZE];
 struct tss_s tss[CONFIG_MAX_CPUS];
 
 u32_t k_percpu_stacks[CONFIG_MAX_CPUS];

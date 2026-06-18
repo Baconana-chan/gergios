@@ -42,7 +42,7 @@ int op;				/* special actions */
   int scale, ind_ex = 0, new_ind, new_dbl, 
         zones, nr_indirects, single, zindex, ex;
   zone_t z, z1, z2 = NO_ZONE, old_zone;
-  register block_t b;
+  block_t b;
   long excess, zone;
   struct buf *bp_dindir = NULL, *bp = NULL;
 
@@ -231,7 +231,7 @@ struct super_block *sb;		/* superblock of device block resides on */
  *				clear_zone				     *
  *===========================================================================*/
 void clear_zone(rip, pos, flag)
-register struct inode *rip;	/* inode to clear */
+struct inode *rip;	/* inode to clear */
 off_t __unused pos;		/* points to block to clear */
 int __unused flag;		/* 1 if called by new_block, 0 otherwise */
 {
@@ -252,7 +252,7 @@ int __unused flag;		/* 1 if called by new_block, 0 otherwise */
  *				new_block				     *
  *===========================================================================*/
 struct buf *new_block(rip, position)
-register struct inode *rip;	/* pointer to inode */
+struct inode *rip;	/* pointer to inode */
 off_t position;			/* file pointer */
 {
 /* Acquire a new block and return a pointer to it.  Doing so may require
@@ -309,7 +309,7 @@ off_t position;			/* file pointer */
  *				zero_block				     *
  *===========================================================================*/
 void zero_block(bp)
-register struct buf *bp;	/* pointer to buffer to zero */
+struct buf *bp;	/* pointer to buffer to zero */
 {
 /* Zero a block. */
   ASSERT(bp->data);

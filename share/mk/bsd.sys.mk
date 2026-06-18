@@ -34,9 +34,10 @@ CPPFLAGS+=	-Wp,-iremap,${DESTDIR}/:/
 CPPFLAGS+=	-Wp,-iremap,${X11SRCDIR}:/usr/xsrc
 .endif
 
-# NetBSD sources use C99 style, with some GCC extensions.
-CFLAGS+=	${${ACTIVE_CC} == "clang":? -std=gnu99 :}
-CFLAGS+=	${${ACTIVE_CC} == "gcc":? -std=gnu99 :}
+# GergiOS uses C17 (ISO/IEC 9899:2018) for active compilers (clang, gcc).
+# PCC may not fully support C17; keep gnu99 as fallback.
+CFLAGS+=	${${ACTIVE_CC} == "clang":? -std=gnu17 :}
+CFLAGS+=	${${ACTIVE_CC} == "gcc":? -std=gnu17 :}
 CFLAGS+=	${${ACTIVE_CC} == "pcc":? -std=gnu99 :}
 
 .if defined(WARNS)

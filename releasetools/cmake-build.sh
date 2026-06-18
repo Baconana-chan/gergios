@@ -24,7 +24,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
-DEFAULT_ARCH="i386"
+# i386 is deprecated since Phase 2. x86_64 is the default.
+# Set arch to "i386" explicitly if needed.
+DEFAULT_ARCH="x86_64"
 
 # Color output helpers
 info()  { printf "  [INFO]  %s\\n" "$*"; }
@@ -59,11 +61,19 @@ cmd_configure() {
     mkdir -p "${BUILD_DIR}"
     cd "${BUILD_DIR}"
 
+    # Phase 3: i386 requires MKI386=ON
+    local mki386=""
+    if [ "${arch}" = "i386" ]; then
+        mki386="-DMKI386=ON"
+        info "i386 is Phase 3 hard deprecated — adding -DMKI386=ON automatically"
+    fi
+
     cmake "${PROJECT_DIR}" \
         -G "${generator}" \
         -DCMAKE_TOOLCHAIN_FILE="${PROJECT_DIR}/cmake/toolchain-minix.cmake" \
         -DMACHINE_ARCH="${arch}" \
         -DCMAKE_BUILD_TYPE=Debug \
+        ${mki386} \
         "$@"
 
     ok "Configured for ${arch} in ${BUILD_DIR}"
@@ -153,7 +163,7 @@ case "${1:-help}" in
         echo "MINIX CMake Build Wrapper"
         echo ""
         echo "Usage:"
-        echo "  $0 configure [arch]     Configure CMake (default arch: ${DEFAULT_ARCH})"
+        echo "  $0 configure [arch]     Configure CMake (default arch: ${DEFAULT_ARCH}; i386 deprecated)"
         echo "  $0 build [target]       Build (all or specific target)"
         echo "  $0 test                 Run tests"
         echo "  $0 clean                Clean build directory"

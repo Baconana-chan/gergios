@@ -133,14 +133,14 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
 /* Initialize the process manager. */
   int s;
   static struct boot_image image[NR_BOOT_PROCS];
-  register struct boot_image *ip;
+  struct boot_image *ip;
   static char core_sigs[] = { SIGQUIT, SIGILL, SIGTRAP, SIGABRT,
 				SIGEMT, SIGFPE, SIGBUS, SIGSEGV };
   static char ign_sigs[] = { SIGCHLD, SIGWINCH, SIGCONT, SIGINFO };
   static char noign_sigs[] = { SIGILL, SIGTRAP, SIGEMT, SIGFPE,
 				SIGBUS, SIGSEGV };
-  register struct mproc *rmp;
-  register char *sig_ptr;
+  struct mproc *rmp;
+  char *sig_ptr;
   message mess;
 
   /* Initialize process table, including timers. */

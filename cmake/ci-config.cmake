@@ -9,10 +9,17 @@
 # Build Matrix
 # ============================================================================
 
-# Architecture
+# Since Phase 3 of i386 deprecation, i386 is REMOVED from the default
+# CI/CD pipeline. It was removed from the main build and requires
+# explicit opt-in (-DMKI386=ON).
+#
+# i386 builds can still be performed on-demand or via scheduled jobs,
+# but are no longer part of the standard CI/CD workflow.
+#
+# Architecture (i386 is Phase 3 hard deprecated — not in default CI)
 set(CI_ARCHITECTURES
-    i386
-    earm
+    x86_64      # Primary: default build target
+    earm        # Secondary: ARM support
 )
 
 # Build Types
@@ -29,12 +36,31 @@ set(CI_COMPILER_CONFIGS
 )
 
 # ============================================================================
+# On-Demand i386 Build (optional, for maintainers only)
+# ============================================================================
+
+# i386 builds are NOT part of the standard CI/CD pipeline. Maintainers
+# can trigger them manually via workflow_dispatch with:
+#
+#   cmake -DMACHINE_ARCH=i386 -DMKI386=ON ..
+#
+# The on-demand workflow should NOT be used for:
+#   - PR validation (use x86_64)
+#   - Release builds (use x86_64)
+#   - Development testing (use x86_64)
+#
+# The on-demand workflow MAY be used for:
+#   - Verifying critical security patches for i386
+#   - Pre-removal archival builds
+#   - Community-contributed i386 fixes
+
+# ============================================================================
 # Standard CI Pipeline Stages
 # ============================================================================
 
 # Stage 1: Configure
 #   cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-minix.cmake \
-#         -DMACHINE_ARCH=i386 -DCMAKE_BUILD_TYPE=Debug -S . -B build
+#         -DMACHINE_ARCH=x86_64 -DCMAKE_BUILD_TYPE=Debug -S . -B build
 
 # Stage 2: Build
 #   cmake --build build --target kernel    # Kernel only
@@ -96,7 +122,7 @@ set(CI_REQUIRED_ENV
 #   build:
 #     strategy:
 #       matrix:
-#         arch: [i386, earm]
+#         arch: [x86_64, earm]    # i386 removed (Phase 3 hard deprecation)
 #         build_type: [Debug, Release]
 #     runs-on: ubuntu-latest
 #     steps:
@@ -116,4 +142,23 @@ set(CI_REQUIRED_ENV
 #         run: cmake --build build
 #       - name: Test
 #         run: ctest --test-dir build --output-on-failure
+#
+#   # On-demand i386 build (manual trigger for maintainers):
+#   i386-legacy:
+#     if: github.event_name == 'workflow_dispatch'
+#     strategy:
+#       matrix:
+#         build_type: [Debug]
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - name: Configure (i386 legacy)
+#         run: |
+#           cmake -G Ninja \
+#             -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-minix.cmake \
+#             -DMACHINE_ARCH=i386 -DMKI386=ON \
+#             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+#             -S . -B build
+#       - name: Build
+#         run: cmake --build build
 # ```

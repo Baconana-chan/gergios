@@ -36,7 +36,7 @@ extern char **env_argv;
 
 void env_setargs(int argc, char *argv[]);
 int env_get_param(const char *key, char *value, int max_size);
-void __dead env_panic(const char *key);
+_Noreturn void env_panic(const char *key);
 int env_parse(const char *env, const char *fmt, int field,
 	long *param, long min, long max);
 
@@ -49,7 +49,7 @@ struct timespec;
 
 int printf(const char *fmt, ...);
 void kputc(int c);
-__dead void panic(const char *fmt, ...)
+_Noreturn void panic(const char *fmt, ...)
      __attribute__((__format__(__printf__,1,2)));
 void panic_hook(void);
 void __panic_hook(void);

@@ -31,14 +31,6 @@ SUBDIR+=	libvtreefs
 SUBDIR+=	libgcc_s_empty
 .endif
 
-.if (${MACHINE_ARCH} == "i386")
-SUBDIR+=	libacpi
-SUBDIR+=	libhgfs
-SUBDIR+=	libvassert
-SUBDIR+=	libvboxfs
-SUBDIR+=	libvirtio
-.endif
-
 .if (${MACHINE_ARCH} == "earm")
 SUBDIR+=	libclkconf
 SUBDIR+=	libgpio

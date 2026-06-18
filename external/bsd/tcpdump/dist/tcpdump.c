@@ -71,7 +71,8 @@ extern int SIZE_BUF;
 #endif
 
 #ifdef HAVE_LIBCRYPTO
-#include <openssl/crypto.h>
+/* wolfSSL migration */
+#include <wolfssl/openssl/crypto.h>
 #endif
 
 #ifdef HAVE_GETOPT_LONG

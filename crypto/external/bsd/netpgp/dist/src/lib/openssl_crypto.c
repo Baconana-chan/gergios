@@ -60,20 +60,21 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: openssl_crypto.c,v 1.33 2010/11/07 08:39:59 agc Exp $");
 #endif
 
+/* wolfSSL migration: replace OpenSSL with wolfSSL */
 #ifdef HAVE_OPENSSL_DSA_H
-#include <openssl/dsa.h>
+#include <wolfssl/openssl/dsa.h>
 #endif
 
 #ifdef HAVE_OPENSSL_RSA_H
-#include <openssl/rsa.h>
+#include <wolfssl/openssl/rsa.h>
 #endif
 
 #ifdef HAVE_OPENSSL_ERR_H
-#include <openssl/err.h>
+#include <wolfssl/openssl/err.h>
 #endif
 
-#include <openssl/pem.h>
-#include <openssl/evp.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/evp.h>
 
 #include <stdlib.h>
 #include <string.h>

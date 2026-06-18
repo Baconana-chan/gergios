@@ -39,21 +39,21 @@ static void dev_intr_enable(u32_t *base, int flag);
 /* ====== Self-defined function ====== */
 static u32_t dev_gcr_read(u32_t base, u32_t reg) {
 	u32_t res;
-	sdr_out8(base, REG_GCR_INDEX, reg);
-	res = sdr_in32(base, REG_GCR_DATA);
+	sdr_write(u8_t,  base, REG_GCR_INDEX, reg);
+	res = sdr_read(u32_t, base, REG_GCR_DATA);
 	return res;
 }
 
 static void dev_gcr_write(u32_t base, u32_t reg, u32_t val) {
-	sdr_out8(base, REG_GCR_INDEX, reg);
-	sdr_out32(base, REG_GCR_DATA, val);
+	sdr_write(u8_t,  base, REG_GCR_INDEX, reg);
+	sdr_write(u32_t, base, REG_GCR_DATA, val);
 }
 
 static void dev_command(u32_t base, u32_t cmd) {
 	int i;
 	for (i = 0; i < 1000; i++) {
-		if ((sdr_in8(base + REG_SB_BASE, REG_SB_CMD) & 0x80) == 0) {
-			sdr_out8(base + REG_SB_BASE, REG_SB_CMD, cmd);
+		if ((sdr_read(u8_t, base + REG_SB_BASE, REG_SB_CMD) & 0x80) == 0) {
+			sdr_write(u8_t, base + REG_SB_BASE, REG_SB_CMD, cmd);
 			return;
 		}
 	}
@@ -63,18 +63,18 @@ static void dev_command(u32_t base, u32_t cmd) {
 /* ====== Mixer handling interface ====== */
 /* Write the data to mixer register (### WRITE_MIXER_REG ###) */
 void dev_mixer_write(u32_t *base, u32_t reg, u32_t val) {
-	sdr_out8(base[0] + REG_SB_BASE, REG_MIXER_ADDR, reg);
+	sdr_write(u8_t, base[0] + REG_SB_BASE, REG_MIXER_ADDR, reg);
 	micro_delay(100);
-	sdr_out8(base[0] + REG_SB_BASE, REG_MIXER_DATA, val);
+	sdr_write(u8_t, base[0] + REG_SB_BASE, REG_MIXER_DATA, val);
 	micro_delay(100);
 }
 
 /* Read the data from mixer register (### READ_MIXER_REG ###) */
 u32_t dev_mixer_read(u32_t *base, u32_t reg) {
 	u32_t res;
-	sdr_out8(base[0] + REG_SB_BASE, REG_MIXER_ADDR, reg);
+	sdr_write(u8_t, base[0] + REG_SB_BASE, REG_MIXER_ADDR, reg);
 	micro_delay(100);
-	res = sdr_in8(base[0] + REG_SB_BASE, REG_MIXER_DATA);
+	res = sdr_read(u8_t, base[0] + REG_SB_BASE, REG_MIXER_DATA);
 	micro_delay(100);
 	return res;
 }
@@ -85,13 +85,13 @@ u32_t dev_mixer_read(u32_t *base, u32_t reg) {
  * -- Return OK means success, Others means failure */
 static int dev_reset(u32_t *base) {
 	u32_t i, base0 = base[0];
-	sdr_out8(base0, REG_SB_RESET, 1);
+	sdr_write(u8_t, base0, REG_SB_RESET, 1);
 	micro_delay(10);
-	sdr_out8(base0, REG_SB_RESET, 0);
+	sdr_write(u8_t, base0, REG_SB_RESET, 0);
 	micro_delay(30);
 	for (i = 0; i < 1000; i++) {
-		if (sdr_in8(base0 + REG_SB_BASE, REG_SB_DATA) & 0x80) {
-			if (sdr_in8(base0 + REG_SB_BASE, REG_SB_READ) == 0xaa)
+		if (sdr_read(u8_t, base0 + REG_SB_BASE, REG_SB_DATA) & 0x80) {
+			if (sdr_read(u8_t, base0 + REG_SB_BASE, REG_SB_READ) == 0xaa)
 				break;
 			else
 				return EIO;
@@ -242,15 +242,15 @@ static void dev_resume_dma(u32_t *base, int sub_dev) {
  * -- Return interrupt status */
 static u32_t dev_read_clear_intr_status(u32_t *base) {
 	u32_t data, status, base0 = base[0];
-	status = sdr_in8(base0, REG_INTR_STS);
-	sdr_out8(base0, REG_INTR_STS, status);
+	status = sdr_read(u8_t, base0, REG_INTR_STS);
+	sdr_write(u8_t, base0, REG_INTR_STS, status);
 	data = dev_mixer_read(base, REG_SB_IRQ_STATUS);
 	if (data & 0x02)
-		sdr_in8(base0 + REG_SB_BASE, 0x0f);
+		sdr_read(u8_t, base0 + REG_SB_BASE, 0x0f);
 	else if (data & 0x01)
-		sdr_in8(base0 + REG_SB_BASE, 0x0e);
+		sdr_read(u8_t, base0 + REG_SB_BASE, 0x0e);
 	else if (data & 0x20)
-		sdr_in8(base0, 0x16);
+		sdr_read(u8_t, base0, 0x16);
 	return status;
 }
 

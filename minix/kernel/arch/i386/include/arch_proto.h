@@ -82,10 +82,10 @@ struct exception_frame {
 void exception(struct exception_frame * frame);
 
 /* klib.S */
-__dead void monitor(void);
-__dead void reset(void);
-__dead void poweroff_vmware_clihlt(void);
-__dead void x86_triplefault(void);
+_Noreturn void monitor(void);
+_Noreturn void reset(void);
+_Noreturn void poweroff_vmware_clihlt(void);
+_Noreturn void x86_triplefault(void);
 reg_t read_cr0(void);
 reg_t read_cr2(void);
 void write_cr0(unsigned long value);

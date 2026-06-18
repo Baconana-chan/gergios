@@ -114,12 +114,12 @@ int mode_con(char *p);
 void get_line(char line[LINE_LEN], char *parse[MAX_TOKENS]);
 void check_mtab(const char *devname);
 time_t file_time(int f);
-__dead void pexit(char const *s, ...) __printflike(1,2);
+_Noreturn void pexit(char const *s, ...) __printflike(1,2);
 void *alloc_block(void);
 void print_fs(void);
 int read_and_set(block_t n);
 void special(char *string, int insertmode);
-__dead void usage(void);
+_Noreturn void usage(void);
 void get_block(block_t n, void *buf);
 void get_super_block(void *buf);
 void put_block(block_t n, void *buf);
@@ -1319,7 +1319,7 @@ file_time(int f)
 }
 
 
-__dead void
+_Noreturn void
 pexit(char const * s, ...)
 {
   va_list va;
@@ -1446,7 +1446,7 @@ read_and_set(block_t n)
   return(r);
 }
 
-__dead void
+_Noreturn void
 usage(void)
 {
   fprintf(stderr, "Usage: %s [-dltv] [-b blocks] [-i inodes]\n"

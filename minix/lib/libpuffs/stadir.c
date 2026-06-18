@@ -9,7 +9,7 @@
  *===========================================================================*/
 int fs_stat(ino_t ino_nr, struct stat *statbuf)
 {
-  register struct puffs_node *pn;  /* target pnode */
+  struct puffs_node *pn;  /* target pnode */
   struct vattr va;
   mode_t mo;
   int s;

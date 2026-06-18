@@ -514,7 +514,7 @@ static int pipe_open(int fd, struct vnode *vp, mode_t bits, int oflags)
 int do_mknod(void)
 {
 /* Perform the mknod(name, mode, addr) system call. */
-  register mode_t bits, mode_bits;
+  mode_t bits, mode_bits;
   int r;
   struct vnode *vp;
   struct vmnt *vmp;
@@ -603,7 +603,7 @@ int do_mkdir(void)
 int actual_lseek(struct fproc *rfp, int seekfd, int seekwhence, off_t offset,
 	off_t *newposp)
 {
-  register struct filp *rfilp;
+  struct filp *rfilp;
   int r = OK;
   off_t pos, newpos;
 
@@ -690,8 +690,8 @@ int
 close_fd(struct fproc * rfp, int fd_nr, int may_suspend)
 {
 /* Perform the close(fd) system call. */
-  register struct filp *rfilp;
-  register struct vnode *vp;
+  struct filp *rfilp;
+  struct vnode *vp;
   struct file_lock *flp;
   int r, lock_count;
 

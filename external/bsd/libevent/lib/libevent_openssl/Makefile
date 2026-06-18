@@ -7,9 +7,13 @@ LIB=event_openssl
 SRCS= \
 bufferevent_openssl.c
 
+# wolfSSL migration: replace OpenSSL with wolfSSL
 LIBDPLIBS+= \
 	event	${.CURDIR}/../libevent \
-	crypto	${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libcrypto \
-	ssl	${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libssl
+	wolfssl	${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/lib
+
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 
 .include <bsd.lib.mk>

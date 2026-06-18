@@ -14,8 +14,8 @@ LIBMJDIR!=	cd ${.CURDIR}/../../libmj && ${PRINTOBJDIR}
 LDADD+=		-L${LIBMJDIR} -lmj
 DPADD+=		${LIBMJDIR}/libmj.a
 
-LDADD+=		-lcrypto -lz -lbz2
-DPADD+=		${LIBCRYPTO} ${LIBZ} ${LIBBZ2}
+LDADD+=		-lwolfssl -lz -lbz2
+DPADD+=		${LIBWOLFSSL} ${LIBZ} ${LIBBZ2}
 
 WARNS=0
 MAN=hkpc.1

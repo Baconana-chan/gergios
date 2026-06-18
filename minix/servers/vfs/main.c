@@ -585,7 +585,7 @@ static int get_work(void)
    * if a thread for other activities has been spawned instead.
    */
   int r, proc_p;
-  register struct fproc *rp;
+  struct fproc *rp;
 
   if (reviving != 0) {
 	/* Find a suspended process. */

@@ -1,7 +1,34 @@
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-/* Minix release and version numbers. */
+#include <minix/sys_config.h>
+
+/*===========================================================================*
+ *			C Language Standard Detection			     *
+ *===========================================================================*/
+
+/*
+ * Feature-test macros for C language standard version.
+ * These allow code to conditionally use C11/C17 features like
+ * _Static_assert, _Alignas, _Noreturn, __func__, etc.
+ *
+ * Defined values:
+ *   __MINIX_STDC_C89  - Compiler defaults to C89/C90
+ *   __MINIX_STDC_C99  - Compiler supports C99 (ISO/IEC 9899:1999)
+ *   __MINIX_STDC_C11  - Compiler supports C11 (ISO/IEC 9899:2011)
+ *   __MINIX_STDC_C17  - Compiler supports C17 (ISO/IEC 9899:2018)
+ */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201710L
+#  define __MINIX_STDC_C17 1
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#  define __MINIX_STDC_C11 1
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#  define __MINIX_STDC_C99 1
+#else
+#  define __MINIX_STDC_C89 1
+#endif
+
+/* GergiOS release and version numbers. */
 #define OS_NAME "Minix"
 #define OS_RELEASE "3.4.0"	/* 3.m.p */
 #define OS_REV 304000000	/* see NetBSD sys/param.h: 3mm00pp00 */
@@ -19,8 +46,6 @@
  * gone there.
  *
  */
-
-#include <minix/sys_config.h>
 
 /* Number of slots in the process table for non-kernel processes. The number
  * of system processes defines how many processes with special privileges 

@@ -173,7 +173,7 @@ int do_stat(void)
 int do_fstat(void)
 {
 /* Perform the fstat(fd, buf) system call. */
-  register struct filp *rfilp;
+  struct filp *rfilp;
   int r, rfd;
   vir_bytes statbuf;
 
@@ -328,7 +328,7 @@ int do_statvfs(void)
 int do_fstatvfs(void)
 {
 /* Perform the fstatvfs1(fd, buf, flags) system call. */
-  register struct filp *rfilp;
+  struct filp *rfilp;
   int r, rfd, flags;
   vir_bytes statbuf;
 

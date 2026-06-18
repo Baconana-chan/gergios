@@ -9,12 +9,11 @@ NOLINT=		# defined
 
 LIB=		hx509
 
-SSLBASE=	${NETBSDSRCDIR}/crypto/external/bsd/openssl
-
+# SSLBASE removed — heimdal now uses libhcrypto
 LIBDPLIBS+=	asn1	${HEIMBASE}/lib/libasn1		\
 		com_err	${HEIMBASE}/lib/libcom_err	\
 		crypt	${NETBSDSRCDIR}/lib/libcrypt	\
-		crypto	${SSLBASE}/lib/libcrypto	\
+		hcrypto	${HEIMBASE}/lib/libhcrypto	\
 		roken	${HEIMBASE}/lib/libroken	\
 		wind	${HEIMBASE}/lib/libwind
 

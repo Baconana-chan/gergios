@@ -110,7 +110,7 @@ message *m_ptr;					/* request message pointer */
  *===========================================================================*/
 int do_down(message *m_ptr)
 {
-  register struct rproc *rp;
+  struct rproc *rp;
   int s;
   char label[RS_MAX_LABEL_LEN];
 
@@ -389,7 +389,7 @@ int do_edit(message *m_ptr)
  *===========================================================================*/
 int do_refresh(message *m_ptr)
 {
-  register struct rproc *rp;
+  struct rproc *rp;
   int s;
   char label[RS_MAX_LABEL_LEN];
 
@@ -943,8 +943,8 @@ int do_upd_ready(message *m_ptr)
 void do_period(m_ptr)
 message *m_ptr;
 {
-  register struct rproc *rp;
-  register struct rprocpub *rpub;
+  struct rproc *rp;
+  struct rprocpub *rpub;
   clock_t now = m_ptr->m_notify.timestamp;
   int s;
   long period;

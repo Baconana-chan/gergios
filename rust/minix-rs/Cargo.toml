@@ -1,0 +1,11 @@
+[package]
+name = "minix-rs"
+version = "0.1.0"
+edition = "2024"
+description = "MINIX IPC and syscall FFI bindings for Rust"
+
+[lib]
+name = "minix_rs"
+
+[dependencies]
+# no dependencies — this is a low-level FFI crate

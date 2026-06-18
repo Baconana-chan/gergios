@@ -211,7 +211,7 @@ worker_handler(int sig)
  * information sent to it by the parent, sends an acknowledgement to the
  * parent, and loops executing the job given to it until a SIGTERM comes in.
  */
-static void __dead
+static _Noreturn void
 worker_proc(struct link *parent)
 {
 	struct utsname name;

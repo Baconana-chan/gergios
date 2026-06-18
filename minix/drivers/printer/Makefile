@@ -1,7 +1,5 @@
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=	printer
-.endif # ${MACHINE_ARCH} == "i386"
+# NOTE: i386-specific printer driver removed in Phase 4 i386 deprecation.
 
 .include <bsd.subdir.mk>

@@ -43,12 +43,38 @@ Finished - 2026.06.12
 - [x] Plan deprecation timeline for i386 support
 Finished - 2026.06.12
 
-### 1.3 Rust Integration Foundation
-- [ ] Evaluate Rust integration approach for microkernel architecture
-- [ ] Set up Rust cross-compilation toolchain for Minix targets
-- [ ] Create build system integration for Rust components
-- [ ] Define Rust-C FFI interface standards
-- [ ] Create prototype Rust component (simple userland utility)
+### 1.3 Rust Integration Foundation ✅
+> See `planning/09_c_language_modernization.md` for the full C89→C17+Rust migration plan
+
+**Status**: ✅ COMPLETED — Phases 1-5 finished, 15 crates in workspace
+
+- [x] Evaluate Rust integration approach for microkernel architecture
+- [x] Set up Rust cross-compilation toolchain for Minix targets
+- [x] Create build system integration for Rust components (CMake + BSD Make)
+- [x] Define Rust-C FFI interface standards (extern "C", repr(C), panic=abort)
+- [x] Create prototype Rust components: 10 userland utilities (basename, dirname, echo, true, false, yes, sleep, seq, grep) + 5 library crates (minix-rs, minix-driver, minix-alloc, audio-buf, procfs-path, net-parse)
+
+**Rust Workspace (15 members):**
+
+| Type | Crate | Description | Tests |
+|------|-------|-------------|-------|
+| 🛠 Utility | basename | POSIX basename | ✅ |
+| 🛠 Utility | dirname | POSIX dirname | ✅ |
+| 🛠 Utility | echo | POSIX echo | ✅ |
+| 🛠 Utility | true | exit(0) | ✅ |
+| 🛠 Utility | false | exit(1) | ✅ |
+| 🛠 Utility | yes | repeat text | ✅ |
+| 🛠 Utility | sleep | fractional seconds | ✅ |
+| 🛠 Utility | seq | number sequences | ✅ |
+| 🛠 Utility | grep | POSIX grep (Quick Search + regex + gzip + mmap) | ✅ |
+| 📚 Library | minix-rs | IPC syscall FFI + validation + constants | 21 ✅ |
+| 📚 Library | minix-driver | Safe MMIO + port I/O wrappers | 10 ✅ |
+| 📚 Library | minix-alloc | GlobalAlloc → C malloc/free | 4 ✅ |
+| 📚 Library | audio-buf | DMA ring buffer management | 14 ✅ |
+| 📚 Library | procfs-path | PID/path parsing | 16 ✅ |
+| 📚 Library | net-parse | TCP/UDP/DNS protocol parsers | 23 ✅ |
+
+**Next:** Phase 6 — CI/CD integration + ASan/MSan/TSan
 
 ### 1.4 Filesystem Strategy
 - [ ] Evaluate modern filesystem options (ZFS, Btrfs, ext4)
@@ -147,7 +173,7 @@ Finished - 2026.06.12
 ## Phase 4: Cleanup & Deprecation
 
 ### 4.1 Legacy Code Removal
-- [ ] Deprecate i386 architecture support
+- [x] Deprecate i386 architecture support (All phases complete — i386 removed)
 - [ ] Remove DDEKit-based USB drivers
 - [ ] Remove legacy filesystems (LFS, UFS2, ext2, CHFS)
 - [ ] Remove Kerberos authentication system
@@ -159,6 +185,16 @@ Finished - 2026.06.12
 - [ ] Document new APIs and interfaces
 - [ ] Create developer onboarding guides
 - [ ] Update system architecture documentation
+
+### 4.3 GergiOS Rebranding
+> See `planning/10_netbsd_dependency_audit.md` §5 for full rebranding plan
+
+- [ ] Update `minix/include/minix/config.h`: OS_NAME → "GergiOS", OS_RELEASE → "1.0.0"
+- [ ] Update `minix/kernel/main.c`: kernel announce() → GergiOS banner
+- [ ] Update `etc/boot.cfg.default`: boot menu → GergiOS
+- [ ] Update `etc/motd`: MOTD → GergiOS docs/community links
+- [ ] Update `minix/servers/mib/`: sysctl strings → GergiOS
+- [ ] Update user-facing man pages and documentation
 
 ### 4.3 Testing and Validation
 - [ ] Comprehensive security audit of new components
@@ -218,9 +254,12 @@ Finished - 2026.06.12
 ### Components to Deprecate
 
 #### 1. i386 Architecture Support
-**Timeline**: Begin deprecation Q3 2026, complete removal 2027
+**Timeline**: Begin deprecation Q2 2026 (Phase 2), complete removal 2027
 **Reason**: Legacy architecture, modern systems use x86_64 and ARM64
 **Migration Path**: Focus on x86_64 and ARM64 support
+**Phase 1 Status**: ✅ Complete (announcement, FAQ, troubleshooting guide, codebase audit, support channels)
+**Phase 2 Status**: ✅ Complete (x86_64 default target, CI/CD prioritized, deprecated warnings, feature restrictions)
+**Phase 3 Status**: ✅ Complete (i386 requires MKI386=ON, removed from CI/CD, community-only support, archive documented)
 
 #### 2. DDEKit USB Framework
 **Timeline**: Replace Q2 2026, remove Q4 2026

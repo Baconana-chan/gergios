@@ -37,27 +37,14 @@ option(MKCOVERAGE "Build with coverage profiling" OFF)
 # USE_* variables (default YES, depend on MK*)
 # ============================================================================
 
-# i386-only options (from bsd.own.mk: _MKVARS.yes adds these
-# only when MACHINE_ARCH == "i386")
-if(MACHINE_ARCH STREQUAL "i386")
-    cmake_dependent_option(USE_WATCHDOG "Enable watchdog driver" ON
-        "MKSYSDEBUG" OFF)
-    cmake_dependent_option(USE_ACPI "Enable ACPI support" ON
-        "MKSYSDEBUG" OFF)
-    cmake_dependent_option(USE_APIC "Enable APIC support" ON
-        "MKSYSDEBUG" OFF)
-    cmake_dependent_option(USE_DEBUGREG "Enable debug registers" ON
-        "MKSYSDEBUG" OFF)
-    cmake_dependent_option(USE_PCI "Enable PCI support" ON
-        "MKSYSDEBUG" OFF)
-else()
-    # Force OFF on non-i386
-    set(USE_WATCHDOG OFF CACHE BOOL "Watchdog (i386 only)" FORCE)
-    set(USE_ACPI OFF CACHE BOOL "ACPI (i386 only)" FORCE)
-    set(USE_APIC OFF CACHE BOOL "APIC (i386 only)" FORCE)
-    set(USE_DEBUGREG OFF CACHE BOOL "Debug registers (i386 only)" FORCE)
-    set(USE_PCI OFF CACHE BOOL "PCI (i386 only)" FORCE)
-endif()
+# x86-specific options (from bsd.own.mk: _MKVARS.yes adds these
+# only when MACHINE_ARCH matches x86 architectures)
+# Default ON for x86 and x86_64; arch_earm.cmake forces OFF for ARM.
+option(USE_WATCHDOG "Watchdog driver support" ON)
+option(USE_ACPI "ACPI power management support" ON)
+option(USE_APIC "APIC interrupt controller support" ON)
+option(USE_DEBUGREG "Debug register support" ON)
+option(USE_PCI "PCI bus support" ON)
 
 cmake_dependent_option(USE_SYSDEBUG "Enable system debugging routines" ON
     "MKSYSDEBUG" OFF)

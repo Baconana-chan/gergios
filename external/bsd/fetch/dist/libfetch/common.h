@@ -1,6 +1,6 @@
 /*	$NetBSD: common.h,v 1.2 2014/01/07 02:13:00 joerg Exp $	*/
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2004 Dag-Erling Coï¿½dan Smï¿½rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,11 +38,12 @@
 #define HTTP_DEFAULT_PROXY_PORT	3128
 
 #ifdef WITH_SSL
-#include <openssl/crypto.h>
-#include <openssl/x509.h>
-#include <openssl/pem.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/crypto.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/pem.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
 #endif
 
 #if !defined(__sun) && !defined(__hpux) && !defined(__INTERIX) && \

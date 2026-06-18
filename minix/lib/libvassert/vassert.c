@@ -61,7 +61,7 @@ void libvassert_process_backdoor(uint32, uint32, uint32, reg_t *, reg_t *,
  *---------------------------------------------------------------------
  */
 
-static void __dead sig_segv(int sig_no)
+static _Noreturn void sig_segv(int sig_no)
 {
    /* jumping to error handling in VAssert_IsInVM. */
    siglongjmp(segv_jmp, 1);

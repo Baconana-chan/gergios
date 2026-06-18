@@ -1,7 +1,5 @@
 .include <bsd.own.mk>
 
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=	pckbd
-.endif # ${MACHINE_ARCH} == "i386"
+# NOTE: i386-specific HID driver (pckbd) removed in Phase 4 i386 deprecation
 
 .include <bsd.subdir.mk>

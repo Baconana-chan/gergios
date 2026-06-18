@@ -44,7 +44,7 @@ int do_trace(struct proc * caller, message * m_ptr)
  * come here.
  */
 
-  register struct proc *rp;
+  struct proc *rp;
   vir_bytes tr_addr = m_ptr->m_lsys_krn_sys_trace.address;
   long tr_data = m_ptr->m_lsys_krn_sys_trace.data;
   int tr_request = m_ptr->m_lsys_krn_sys_trace.request;

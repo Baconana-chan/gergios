@@ -3,7 +3,10 @@
 HEIMBASE?=	${NETBSDSRCDIR}/crypto/external/bsd/heimdal
 HEIMDIST=	${HEIMBASE}/dist
 
-SSLBASE?=	${NETBSDSRCDIR}/crypto/external/bsd/openssl
+# hcrypto: use heimdal's own libhcrypto instead of OpenSSL
+# (SSLBASE removed — OpenSSL no longer used)
+HCRYPTOBASE?=	${HEIMBASE}
+HCRYPTODIST?=	${HEIMDIST}/lib/hcrypto
 
 LIBVERSDIR!=	cd ${HEIMBASE}/lib/libvers && ${PRINTOBJDIR}
 LIBVERS=	${LIBVERSDIR}/libvers.a
@@ -38,6 +41,13 @@ HOST_CPPFLAGS+=-DHAVE_IPV6
 .if ${MKPIC} == "no"
 CPPFLAGS+=	-DNO_DLOPEN
 .endif
+
+# hcrypto include paths (used instead of OpenSSL)
+CPPFLAGS+=	-I${HCRYPTODIST}
+HOST_CPPFLAGS+=	-I${HCRYPTODIST}
+
+# Disable HAVE_OPENSSL to use hcrypto headers
+CPPFLAGS+=	-UHAVE_OPENSSL
 
 CPPFLAGS+=	-DHAVE_CONFIG_H
 HOST_CPPFLAGS+=	-DHAVE_CONFIG_H

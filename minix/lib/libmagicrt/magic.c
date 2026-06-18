@@ -311,7 +311,7 @@ PUBLIC void magic_reentrant_disable(void)
 /*===========================================================================*
  *                          magic_assert_failed                              *
  *===========================================================================*/
-PUBLIC void __dead magic_assert_failed(const char *assertion, const char *file,
+PUBLIC _Noreturn void magic_assert_failed(const char *assertion, const char *file,
     const char *function, const int line)
 {
     _magic_printf("Assertion '%s' failed in file %s, function %s(), line %d, pid %d\n",

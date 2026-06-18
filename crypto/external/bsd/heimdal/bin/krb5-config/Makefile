@@ -20,7 +20,7 @@ krb5-config: krb5-config.in
 	        -e "s!@LIB_crypt\@!-lcrypt!g" \
 	        -e "s!@LIB_dbopen\@!!g" \
 	        -e "s!@INCLUDE_hcrypto\@!!g" \
-	        -e "s!@LIB_hcrypto_appl\@!-lcrypto!g" \
+	        -e "s!@LIB_hcrypto_appl\@!-lhcrypto!g" \
 	        -e "s!@LIB_dlopen\@!!g" \
 	        -e "s!@LIB_door_create\@!!g" \
 	        -e "s!@LIB_pkinit\@!-lhx509!g" \

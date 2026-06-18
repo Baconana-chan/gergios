@@ -478,7 +478,7 @@ void
 rs_init(tty_t *tp)
 {
 /* Initialize RS232 for one line. */
-	register rs232_t *rs;
+	rs232_t *rs;
 	int line;
 	uart_port_t this_omap3;
 	char l[10];

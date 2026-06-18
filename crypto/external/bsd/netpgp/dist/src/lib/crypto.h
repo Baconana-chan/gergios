@@ -58,7 +58,8 @@
 #include "memory.h"
 #include "packet-parse.h"
 
-#include <openssl/dsa.h>
+/* wolfSSL migration: replace OpenSSL with wolfSSL */
+#include <wolfssl/openssl/dsa.h>
 
 #define PGP_MIN_HASH_SIZE	16
 

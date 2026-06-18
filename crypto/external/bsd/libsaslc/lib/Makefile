@@ -54,8 +54,11 @@ EXTDIST=${.CURDIR}/../dist
 INCS+= saslc.h
 INCSDIR=/usr/include
 
-LIBDPLIBS+= crypto ${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libcrypto
-LIBDPLIBS+= ssl ${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libssl
+# wolfSSL migration: replace OpenSSL with wolfSSL
+LIBDPLIBS+= wolfssl ${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/lib
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 .if (${MKKERBEROS} != "no")
 LIBDPLIBS+= gssapi ${NETBSDSRCDIR}/crypto/external/bsd/heimdal/lib/libgssapi
 .endif

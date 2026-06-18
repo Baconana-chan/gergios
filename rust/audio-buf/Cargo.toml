@@ -1,0 +1,11 @@
+[package]
+name = "audio-buf"
+version = "0.1.0"
+edition = "2024"
+description = "MINIX audio DMA buffer management — ring buffer with safe fragment tracking"
+
+[package.mname]
+category = "audio"
+phase = "4"
+
+[dependencies]

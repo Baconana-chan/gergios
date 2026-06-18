@@ -58,11 +58,11 @@ DPADD+= ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBHEIMNTLM} ${LIBHEIMBASE} \
 LDADD+=-Wl,-Bdynamic
 .endif
 .if !defined(__MINIX)
-LDADD+= -lcrypto -lipsec -lcrypt
-DPADD+= ${LIBCRYPTO} ${LIBIPSEC} ${LIBCRYPT}
+LDADD+= -lwolfssl -lipsec -lcrypt
+DPADD+= ${LIBWOLFSSL} ${LIBIPSEC} ${LIBCRYPT}
 .else # defined(__MINIX)
-LDADD+= -lcrypto -lcrypt
-DPADD+= ${LIBCRYPTO} ${LIBCRYPT}
+LDADD+= -lwolfssl -lcrypt
+DPADD+= ${LIBWOLFSSL} ${LIBCRYPT}
 .endif # defined(__MINIX)
 .endif
 .if defined(PROG) && ${PROG} == "dhclient" && !defined(__MINIX)

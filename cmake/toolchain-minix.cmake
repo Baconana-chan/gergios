@@ -21,7 +21,7 @@ set(CMAKE_SYSTEM_NAME "Minix")
 set(CMAKE_SYSTEM_VERSION "3.4.0")
 
 # Parse MACHINE_ARCH from cache or command line
-set(MACHINE_ARCH "i386" CACHE STRING "MINIX target architecture")
+set(MACHINE_ARCH "x86_64" CACHE STRING "MINIX target architecture")
 
 # Set CMAKE_SYSTEM_PROCESSOR based on MACHINE_ARCH
 if(MACHINE_ARCH STREQUAL "i386")

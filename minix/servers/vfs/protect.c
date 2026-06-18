@@ -243,7 +243,7 @@ int forbidden(struct fproc *rfp, struct vnode *vp, mode_t access_desired)
  * if it is forbidden, EACCES is returned.
  */
 
-  register mode_t bits, perm_bits;
+  mode_t bits, perm_bits;
   uid_t uid;
   gid_t gid;
   int r, shift;

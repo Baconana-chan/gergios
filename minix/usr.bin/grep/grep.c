@@ -1,7 +1,7 @@
 /*	$OpenBSD: grep.c,v 1.45 2012/12/29 01:32:44 millert Exp $	*/
 
 /*-
- * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1999 James Howard and Dag-Erling Coï¿½dan Smï¿½rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@ SLIST_HEAD(, patfile)		 patfilelh;
 
 extern char *__progname;
 
-static void __dead
+static _Noreturn void
 usage(void)
 {
 	fprintf(stderr,

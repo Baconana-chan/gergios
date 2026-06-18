@@ -34,7 +34,7 @@
 pid_t get_free_pid()
 {
   static pid_t next_pid = INIT_PID + 1;		/* next pid to be assigned */
-  register struct mproc *rmp;			/* check process table */
+  struct mproc *rmp;			/* check process table */
   int t;					/* zero if pid still free */
 
   /* Find a free pid for the child and put it in the table. */
@@ -56,8 +56,8 @@ pid_t get_free_pid()
 char *
 find_param(const char *name)
 {
-  register const char *namep;
-  register char *envp;
+  const char *namep;
+  char *envp;
 
   for (envp = (char *) monitor_params; *envp != 0;) {
 	for (namep = name; *namep != 0 && *namep == *envp; namep++, envp++)
@@ -76,7 +76,7 @@ find_param(const char *name)
 struct mproc *find_proc(lpid)
 pid_t lpid;
 {
-  register struct mproc *rmp;
+  struct mproc *rmp;
 
   for (rmp = &mproc[0]; rmp < &mproc[NR_PROCS]; rmp++)
 	if ((rmp->mp_flags & IN_USE) && rmp->mp_pid == lpid)

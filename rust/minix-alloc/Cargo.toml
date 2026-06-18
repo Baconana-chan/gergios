@@ -1,0 +1,8 @@
+[package]
+name = "minix-alloc"
+version = "0.1.0"
+edition = "2024"
+description = "Rust GlobalAlloc implementation bridged to MINIX C malloc/free"
+
+[dependencies]
+# no_std — only core + alloc via global allocator

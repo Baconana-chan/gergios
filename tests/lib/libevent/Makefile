@@ -22,8 +22,8 @@ SRCS=		regress.c regress.gen.c regress_dns.c regress_http.c \
 
 .if ${MKCRYPTO} == "yes"
 SRCS+=		regress_ssl.c
-DPADD+=		${LIBEVENT_OPENSSL} ${LIBSSL} ${LIBCRYPTO}
-LDADD+=		-levent_openssl -lssl -lcrypto
+DPADD+=		${LIBEVENT_OPENSSL} ${LIBWOLFSSL}
+LDADD+=		-levent_openssl -lwolfssl
 CPPFLAGS+=	-DLIBEVENT_CRYPTO
 .endif
 .if !defined(__MINIX)

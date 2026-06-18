@@ -22,7 +22,7 @@ int do_sigreturn(struct proc * caller, message * m_ptr)
  * the signalled process can resume execution
  */
   struct sigcontext sc;
-  register struct proc *rp;
+  struct proc *rp;
   int proc_nr, r;
 
   if (!isokendpt(m_ptr->m_sigcalls.endpt, &proc_nr)) return EINVAL;

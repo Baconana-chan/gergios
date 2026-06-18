@@ -16,7 +16,7 @@ static phys_bytes kern_phys_start = (phys_bytes) &_kern_phys_base;
 static phys_bytes kern_kernlen = (phys_bytes) &_kern_size;
 
 /* page directory we can use to map things */
-static u32_t pagedir[1024]  __aligned(4096);
+_Alignas(4096) static u32_t pagedir[1024];
 
 void print_memmap(kinfo_t *cbi)
 {
@@ -124,7 +124,7 @@ u32_t *alloc_pagetable(phys_bytes *ph)
 {
 	u32_t *ret;
 #define PG_PAGETABLES 6
-	static u32_t pagetables[PG_PAGETABLES][1024]  __aligned(4096);
+	_Alignas(4096) static u32_t pagetables[PG_PAGETABLES][1024];
 	static int pt_inuse = 0;
 	if(pt_inuse >= PG_PAGETABLES) panic("no more pagetables");
 	assert(sizeof(pagetables[pt_inuse]) == I386_PAGE_SIZE);

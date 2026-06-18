@@ -178,7 +178,7 @@ void unlock_vnode(struct vnode *vp)
 {
 #if LOCK_DEBUG
   int i;
-  register struct vnode *rvp;
+  struct vnode *rvp;
   struct worker_thread *w;
 #endif
   ASSERTVP(vp);

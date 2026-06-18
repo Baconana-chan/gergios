@@ -115,7 +115,7 @@ ssize_t fs_getdents(ino_t ino_nr, struct fsdriver_data *data, size_t bytes,
 	off_t *pos)
 {
   int r;
-  register struct puffs_node *pn;
+  struct puffs_node *pn;
   size_t buf_left, written;
   struct dirent *dent;
   int eofflag = 0;

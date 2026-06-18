@@ -310,7 +310,7 @@ int swapcontext(ucontext_t *oucp, const ucontext_t *ucp)
 /*===========================================================================*
  *				resumecontext				     *
  *===========================================================================*/
-__dead
+_Noreturn
 void resumecontext(ucontext_t *ucp)
 {
   if (ucp->uc_link == NULL) exit(0);

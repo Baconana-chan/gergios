@@ -1,17 +1,11 @@
 .include <bsd.own.mk>
 
-.if ${MKIMAGEONLY} == "no"
-.  if ${MACHINE_ARCH} == "i386"
-SUBDIR+=	ti1225
-.  endif # ${MACHINE_ARCH} == "i386"
+# NOTE: i386-specific bus drivers (pci, ti1225) removed in Phase 4 i386 deprecation.
 
+.if ${MKIMAGEONLY} == "no"
 .  if ${MACHINE_ARCH} == "earm"
 SUBDIR+=	i2c
 .  endif # ${MACHINE_ARCH} == "earm"
 .endif # ${MKIMAGEONLY} == "no"
-
-.if ${MACHINE_ARCH} == "i386"
-SUBDIR+=	pci
-.endif # ${MACHINE_ARCH} == "i386"
 
 .include <bsd.subdir.mk>

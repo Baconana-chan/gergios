@@ -19,7 +19,7 @@ do_ioctl(void)
 {
 	unsigned long request;
 	struct filp *f;
-	register struct vnode *vp;
+	struct vnode *vp;
 	vir_bytes arg;
 	int r, fd;
 

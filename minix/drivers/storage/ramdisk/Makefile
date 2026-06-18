@@ -58,38 +58,14 @@ dir.umount:=	minix/commands/umount
 RAMDISK_SMALL=		1
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
-ETC+=			rs.single
-PROGRAMS+=		at_wini
-dir.at_wini:=	minix/drivers/storage/at_wini
-PROGRAMS+=		floppy
-dir.floppy:=	minix/drivers/storage/floppy
-PROGRAMS+=		pci
-dir.pci:=	minix/drivers/bus/pci
-PROGRAMS+=		pckbd
-dir.pckbd:=	minix/drivers/hid/pckbd
-PROGRAMS+=		cdprobe
-dir.cdprobe:=	minix/commands/cdprobe
-PROGRAMS+=		pwd_mkdb
-dir.pwd_mkdb:=	usr.sbin/pwd_mkdb
-PROGRAMS+=		isofs
-dir.isofs:=	minix/fs/isofs
+.if ${MACHINE_ARCH} == "earm"
+# ARM-specific ramdisk additions
+PROGRAMS+=		mmc
+dir.mmc:=	minix/drivers/storage/mmc
+.endif # ${MACHINE_ARCH} == "earm"
 
-.if ${MKSMALL} != "yes"
-PROGRAMS+=		ahci
-dir.ahci:=	minix/drivers/storage/ahci
-PROGRAMS+=		virtio_blk
-dir.virtio_blk:= minix/drivers/storage/virtio_blk
-PROGRAMS+=		ext2
-dir.ext2:=	minix/fs/ext2
-.endif
-
-.if ${MKACPI} != "no"
-RAMDISK_INC_ACPI= 1
-PROGRAMS+=		acpi
-dir.acpi:=	minix/drivers/power/acpi
-.endif
-.endif # ${MACHINE_ARCH} == "i386"
+# NOTE: i386-specific ramdisk entries (at_wini, floppy, pci, pckbd, ahci, virtio_blk, acpi, etc.)
+# removed in Phase 4 i386 deprecation.
 
 .if ${MACHINE_ARCH} == "earm"
 PROGRAMS+=		mmc

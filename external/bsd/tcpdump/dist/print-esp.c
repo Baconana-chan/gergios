@@ -42,7 +42,8 @@ __RCSID("$NetBSD: print-esp.c,v 1.6 2014/11/20 03:05:03 christos Exp $");
  */
 #ifdef HAVE_LIBCRYPTO
 #ifdef HAVE_OPENSSL_EVP_H
-#include <openssl/evp.h>
+/* wolfSSL migration */
+#include <wolfssl/openssl/evp.h>
 #else
 #undef HAVE_LIBCRYPTO
 #endif

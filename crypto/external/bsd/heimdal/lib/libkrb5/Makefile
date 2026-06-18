@@ -16,7 +16,7 @@ WARNS?=		0
 LIB=		krb5
 
 LIBDPLIBS+=	hx509		${HEIMBASE}/lib/libhx509	\
-		crypto		${SSLBASE}/lib/libcrypto	\
+		hcrypto		${HEIMBASE}/lib/libhcrypto	\
 		asn1		${HEIMBASE}/lib/libasn1		\
 		com_err		${HEIMBASE}/lib/libcom_err	\
 		roken		${HEIMBASE}/lib/libroken	\

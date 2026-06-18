@@ -323,7 +323,7 @@ static void prepare_output()
 {
 /* Start next chunk of printer output. Fetch the data from user space. */
   int s;
-  register int chunk;
+  int chunk;
 
   if ( (chunk = user_left) > sizeof obuf) chunk = sizeof obuf;
 

@@ -1,9 +1,22 @@
-# wolfSSL Migration Documentation Index
+# Documentation Index
 
-This directory contains all documentation related to the OpenSSL 0.9.8 →
-wolfSSL 5.9.1 migration in MINIX.
+This directory contains all project documentation. This index provides a quick reference to all available documents.
 
-## Quick Reference
+## i386 Deprecation
+
+Documents related to the i386 (32-bit x86) architecture deprecation.
+
+| Document | Description |
+|----------|-------------|
+| [Deprecation Announcement](i386-deprecation-announcement.md) | Official deprecation announcement and timeline |
+| [Migration FAQ](i386-deprecation-faq.md) | Frequently asked questions about the deprecation |
+| [Troubleshooting Guide](i386-migration-troubleshooting.md) | Common migration issues and solutions |
+| [Codebase Audit](i386-codebase-audit.md) | Assessment of i386 dependencies across the codebase |
+| [Migration Support Channels](migration-support-channels.md) | Support resources and migration checklist |
+
+## wolfSSL Migration
+
+Documents related to the OpenSSL 0.9.8 → wolfSSL 5.9.1 migration.
 
 | Document | Phase | Description |
 |----------|-------|-------------|
@@ -16,6 +29,14 @@ wolfSSL 5.9.1 migration in MINIX.
 | [Performance Report](wolfssl-performance-report.md) | 4.4 | Benchmark results and expected ranges |
 | [Compatibility Report](wolfssl-compatibility-report.md) | 4.5 | API compatibility matrix and known limitations |
 
+## Build System
+
+| Document | Description |
+|----------|-------------|
+| [CMake Migration Guide](cmake-migration-guide.md) | BSD Make → CMake migration details |
+| [Dual Build Guide](dual-build-guide.md) | Transition guide for dual build systems |
+| [Infrastructure Setup](INFRASTRUCTURE_SETUP.md) | Development environment setup |
+
 ## External References
 
 | Resource | Link |
@@ -26,7 +47,7 @@ wolfSSL 5.9.1 migration in MINIX.
 | wolfSSL GitHub | https://github.com/wolfSSL/wolfssl |
 | OpenSSL Compatibility | https://www.wolfssl.com/docs/openssl/ |
 
-## Migrated Components
+## Migrated Components (wolfSSL)
 
 | Component | Location | Status |
 |-----------|----------|--------|

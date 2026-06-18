@@ -1,0 +1,21 @@
+[workspace]
+
+members = [
+    "audio-buf",
+    "basename",
+    "dirname",
+    "echo",
+    "false",
+    "grep",
+    "minix-alloc",
+    "minix-driver",
+    "minix-rs",
+    "net-parse",
+    "procfs-path",
+    "seq",
+    "sleep",
+    "true",
+    "yes",
+]
+
+resolver = "2"

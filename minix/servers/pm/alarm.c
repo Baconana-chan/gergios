@@ -221,7 +221,7 @@ getset_vtimer(struct mproc *rmp, int which, struct itimerval *value, struct itim
 void
 check_vtimer(int proc_nr, int sig)
 {
-  register struct mproc *rmp;
+  struct mproc *rmp;
   int which, num;
 
   rmp = &mproc[proc_nr];
@@ -317,7 +317,7 @@ static void
 cause_sigalrm(int arg)
 {
   int proc_nr_n;
-  register struct mproc *rmp;
+  struct mproc *rmp;
 
   /* get process from timer */
   if(pm_isokendpt(arg, &proc_nr_n) != OK) {

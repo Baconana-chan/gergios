@@ -31,7 +31,7 @@
 #endif
 
 #ifndef _MINIX_MAGIC
-#define __ALIGNED(X) __aligned(X)
+#define __ALIGNED(X) _Alignas(X)
 #else
 #define __ALIGNED(X)
 #endif

@@ -34,6 +34,19 @@ The relicensing to GPLv2 or later applies only to the rewritten and newly added 
 
 For more information about the modernization project and code changes, see the `TODO.md` file and the `planning/` directory.
 
+## i386 Deprecation Notice
+
+> **✅ i386 (32-bit x86) architecture has been COMPLETELY REMOVED (Phase 4).**
+>
+> The MINIX project has completed the deprecation of i386 support. All development is now focused on **x86_64** and **ARM64** architectures.
+>
+> - **Status**: Phase 4 — Complete Removal ✅
+> - **i386 code preserved** in git tag `archive/i386-last`
+> - **All i386 files and references** removed from the main branch
+> - **x86_64** is the sole x86 architecture
+>
+> See [docs/i386-deprecation-announcement.md](docs/i386-deprecation-announcement.md) for full history.
+
 ## Modernization Goals
 
 The modernization project aims to:
@@ -51,6 +64,11 @@ The modernization project aims to:
 - **TODO.md**: Overall modernization roadmap
 - **planning/**: Detailed planning documents for each modernization area
 - **docs/**: Technical documentation
+  - [i386 Deprecation Announcement](docs/i386-deprecation-announcement.md)
+  - [i386 Deprecation FAQ](docs/i386-deprecation-faq.md)
+  - [i386 Migration Troubleshooting](docs/i386-migration-troubleshooting.md)
+  - [i386 Codebase Audit](docs/i386-codebase-audit.md)
+  - [Migration Support Channels](docs/migration-support-channels.md)
 
 ## Status
 

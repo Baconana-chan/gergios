@@ -59,7 +59,7 @@ int fs_link(ino_t dir_nr, char *name, ino_t ino_nr)
 {
 /* Perform the link(name1, name2) system call. */
 
-  register int r;
+  int r;
   struct puffs_node *pn, *pn_dir, *new_pn;
   struct timespec cur_time;
   struct puffs_kcn pkcnp;
@@ -129,7 +129,7 @@ int fs_link(ino_t dir_nr, char *name, ino_t ino_nr)
  *===========================================================================*/
 ssize_t fs_rdlink(ino_t ino_nr, struct fsdriver_data *data, size_t bytes)
 {
-  register int r;              /* return value */
+  int r;              /* return value */
   struct puffs_node *pn;
   char path[PATH_MAX];
   PUFFS_MAKECRED(pcr, &global_kcred);

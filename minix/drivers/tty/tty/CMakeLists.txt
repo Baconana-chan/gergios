@@ -4,14 +4,12 @@
 # Replicates minix/drivers/tty/tty/Makefile
 
 # Architecture-specific sources
-if(MACHINE_ARCH STREQUAL "i386")
-    set(TTY_ARCH_SOURCES
-        arch/i386/arch_tty.c   # example — adjust to actual files
-    )
-elseif(MACHINE_ARCH STREQUAL "earm")
+if(MACHINE_ARCH STREQUAL "earm")
     set(TTY_ARCH_SOURCES
         arch/earm/arch_tty.c   # example — adjust to actual files
     )
+else()
+    set(TTY_ARCH_SOURCES "")
 endif()
 
 add_minix_service(tty

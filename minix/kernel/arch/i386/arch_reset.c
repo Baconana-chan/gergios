@@ -79,14 +79,14 @@ reset(void)
 	}
 }
 
-static __dead void
+static _Noreturn void
 halt(void)
 {
 	for ( ; ; )
 		halt_cpu();
 }
 
-static __dead void
+static _Noreturn void
 poweroff(void)
 {
 	const char *shutdown_str;
@@ -105,7 +105,7 @@ poweroff(void)
 	halt();
 }
 
-__dead void arch_shutdown(int how)
+_Noreturn void arch_shutdown(int how)
 {
 	unsigned char unused_ch;
 	/* Mask all interrupts, including the clock. */

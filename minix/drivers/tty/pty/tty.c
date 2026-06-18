@@ -126,7 +126,7 @@ int main(int argc, char **argv)
   int ipc_status;
   int line;
   int r;
-  register tty_t *tp;
+  tty_t *tp;
 
   env_setargs(argc, argv);
 
@@ -672,7 +672,7 @@ tty_t *tp;			/* TTY to check for events. */
  *				in_transfer				     *
  *===========================================================================*/
 static void in_transfer(tp)
-register tty_t *tp;		/* pointer to terminal to read from */
+tty_t *tp;		/* pointer to terminal to read from */
 {
 /* Transfer bytes from the input queue to a process reading from a terminal. */
 
@@ -735,7 +735,7 @@ register tty_t *tp;		/* pointer to terminal to read from */
  *				in_process				     *
  *===========================================================================*/
 int in_process(tp, buf, count)
-register tty_t *tp;		/* terminal on which character has arrived */
+tty_t *tp;		/* terminal on which character has arrived */
 char *buf;			/* buffer with input characters */
 int count;			/* number of input characters */
 {
@@ -900,8 +900,8 @@ int count;			/* number of input characters */
  *				echo					     *
  *===========================================================================*/
 static int tty_echo(tp, ch)
-register tty_t *tp;		/* terminal on which to echo */
-register int ch;		/* pointer to character to echo */
+tty_t *tp;		/* terminal on which to echo */
+int ch;		/* pointer to character to echo */
 {
 /* Echo the character if echoing is on.  Some control characters are echoed
  * with their normal effect, other control characters are echoed as "^X",
@@ -961,7 +961,7 @@ register int ch;		/* pointer to character to echo */
  *				rawecho					     *
  *===========================================================================*/
 static void rawecho(tp, ch)
-register tty_t *tp;
+tty_t *tp;
 int ch;
 {
 /* Echo without interpretation if ECHO is set. */
@@ -974,7 +974,7 @@ int ch;
  *				back_over				     *
  *===========================================================================*/
 static int back_over(tp)
-register tty_t *tp;
+tty_t *tp;
 {
 /* Backspace to previous character on screen and erase it. */
   u16_t *head;
@@ -1003,7 +1003,7 @@ register tty_t *tp;
  *				reprint					     *
  *===========================================================================*/
 static void reprint(tp)
-register tty_t *tp;		/* pointer to tty struct */
+tty_t *tp;		/* pointer to tty struct */
 {
 /* Restore what has been echoed to screen before if the user input has been
  * messed up by output, or if REPRINT (^R) is typed.
@@ -1203,7 +1203,7 @@ tty_t *tp;
  *				sigchar					     *
  *===========================================================================*/
 void sigchar(tp, sig, mayflush)
-register tty_t *tp;
+tty_t *tp;
 int sig;			/* SIGINT, SIGQUIT, SIGKILL or SIGHUP */
 int mayflush;
 {
@@ -1233,7 +1233,7 @@ int mayflush;
  *				tty_icancel				     *
  *===========================================================================*/
 static void tty_icancel(tp)
-register tty_t *tp;
+tty_t *tp;
 {
 /* Discard all pending input, tty buffer or device. */
 
@@ -1258,7 +1258,7 @@ static int tty_init(int UNUSED(type), sef_init_info_t *UNUSED(info))
 {
 /* Initialize tty structure and call device initialization routines. */
 
-  register tty_t *tp;
+  tty_t *tp;
   int s;
 
   system_hz = sys_hz();

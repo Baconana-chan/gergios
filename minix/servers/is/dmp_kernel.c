@@ -252,9 +252,9 @@ static char *s_traps_str(int flags)
 void
 privileges_dmp(void)
 {
-  register struct proc *rp;
+  struct proc *rp;
   static struct proc *oldrp = BEG_PROC_ADDR;
-  register struct priv *sp;
+  struct priv *sp;
   int r, i;
 
   /* First obtain a fresh copy of the current process and system table. */
@@ -315,12 +315,13 @@ static char *p_rts_flags_str(int flags)
 /*===========================================================================*
  *				proctab_dmp    				     *
  *===========================================================================*/
-#if defined(__i386__)
+/* arch-specific proctab dump: only x86_64 implemented */
+#if defined(__x86_64__)
 void proctab_dmp(void)
 {
 /* Proc table dump */
 
-  register struct proc *rp;
+  struct proc *rp;
   static struct proc *oldrp = BEG_PROC_ADDR;
   int r;
 
@@ -360,7 +361,7 @@ procstack_dmp(void)
 {
 /* Proc table dump, with stack */
 
-  register struct proc *rp;
+  struct proc *rp;
   static struct proc *oldrp = BEG_PROC_ADDR;
   int r;
 

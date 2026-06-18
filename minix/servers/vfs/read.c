@@ -135,7 +135,7 @@ int do_read_write_peek(int rw_flag, int fd, vir_bytes buf, size_t nbytes)
 int read_write(struct fproc *rfp, int rw_flag, int fd, struct filp *f,
 	vir_bytes buf, size_t size, endpoint_t for_e)
 {
-  register struct vnode *vp;
+  struct vnode *vp;
   off_t position, res_pos;
   size_t cum_io, res_cum_io;
   size_t cum_io_incr;
@@ -286,7 +286,7 @@ int do_getdents(void)
   off_t new_pos;
   vir_bytes buf;
   size_t size;
-  register struct filp *rfilp;
+  struct filp *rfilp;
 
   /* This field must always be set to zero for getdents(). */
   if (job_m_in.m_lc_vfs_readwrite.cum_io != 0)

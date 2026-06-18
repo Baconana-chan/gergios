@@ -39,27 +39,27 @@ static void dev_intr_enable(u32_t *base, int flag);
 /* ====== Self-defined function ====== */
 void dev_io_set_clear(u32_t base, u32_t reg, u32_t val, int flag) {
 	u32_t data;
-	data = sdr_in32(base, reg);
+	data = sdr_read(u32_t, base, reg);
 	if (flag == 0)
 		data &= ~val;
 	else if (flag == 1)
 		data |= val;
-	sdr_out32(base, reg, data);
+	sdr_write(u32_t, base, reg, data);
 }
 
 /* ====== Mixer handling interface ======*/
 /* Write the data to mixer register (### WRITE_MIXER_REG ###) */
 void dev_mixer_write(u32_t *base, u32_t reg, u32_t val) {
 	u32_t base0 = base[0];
-	sdr_out8(base0, REG_SB_ADDR, reg);
-	sdr_out8(base0, REG_SB_DATA, val);
+	sdr_write(u8_t, base0, REG_SB_ADDR, reg);
+	sdr_write(u8_t, base0, REG_SB_DATA, val);
 }
 
 /* Read the data from mixer register (### READ_MIXER_REG ###) */
 u32_t dev_mixer_read(u32_t *base, u32_t reg) {
 	u32_t base0 = base[0];
-	sdr_out8(base0, REG_SB_ADDR, reg);
-	return sdr_in8(base0, REG_SB_DATA);
+	sdr_write(u8_t, base0, REG_SB_ADDR, reg);
+	return sdr_read(u8_t, base0, REG_SB_DATA);
 }
 
 /* ====== Developer interface ======*/
@@ -83,8 +83,8 @@ static void dev_configure(u32_t *base) {
 	dev_io_set_clear(base0, REG_MISC_CTRL, CMD_N4SPK3D, 1);
 	dev_io_set_clear(base0, REG_FUNC_CTRL1, CMD_SPDIF_ENA, 0);
 	dev_io_set_clear(base0, REG_FUNC_CTRL1, CMD_SPDIF_LOOP, 0);
-	sdr_out8(base0, REG_EXT_INDEX, 0x03);
-	sdr_out8(base0, REG_MIX_INPUT, 0x0f);
+	sdr_write(u8_t, base0, REG_EXT_INDEX, 0x03);
+	sdr_write(u8_t, base0, REG_MIX_INPUT, 0x0f);
 }
 
 /* Initialize the mixer (### INIT_MIXER ###) */
@@ -105,11 +105,11 @@ static void dev_set_sample_rate(u32_t *base, u16_t sample_rate) {
 			break;
 		}
 	}
-	data = sdr_in32(base0, REG_FUNC_CTRL1);
+	data = sdr_read(u32_t, base0, REG_FUNC_CTRL1);
 	data &=~ (0xe000 | 0x1c00);
 	data |= (rate << 13) & 0xe000;
 	data |= (rate << 10) & 0x1c00;
-	sdr_out32(base0, REG_FUNC_CTRL1, data);
+	sdr_write(u32_t, base0, REG_FUNC_CTRL1, data);
 }
 
 /* Set DAC and ADC format (### SET_FORMAT ###)*/
@@ -120,15 +120,15 @@ static void dev_set_format(u32_t *base, u32_t bits, u32_t sign,
 		format |= FMT_STEREO;
 	if (bits == 16)
 		format |= FMT_BIT16;
-	data = sdr_in32(base0, REG_FORMAT);
+	data = sdr_read(u32_t, base0, REG_FORMAT);
 	data &= ~0x00000003;
 	data |= format << 0;
 	data &= ~0x0000000c;
 	data |= format << 2;
-	sdr_out32(base0, REG_FORMAT, data);
+	sdr_write(u32_t, base0, REG_FORMAT, data);
 	dev_io_set_clear(base0, REG_EXT_MISC, 0x10000000, 0);
-	sdr_out16(base0, REG_DAC_SAMPLE_COUNT, sample_count - 1);
-	sdr_out16(base0, REG_ADC_SAMPLE_COUNT, sample_count - 1);
+	sdr_write(u16_t, base0, REG_DAC_SAMPLE_COUNT, sample_count - 1);
+	sdr_write(u16_t, base0, REG_ADC_SAMPLE_COUNT, sample_count - 1);
 }
 
 /* Start the channel (### START_CHANNEL ###) */
@@ -163,12 +163,12 @@ static void dev_stop_channel(u32_t *base, int sub_dev) {
 static void dev_set_dma(u32_t *base, u32_t dma, u32_t len, int sub_dev) {
 	u32_t base0 = base[0];
 	if (sub_dev == DAC) {
-		sdr_out32(base0, REG_DAC_DMA_ADDR, dma);
-		sdr_out16(base0, REG_DAC_DMA_LEN, len - 1);
+		sdr_write(u32_t, base0, REG_DAC_DMA_ADDR, dma);
+		sdr_write(u16_t, base0, REG_DAC_DMA_LEN, len - 1);
 	}
 	else if (sub_dev == ADC) {
-		sdr_out32(base0, REG_ADC_DMA_ADDR, dma);
-		sdr_out16(base0, REG_ADC_DMA_LEN, len - 1);
+		sdr_write(u32_t, base0, REG_ADC_DMA_ADDR, dma);
+		sdr_write(u16_t, base0, REG_ADC_DMA_LEN, len - 1);
 	}
 }
 
@@ -176,9 +176,9 @@ static void dev_set_dma(u32_t *base, u32_t dma, u32_t len, int sub_dev) {
 static u32_t dev_read_dma_current(u32_t *base, int sub_dev) {
 	u32_t data, base0 = base[0];
 	if (sub_dev == DAC)
-		data = sdr_in16(base0, REG_DAC_CUR_ADDR);
+		data = sdr_read(u16_t, base0, REG_DAC_CUR_ADDR);
 	else if (sub_dev == ADC)
-		data = sdr_in16(base0, REG_ADC_CUR_ADDR);
+		data = sdr_read(u16_t, base0, REG_ADC_CUR_ADDR);
 	return data;
 }
 
@@ -204,7 +204,7 @@ static void dev_resume_dma(u32_t *base, int sub_dev) {
  * -- Return interrupt status */
 static u32_t dev_read_clear_intr_status(u32_t *base) {
 	u32_t data, base0 = base[0];
-	data = sdr_in32(base0, REG_INTR_STS);
+	data = sdr_read(u32_t, base0, REG_INTR_STS);
 	dev_intr_enable(base, INTR_DISABLE);
 	dev_intr_enable(base, INTR_ENABLE);
 	return data;
@@ -213,11 +213,11 @@ static u32_t dev_read_clear_intr_status(u32_t *base) {
 /* Enable or disable interrupt (### INTR_ENBALE_DISABLE ###) */
 static void dev_intr_enable(u32_t *base, int flag) {
 	u32_t data, base0 = base[0];
-	data = sdr_in32(base0, REG_INTR_STS);
+	data = sdr_read(u32_t, base0, REG_INTR_STS);
 	if (flag == INTR_ENABLE)
-		sdr_out32(base0, REG_INTR_CTRL, data | CMD_INTR_ENABLE);
+		sdr_write(u32_t, base0, REG_INTR_CTRL, data | CMD_INTR_ENABLE);
 	else if (flag == INTR_DISABLE)
-		sdr_out32(base0, REG_INTR_CTRL, data & ~CMD_INTR_ENABLE);
+		sdr_write(u32_t, base0, REG_INTR_CTRL, data & ~CMD_INTR_ENABLE);
 }
 
 /* ======= Common driver function ======= */

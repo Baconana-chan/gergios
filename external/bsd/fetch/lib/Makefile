@@ -17,11 +17,14 @@ CPPFLAGS+=	-DINET6
 
 .if (${MKCRYPTO} != "no")
 CPPFLAGS+=	-DWITH_SSL
+# wolfSSL migration: replace OpenSSL with wolfSSL
+CPPFLAGS+=	-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=	-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=	-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 
-LDADD=		-lssl -lcrypto
+LDADD=		-lwolfssl
 
-LIBDPLIBS+=	ssl	${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libssl \
-		crypto	${NETBSDSRCDIR}/crypto/external/bsd/openssl/lib/libcrypto
+LIBDPLIBS+=	wolfssl	${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/lib
 .endif
 
 CLEANFILES+=	ftperr.h httperr.h

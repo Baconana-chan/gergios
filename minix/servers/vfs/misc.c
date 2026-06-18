@@ -639,9 +639,9 @@ void pm_fork(endpoint_t pproc, endpoint_t cproc, pid_t cpid)
 static void free_proc(int flags)
 {
   int i;
-  register struct fproc *rfp;
-  register struct filp *rfilp;
-  register struct vnode *vp;
+  struct fproc *rfp;
+  struct filp *rfilp;
+  struct vnode *vp;
   dev_t dev;
 
   if (fp->fp_endpoint == NONE)
@@ -725,7 +725,7 @@ void pm_exit(void)
 void
 pm_setgid(endpoint_t proc_e, int egid, int rgid)
 {
-  register struct fproc *tfp;
+  struct fproc *tfp;
   int slot;
 
   okendpt(proc_e, &slot);

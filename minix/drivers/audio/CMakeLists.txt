@@ -2,13 +2,7 @@
 # Audio drivers
 #
 # Replicates minix/drivers/audio/Makefile
-
-if(NOT MKIMAGEONLY AND MACHINE_ARCH STREQUAL "i386")
-    add_subdirectory(als4000)
-    add_subdirectory(cmi8738)
-    add_subdirectory(cs4281)
-    add_subdirectory(es1370)
-    add_subdirectory(es1371)
-    add_subdirectory(sb16)
-    add_subdirectory(trident)
-endif()
+#
+# NOTE: i386-specific audio drivers (als4000, cmi8738, cs4281, etc.)
+# were removed in Phase 4 i386 deprecation.
+# ARM audio support will be added separately.

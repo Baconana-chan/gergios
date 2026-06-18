@@ -293,7 +293,7 @@ static void try_resume_proc(struct mproc *rmp)
  *===========================================================================*/
 int process_ksig(endpoint_t proc_nr_e, int signo)
 {
-  register struct mproc *rmp;
+  struct mproc *rmp;
   int proc_nr;
   pid_t proc_id, id;
 
@@ -382,7 +382,7 @@ int process_ksig(endpoint_t proc_nr_e, int signo)
  *===========================================================================*/
 void
 sig_proc(
-	register struct mproc *rmp,	/* pointer to the process to be signaled */
+	struct mproc *rmp,	/* pointer to the process to be signaled */
 	int signo,			/* signal to send to process (1 to _NSIG-1) */
 	int trace,			/* pass signal to tracer first? */
 	int ksig			/* non-zero means signal comes from kernel  */
@@ -575,7 +575,7 @@ int ksig;			/* non-zero means signal comes from kernel  */
  * call, and also when the kernel catches a DEL or other signal.
  */
 
-  register struct mproc *rmp;
+  struct mproc *rmp;
   int count;			/* count # of signals sent */
   int error_code;
 
@@ -649,7 +649,7 @@ int ksig;			/* non-zero means signal comes from kernel  */
  *				check_pending				     *
  *===========================================================================*/
 void
-check_pending(register struct mproc *rmp)
+check_pending(struct mproc *rmp)
 {
   /* Check to see if any pending signals have been unblocked. Deliver as many
    * of them as we can, until we have to wait for a reply from VFS first.

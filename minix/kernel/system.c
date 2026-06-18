@@ -167,7 +167,7 @@ void kernel_call(message *m_user, struct proc * caller)
  *===========================================================================*/
 void system_init(void)
 {
-  register struct priv *sp;
+  struct priv *sp;   
   int i;
 
   /* Initialize IRQ handler hooks. Mark all hooks available. */
@@ -272,14 +272,14 @@ void system_init(void)
  *				get_priv				     *
  *===========================================================================*/
 int get_priv(
-  register struct proc *rc,		/* new (child) process pointer */
-  int priv_id				/* privilege id */
+  struct proc *rc,		/* new (child) process pointer */
+  int priv_id			/* privilege id */
 )
 {
 /* Allocate a new privilege structure for a system process. Privilege ids
  * can be assigned either statically or dynamically.
  */
-  register struct priv *sp;                 /* privilege structure */
+  struct priv *sp;                 /* privilege structure */
 
   if(priv_id == NULL_PRIV_ID) {             /* allocate slot dynamically */
       for (sp = BEG_DYN_PRIV_ADDR; sp < END_DYN_PRIV_ADDR; ++sp)
@@ -367,7 +367,7 @@ int send_sig(endpoint_t ep, int sig_nr)
  * set the signal that is to be delivered in the pending signals map and
  * send a notification with source SYSTEM.
  */
-  register struct proc *rp;
+  struct proc *rp;
   struct priv *priv;
   int proc_nr;
 
@@ -402,7 +402,7 @@ void cause_sig(proc_nr_t proc_nr, int sig_nr)
  * only called when a user process causes a CPU exception and from the kernel
  * process level, which runs to completion.
  */
-  register struct proc *rp, *sig_mgr_rp;
+  struct proc *rp, *sig_mgr_rp;
   endpoint_t sig_mgr;
   int sig_mgr_proc_nr;
   int s;
@@ -507,7 +507,7 @@ static void clear_memreq(struct proc *rp)
  *			         clear_ipc				     *
  *===========================================================================*/
 static void clear_ipc(
-  register struct proc *rc	/* slot of process to clean up */
+  struct proc *rc	/* slot of process to clean up */
 )
 {
 /* Clear IPC data for a given process slot. */
@@ -575,7 +575,7 @@ void clear_endpoint(struct proc * rc)
  *			       clear_ipc_refs				     *
  *===========================================================================*/
 void clear_ipc_refs(
-  register struct proc *rc,		/* slot of process to clean up */
+  struct proc *rc,		/* slot of process to clean up */
   int caller_ret			/* code to return on callers */
 )
 {

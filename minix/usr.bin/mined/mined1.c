@@ -452,8 +452,8 @@ void VI(void)
  */
 int WT(void)
 {
-  register LINE *line;
-  register long count = 0L;	/* Nr of chars written */
+  LINE *line;
+  long count = 0L;	/* Nr of chars written */
   char file[LINE_LEN];		/* Buffer for new file name */
   int fd;				/* Filedescriptor of file */
 
@@ -520,7 +520,7 @@ void XWT(void)
  */
 void SH(void)
 {
-  register int w;
+  int w;
   int pid, status;
   char *shell;
 
@@ -564,7 +564,7 @@ void SH(void)
  * it returns the count'th line before `line'. When the next (previous)
  * line is the tail (header) indicating EOF (tof) it stops.
  */
-LINE *proceed(register LINE *line, register int count)
+LINE *proceed(LINE *line, int count)
 {
   if (count < 0)
   	while (count++ < 0 && line != header)
@@ -584,7 +584,7 @@ int bottom_line(FLAG revfl, char *s1, char *s2, char *inbuf, FLAG statfl)
 {
   int ret = FINE;
   char buf[LINE_LEN];
-  register char *p = buf;
+  char *p = buf;
 
   *p++ = ' ';
   if (s1 != NULL)
@@ -630,8 +630,8 @@ int bottom_line(FLAG revfl, char *s1, char *s2, char *inbuf, FLAG statfl)
  */
 int count_chars(LINE *line)
 {
-  register int cnt = get_shift(line->shift_count) * -SHIFT_SIZE;
-  register char *textp = line->text;
+  int cnt = get_shift(line->shift_count) * -SHIFT_SIZE;
+  char *textp = line->text;
 
 /* Find begin of line on screen */
   while (cnt < 0) {
@@ -662,9 +662,9 @@ int count_chars(LINE *line)
  * If we're moving to the same x coordinate, try to move the the x-coordinate
  * used on the other previous call.
  */
-void move(register int new_x, char *new_address, int new_y)
+void move(int new_x, char *new_address, int new_y)
 {
-  register LINE *line = cur_line;	/* For building new cur_line */
+  LINE *line = cur_line;	/* For building new cur_line */
   int shift = 0;			/* How many shifts to make */
   static int rel_x = 0;		/* Remember relative x position */
   int tx = x;
@@ -727,8 +727,8 @@ void move(register int new_x, char *new_address, int new_y)
  */
 int find_x(LINE *line, char *address)
 {
-  register char *textp = line->text;
-  register int nx = get_shift(line->shift_count) * -SHIFT_SIZE;
+  char *textp = line->text;
+  int nx = get_shift(line->shift_count) * -SHIFT_SIZE;
 
   while (textp != address && *textp != '\0') {
   	if (is_tab(*textp++)) 	/* Expand tabs */
@@ -745,8 +745,8 @@ int find_x(LINE *line, char *address)
  */
 char *find_address(LINE *line, int x_coord, int *old_x)
 {
-  register char *textp = line->text;
-  register int tx = get_shift(line->shift_count) * -SHIFT_SIZE;
+  char *textp = line->text;
+  int tx = get_shift(line->shift_count) * -SHIFT_SIZE;
 
   while (tx < x_coord && *textp != '\n') {
   	if (is_tab(*textp)) {
@@ -768,9 +768,9 @@ char *find_address(LINE *line, int x_coord, int *old_x)
  * Length_of() returns the number of characters int the string `string'
  * excluding the '\0'.
  */
-int length_of(register char *string)
+int length_of(char *string)
 {
-  register int count = 0;
+  int count = 0;
 
   if (string != NULL) {
   	while (*string++ != '\0')
@@ -783,7 +783,7 @@ int length_of(register char *string)
  * Copy_string() copies the string `from' into the string `to'. `To' must be
  * long enough to hold `from'.
  */
-void copy_string(register char *to, register char *from)
+void copy_string(char *to, char *from)
 {
   while ((*to++ = *from++))
   	;
@@ -796,7 +796,7 @@ void copy_string(register char *to, register char *from)
  */
 void reset(LINE *head_line, int screen_y)
 {
-  register LINE *line;
+  LINE *line;
 
   top_line = line = head_line;
 
@@ -844,7 +844,7 @@ int getch(void)
  * rest of the screen with blank_line's.
  * When count is negative, a backwards print from `line' will be done.
  */
-void display(int x_coord, int y_coord, register LINE *line, register int count)
+void display(int x_coord, int y_coord, LINE *line, int count)
 {
   set_cursor(x_coord, y_coord);
 
@@ -883,7 +883,7 @@ int write_char(int fd, int c)
 /*
  * Writeline writes the given string on the given filedescriptor.
  */
-int writeline(register int fd, register char *text)
+int writeline(int fd, char *text)
 {
   while(*text)
   	 if (write_char(fd, *text++) == ERRORS)
@@ -899,8 +899,8 @@ int writeline(register int fd, register char *text)
  */
 void put_line(LINE *line, int offset, FLAG clear_line)
 {
-  register char *textp = line->text;
-  register int count = get_shift(line->shift_count) * -SHIFT_SIZE;
+  char *textp = line->text;
+  int count = get_shift(line->shift_count) * -SHIFT_SIZE;
   int tab_count;			/* Used in tab expansion */
 
 /* Skip all chars as indicated by the offset and the shift_count field */
@@ -1047,7 +1047,7 @@ void raw_mode(FLAG state)
  * It writes the message to the terminal, resets the tty and exits.
  * Ask the user if he wants to save his file.
  */
-void panic(register char *message)
+void panic(char *message)
 {
   extern char yank_file[];
 
@@ -1146,7 +1146,7 @@ long chars_saved;			/* Nr of chars in buffer */
  */
 void initialize(void)
 {
-  register LINE *line, *next_line;
+  LINE *line, *next_line;
 
 /* Delete the whole list */
   for (line = header->next; line != tail; line = next_line) {
@@ -1166,8 +1166,8 @@ void initialize(void)
  */
 char *basename(char *path)
 {
-  register char *ptr = path;
-  register char *last = NULL;
+  char *ptr = path;
+  char *last = NULL;
 
   while (*ptr != '\0') {
   	if (*ptr == '/')
@@ -1190,8 +1190,8 @@ char *basename(char *path)
  */
 void load_file(char *file)
 {
-  register LINE *line = header;
-  register int len;
+  LINE *line = header;
+  int len;
   long nr_of_chars = 0L;
   int fd = -1;			/* Filedescriptor for file */
 
@@ -1251,12 +1251,12 @@ void load_file(char *file)
  * Get_line reads one line from filedescriptor fd. If EOF is reached on fd,
  * get_line() returns ERRORS, else it returns the length of the string.
  */
-int get_line(int fd, register char *buffer)
+int get_line(int fd, char *buffer)
 {
   static char *last = NULL;
   static char *current = NULL;
   static int read_chars;
-  register char *cur_pos = current;
+  char *cur_pos = current;
   char *begin = buffer;
 
   do {
@@ -1294,7 +1294,7 @@ int get_line(int fd, register char *buffer)
  */
 LINE *install_line(char *buffer, int length)
 {
-  register LINE *new_line = (LINE *) alloc(sizeof(LINE));
+  LINE *new_line = (LINE *) alloc(sizeof(LINE));
 
   new_line->text = alloc(length + 1);
   new_line->shift_count = 0;
@@ -1307,7 +1307,7 @@ int main(int argc, char *argv[])
 {
 /* mined is the Minix editor. */
 
-  register int index;		/* Index in key table */
+  int index;		/* Index in key table */
   struct winsize winsize;
 
   get_term();
@@ -1435,8 +1435,8 @@ void (*escfunc(int c))(void)
  */
 void ESC(void)
 {
-  register int count = 0;
-  register void (*func)();
+  int count = 0;
+  void (*func)();
   int index;
 
   index = getch();
@@ -1475,7 +1475,7 @@ void ESC(void)
  */
 int ask_save(void)
 {
-  register int c;
+  int c;
 
   status_line(file_name[0] ? basename(file_name) : "[buffer]" ,
 					     " has been modified. Save? (y/n)");
@@ -1502,8 +1502,8 @@ int ask_save(void)
  */
 int line_number(void)
 {
-  register LINE *line = header->next;
-  register int count = 1;
+  LINE *line = header->next;
+  int count = 1;
 
   while (line != cur_line) {
   	count++;
@@ -1517,10 +1517,10 @@ int line_number(void)
  * Display a line telling how many chars and lines the file contains. Also tell
  * whether the file is readonly and/or modified.
  */
-void file_status(char *message, register long count, char *file, int lines,
+void file_status(char *message, long count, char *file, int lines,
 						FLAG writefl, FLAG changed)
 {
-  register LINE *line;
+  LINE *line;
   char msg[LINE_LEN + 40];/* Buffer to hold line */
   char yank_msg[LINE_LEN];/* Buffer for msg of yank_file */
 
@@ -1594,8 +1594,8 @@ void build_string(char *buf, char *fmt, ...)
 char *num_out(long number)
 {
   static char num_buf[11];		/* Buffer to build number */
-  register long digit;			/* Next digit of number */
-  register long pow = 1000000000L;	/* Highest ten power of long */
+  long digit;			/* Next digit of number */
+  long pow = 1000000000L;	/* Highest ten power of long */
   FLAG digit_seen = FALSE;
   int i;
 
@@ -1622,8 +1622,8 @@ char *num_out(long number)
  */
 int get_number(char *message, int *result)
 {
-  register int index;
-  register int count = 0;
+  int index;
+  int count = 0;
 
   status_line(message, NULL);
 
@@ -1655,8 +1655,8 @@ int get_number(char *message, int *result)
  */
 int input(char *inbuf, FLAG clearfl)
 {
-  register char *ptr;
-  register char c;			/* Character read */
+  char *ptr;
+  char c;			/* Character read */
 
   ptr = inbuf;
 

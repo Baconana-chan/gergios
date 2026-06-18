@@ -2,7 +2,6 @@
 # Human Interface Device drivers
 #
 # Replicates minix/drivers/hid/Makefile
-
-if(MACHINE_ARCH STREQUAL "i386")
-    add_subdirectory(pckbd)
-endif()
+#
+# NOTE: i386-specific HID driver (pckbd) was removed in Phase 4 i386 deprecation.
+# ARM platforms use different input drivers.

@@ -17,16 +17,132 @@ project(MINIX
 )
 
 # ============================================================================
+# Rust Integration (Phase 3)
+# ============================================================================
+
+# Rust toolchain detection
+find_program(CARGO_EXECUTABLE cargo)
+if(CARGO_EXECUTABLE)
+    execute_process(
+        COMMAND "${CARGO_EXECUTABLE}" "--version"
+        OUTPUT_VARIABLE CARGO_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "Rust toolchain found: ${CARGO_VERSION}")
+else()
+    message(WARNING "Rust toolchain (cargo) not found — Rust components will be skipped")
+endif()
+
+# Option to enable Rust sanitizers
+option(RUST_SANITIZE_ADDRESS "Enable AddressSanitizer for Rust components" OFF)
+option(RUST_SANITIZE_UNDEFINED "Enable UndefinedBehaviorSanitizer for Rust components" OFF)
+option(RUST_SANITIZE_THREAD "Enable ThreadSanitizer for Rust components" OFF)
+
+# Build sanitizer flags for Rust
+function(get_rust_sanitizer_flags out_var)
+    set(flags "")
+    if(RUST_SANITIZE_ADDRESS)
+        string(APPEND flags " -Z sanitizer=address")
+    endif()
+    if(RUST_SANITIZE_UNDEFINED)
+        string(APPEND flags " -Z sanitizer=undefined")
+    endif()
+    if(RUST_SANITIZE_THREAD)
+        string(APPEND flags " -Z sanitizer=thread")
+    endif()
+    string(STRIP "${flags}" flags)
+    set(${out_var} "${flags}" PARENT_SCOPE)
+endfunction()
+
+# Function to add a Rust-based userland utility
+function(add_rust_utility name)
+    if(NOT CARGO_EXECUTABLE)
+        message(STATUS "Rust toolchain not available: skipping ${name}")
+        return()
+    endif()
+
+    set(RUST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rust/${name}")
+
+    if(NOT EXISTS "${RUST_DIR}/Cargo.toml")
+        message(WARNING "Rust crate '${name}' not found at ${RUST_DIR} — skipping")
+        return()
+    endif()
+
+    set(CARGO_TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}/rust")
+
+    # Get sanitizer flags
+    get_rust_sanitizer_flags(RUST_SANITIZER_FLAGS)
+
+    if(RUST_SANITIZER_FLAGS)
+        message(STATUS "Rust ${name}: enabling sanitizers: ${RUST_SANITIZER_FLAGS}")
+        # Use cmake -E env to set RUSTFLAGS correctly (COMMAND doesn't support ENV_VAR=value prefix)
+        add_custom_target(${name}
+            ALL
+            COMMAND ${CMAKE_COMMAND} -E env "RUSTFLAGS=${RUST_SANITIZER_FLAGS}"
+                "${CARGO_EXECUTABLE}" build
+                --manifest-path "${RUST_DIR}/Cargo.toml"
+                --target-dir "${CARGO_TARGET_DIR}"
+                $<$<CONFIG:Release>:--release>
+            COMMENT "Building Rust utility: ${name} (sanitizer: ${RUST_SANITIZER_FLAGS})"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    else()
+        add_custom_target(${name}
+            ALL
+            COMMAND "${CARGO_EXECUTABLE}" build
+                --manifest-path "${RUST_DIR}/Cargo.toml"
+                --target-dir "${CARGO_TARGET_DIR}"
+                $<$<CONFIG:Release>:--release>
+            COMMENT "Building Rust utility: ${name}"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    endif()
+
+    # Install target — use CMAKE_BUILD_TYPE (CMake standard)
+    set(BUILD_SUBDIR "debug")
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(BUILD_SUBDIR "release")
+    endif()
+
+    install(
+        PROGRAMS "${CARGO_TARGET_DIR}/${BUILD_SUBDIR}/${name}${CMAKE_EXECUTABLE_SUFFIX}"
+        DESTINATION bin
+    )
+endfunction()
+
+# Function to register Rust test targets with CTest
+function(add_rust_test name)
+    if(NOT CARGO_EXECUTABLE)
+        return()
+    endif()
+
+    set(RUST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rust/${name}")
+
+    if(NOT EXISTS "${RUST_DIR}/Cargo.toml")
+        return()
+    endif()
+
+    add_test(
+        NAME "rust_${name}"
+        COMMAND "${CARGO_EXECUTABLE}" test
+            --manifest-path "${RUST_DIR}/Cargo.toml"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+endfunction()
+
+# ============================================================================
 # Global configuration
 # ============================================================================
 
 # Include MINIX-specific CMake modules
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# C standard: MINIX uses C99/C11 (migrating from C89)
-set(CMAKE_C_STANDARD 99)
+# C standard: GergiOS uses C17 (ISO/IEC 9899:2018), migrating from C99/GNU99.
+# GNU extensions are enabled because the kernel and some drivers use
+# __asm__, __attribute__, and other GCC/Clang extensions extensively.
+set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_EXTENSIONS ON)
 
 # Default build type
 if(NOT CMAKE_BUILD_TYPE)
@@ -40,22 +156,50 @@ endif()
 include(options)
 
 # ============================================================================
+# i386 Hard Deprecation (Phase 3)
+# ============================================================================
+
+# Since Phase 3, i386 builds require explicit opt-in.
+# Without MKI386=ON, building for i386 is a fatal error.
+option(MKI386 "Enable i386 (32-bit x86) build (Phase 3 hard deprecated)" OFF)
+
+# ============================================================================
 # Architecture detection
 # ============================================================================
 
 # MACHINE_ARCH is set by the toolchain file or the presets
-# Possible values: i386, x86_64, earm, aarch64 (future)
-# x86_64 is currently BUILD INFRASTRUCTURE ONLY (Phase 2+)
+# Possible values: i386 (Phase 3 hard deprecated), x86_64 (default), earm, aarch64 (future)
+#
+# Since Phase 2, x86_64 is the default build target.
+# Since Phase 3, i386 requires MKI386=ON.
 if(NOT MACHINE_ARCH)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
         set(MACHINE_ARCH "x86_64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86|amd64)$")
-        set(MACHINE_ARCH "i386")
+        # i386 host detected — fall back to x86_64
+        message(WARNING "i386 host architecture detected. i386 is Phase 3 hard deprecated — defaulting to x86_64.")
+        set(MACHINE_ARCH "x86_64")
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|earm)")
         set(MACHINE_ARCH "earm")
     else()
-        set(MACHINE_ARCH "i386" CACHE STRING "Target architecture")
+        message(STATUS "Unknown host architecture '${CMAKE_SYSTEM_PROCESSOR}', defaulting to x86_64")
+        set(MACHINE_ARCH "x86_64" CACHE STRING "Target architecture")
     endif()
+endif()
+
+# Phase 3 guard: i386 requires explicit MKI386=ON
+if(MACHINE_ARCH STREQUAL "i386" AND NOT MKI386)
+    message(FATAL_ERROR "\n"
+        "  ================================================================\n"
+        "  i386 (32-bit x86) is Phase 3 HARD DEPRECATED.\n"
+        "  i386 builds are NOT allowed by default.\n"
+        "  ================================================================\n"
+        "  To build for i386, you MUST explicitly enable it:\n"
+        "    cmake -DMACHINE_ARCH=i386 -DMKI386=ON ..\n"
+        "\n"
+        "  i386 support is community-only, best-effort.\n"
+        "  See docs/i386-hard-deprecation-notice.md for full policy.\n"
+        "  ================================================================\n")
 endif()
 
 message(STATUS "Target architecture: ${MACHINE_ARCH}")
@@ -109,6 +253,19 @@ add_subdirectory(minix/fs)
 # Network services
 add_subdirectory(minix/net)
 
+# Rust userland utilities (Phase 3)
+if(CARGO_EXECUTABLE)
+    add_rust_utility(basename)
+    add_rust_utility(dirname)
+    add_rust_utility(echo)
+    add_rust_utility(false)
+    add_rust_utility(grep)
+    add_rust_utility(seq)
+    add_rust_utility(sleep)
+    add_rust_utility(true)
+    add_rust_utility(yes)
+endif()
+
 # Userland commands
 add_subdirectory(minix/commands)
 add_subdirectory(minix/usr.bin)
@@ -116,6 +273,22 @@ add_subdirectory(minix/usr.sbin)
 
 # Enable testing (must be before add_subdirectory for tests)
 enable_testing()
+
+# Rust component tests (Phase 3 + Phase 4)
+if(CARGO_EXECUTABLE)
+    add_rust_test(basename)
+    add_rust_test(dirname)
+    add_rust_test(echo)
+    add_rust_test(grep)
+    add_rust_test(minix-rs)
+endif()
+
+# Phase 4: Library crate tests (run via cargo test --lib)
+if(CARGO_EXECUTABLE)
+    add_rust_test(audio-buf)
+    add_rust_test(procfs-path)
+    add_rust_test(net-parse)
+endif()
 
 # Tests
 add_subdirectory(tests)

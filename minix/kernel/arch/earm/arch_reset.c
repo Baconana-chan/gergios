@@ -49,7 +49,7 @@ poweroff(void)
 	while (1);
 }
 
-__dead void
+_Noreturn void
 arch_shutdown(int how)
 {
 

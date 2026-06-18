@@ -59,7 +59,7 @@ int do_pipe2(void)
  *===========================================================================*/
 static int create_pipe(int fil_des[2], int flags)
 {
-  register struct fproc *rfp;
+  struct fproc *rfp;
   int r;
   struct filp *fil_ptr0, *fil_ptr1;
   struct vnode *vp;
@@ -369,7 +369,7 @@ void release(struct vnode * vp, int op, int count)
  * early in some cases.
  */
 
-  register struct fproc *rp;
+  struct fproc *rp;
   struct filp *f;
   int fd, selop;
 

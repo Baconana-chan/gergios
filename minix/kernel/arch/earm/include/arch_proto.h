@@ -12,7 +12,7 @@
 #include "cpufunc.h"
 
 /* klib */
-__dead void reset(void);
+_Noreturn void reset(void);
 phys_bytes vir2phys(void *);
 vir_bytes phys_memset(phys_bytes ph, u32_t c, phys_bytes bytes);
 

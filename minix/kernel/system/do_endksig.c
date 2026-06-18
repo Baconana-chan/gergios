@@ -18,7 +18,7 @@ int do_endksig(struct proc * caller, message * m_ptr)
  * call to cause_sig by a task. This is called by a signal manager after
  * processing a signal it got with SYS_GETKSIG.
  */
-  register struct proc *rp;
+  struct proc *rp;
   int proc_nr;
 
   /* Get process pointer and verify that it had signals pending. If the 

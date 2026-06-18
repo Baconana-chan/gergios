@@ -60,9 +60,10 @@ __RCSID("$NetBSD: bufferevent_openssl.c,v 1.1.1.1 2013/04/11 16:43:25 christos E
 #include "bufferevent-internal.h"
 #include "log-internal.h"
 
-#include <openssl/bio.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/err.h>
 
 /*
  * Define an OpenSSL bio that targets a bufferevent.

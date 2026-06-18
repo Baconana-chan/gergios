@@ -62,44 +62,8 @@ set(KERNEL_SYSTEM_SOURCES
     system/do_statectl.c
 )
 
-# i386-specific system sources
-if(MACHINE_ARCH STREQUAL "i386")
-    list(APPEND KERNEL_SYSTEM_SOURCES
-        system/do_devio.c
-        system/do_vdevio.c
-    )
-endif()
-
 # Architecture-specific sources
-if(MACHINE_ARCH STREQUAL "i386")
-    set(KERNEL_ARCH_SOURCES
-        arch/i386/mpx.S
-        arch/i386/arch_clock.c
-        arch/i386/arch_do_vmctl.c
-        arch/i386/arch_system.c
-        arch/i386/klib.S
-        arch/i386/memory.c
-        arch/i386/protect.c
-        arch/i386/direct_tty_utils.c
-        arch/i386/arch_reset.c
-        arch/i386/pg_utils.c
-        arch/i386/do_iopenable.c
-        arch/i386/do_readbios.c
-        arch/i386/do_sdevio.c
-        arch/i386/exception.c
-        arch/i386/i8259.c
-        arch/i386/oxpcie.c
-        arch/i386/usermapped_data_arch.c
-        arch/i386/io_inb.S
-        arch/i386/io_inl.S
-        arch/i386/io_intr.S
-        arch/i386/io_inw.S
-        arch/i386/io_outb.S
-        arch/i386/io_outl.S
-        arch/i386/io_outw.S
-        arch/i386/usermapped_glo_ipc.S
-    )
-elseif(MACHINE_ARCH STREQUAL "earm")
+if(MACHINE_ARCH STREQUAL "earm")
     set(KERNEL_ARCH_SOURCES
         arch/earm/mpx.S
         arch/earm/arch_clock.c
@@ -123,32 +87,14 @@ endif()
 # Optional sources
 if(CONFIG_SMP)
     list(APPEND KERNEL_CORE_SOURCES smp.c)
-    if(MACHINE_ARCH STREQUAL "i386")
-        list(APPEND KERNEL_ARCH_SOURCES arch/i386/arch_smp.c arch/i386/trampoline.S)
-    endif()
 endif()
 
 if(USE_WATCHDOG)
     list(APPEND KERNEL_CORE_SOURCES watchdog.c)
-    if(MACHINE_ARCH STREQUAL "i386")
-        list(APPEND KERNEL_ARCH_SOURCES arch/i386/arch_watchdog.c)
-    endif()
 endif()
 
 if(USE_SYSDEBUG)
     list(APPEND KERNEL_CORE_SOURCES debug.c)
-endif()
-
-if(USE_APIC AND MACHINE_ARCH STREQUAL "i386")
-    list(APPEND KERNEL_ARCH_SOURCES arch/i386/apic.c arch/i386/apic_asm.S)
-endif()
-
-if(USE_ACPI AND MACHINE_ARCH STREQUAL "i386")
-    list(APPEND KERNEL_ARCH_SOURCES arch/i386/acpi.c)
-endif()
-
-if(USE_DEBUGREG AND MACHINE_ARCH STREQUAL "i386")
-    list(APPEND KERNEL_ARCH_SOURCES arch/i386/breakpoints.c arch/i386/debugreg.S)
 endif()
 
 # Profiling
@@ -160,46 +106,7 @@ list(APPEND KERNEL_SYSTEM_SOURCES system/do_sprofile.c)
 # ============================================================================
 
 # Architecture-specific unpaged objects (head.o, pre_init.o, etc.)
-if(MACHINE_ARCH STREQUAL "i386")
-    set(UNPAGED_ARCH_OBJECTS
-        head.o
-        pre_init.o
-        direct_tty_utils.o
-        pg_utils.o
-        klib.o
-        utility.o
-        arch_reset.o
-        io_inb.o
-        io_outb.o
-    )
-    # Unpaged from libc
-    set(UNPAGED_MINLIB_OBJECTS
-        _cpufeature.o
-        _cpuid.o
-        get_bp.o
-    )
-    # Unpaged from libsys
-    set(UNPAGED_SYS_OBJECTS
-        assert.o
-        stacktrace.o
-    )
-    # Unpaged from libminc (compiler-rt equivalents)
-    set(UNPAGED_MINIC_OBJECTS
-        atoi.o
-        printf.o
-        subr_prf.o
-        strcmp.o
-        strcpy.o
-        strlen.o
-        strncmp.o
-        memcpy.o
-        memmove.o
-        memset.o
-        udivdi3.o
-        umoddi3.o
-        qdivrem.o
-    )
-elseif(MACHINE_ARCH STREQUAL "earm")
+if(MACHINE_ARCH STREQUAL "earm")
     set(UNPAGED_ARCH_OBJECTS
         head.o
         pre_init.o

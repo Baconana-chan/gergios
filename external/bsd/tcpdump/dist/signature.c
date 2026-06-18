@@ -33,7 +33,8 @@ __RCSID("$NetBSD: signature.c,v 1.5 2014/11/20 03:05:03 christos Exp $");
 #include "signature.h"
 
 #ifdef HAVE_LIBCRYPTO
-#include <openssl/md5.h>
+/* wolfSSL migration */
+#include <wolfssl/openssl/md5.h>
 #endif
 
 const struct tok signature_check_values[] = {

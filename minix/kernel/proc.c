@@ -41,6 +41,11 @@
 
 #include <minix/syslib.h>
 
+/* Compile-time assertions for critical kernel structure sizes */
+_Static_assert(sizeof(struct proc) <= 4096, "struct proc exceeds page size (4096 bytes)");
+_Static_assert(sizeof(struct priv) <= 256, "struct priv exceeds 256 bytes");
+_Static_assert(sizeof(message) == 56, "message must be 56 bytes (7x uint64_t + header)");
+
 /* Scheduling and message passing functions */
 static void idle(void);
 /**
@@ -52,7 +57,7 @@ static int mini_receive(struct proc *caller_ptr, endpoint_t src,
 	message *m_buff_usr, int flags);
 static int mini_senda(struct proc *caller_ptr, asynmsg_t *table, size_t
 	size);
-static int deadlock(int function, register struct proc *caller,
+static int deadlock(int function, struct proc *caller,
 	endpoint_t src_dst_e);
 static int try_async(struct proc *caller_ptr);
 static int try_one(endpoint_t receive_e, struct proc *src_ptr,
@@ -450,10 +455,8 @@ check_misc_flags:
 	 */
 	p->p_misc_flags &= ~MF_CONTEXT_SET;
 
-#if defined(__i386__)
-  	assert(p->p_seg.p_cr3 != 0);
-#elif defined(__arm__)
-	assert(p->p_seg.p_ttbr != 0);
+#if defined(__arm__)
+  	assert(p->p_seg.p_ttbr != 0);
 #endif
 #ifdef CONFIG_SMP
 	if (p->p_misc_flags & MF_FLUSH_TLB) {
@@ -712,7 +715,7 @@ static int deadlock(
  * and RECEIVE to each other. If a deadlock is found, the group size is 
  * returned. Otherwise zero is returned. 
  */
-  register struct proc *xp;			/* process pointer */
+  struct proc *xp;			/* process pointer */
   int group_size = 1;				/* start with only caller */
 #if DEBUG_ENABLE_IPC_WARNINGS
   static struct proc *processes[NR_PROCS + NR_TASKS];
@@ -868,7 +871,7 @@ void unset_notify_pending(struct proc * caller, int src_p)
  *				mini_send				     * 
  *===========================================================================*/
 int mini_send(
-  register struct proc *caller_ptr,	/* who is trying to send a message? */
+  struct proc *caller_ptr,	/* who is trying to send a message? */
   endpoint_t dst_e,			/* to whom is message being sent? */
   message *m_ptr,			/* pointer to message buffer */
   const int flags
@@ -878,8 +881,8 @@ int mini_send(
  * for this message, copy the message to it and unblock 'dst'. If 'dst' is
  * not waiting at all, or is waiting for another source, queue 'caller_ptr'.
  */
-  register struct proc *dst_ptr;
-  register struct proc **xpp;
+  struct proc *dst_ptr;
+  struct proc **xpp;
   int dst_p;
   dst_p = _ENDPOINT_P(dst_e);
   dst_ptr = proc_addr(dst_p);
@@ -973,7 +976,7 @@ static int mini_receive(struct proc * caller_ptr,
  * acquire it and deblock the sender.  If no message from the desired source
  * is available block the caller.
  */
-  register struct proc **xpp;
+  struct proc **xpp;
   int r, src_id, found, src_proc_nr, src_p;
   endpoint_t sender_e;
 
@@ -1593,7 +1596,7 @@ asyn_error:
  *				enqueue					     * 
  *===========================================================================*/
 void enqueue(
-  register struct proc *rp	/* this process is now runnable */
+  struct proc *rp	/* this process is now runnable */
 )
 {
 /* Add 'rp' to one of the queues of runnable processes.  This function is 
@@ -1790,7 +1793,7 @@ static struct proc * pick_proc(void)
  *
  * This function always uses the run queues of the local cpu!
  */
-  register struct proc *rp;			/* process to run */
+  struct proc *rp;			/* process to run */
   struct proc **rdy_head;
   int q;				/* iterate over queues */
 

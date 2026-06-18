@@ -2,9 +2,10 @@
 
 .include <bsd.own.mk>
 
-TESTS_SUBDIRS=		libcrypto
+# libcrypto tests removed — OpenSSL replaced by wolfSSL
+# opencrypto tests not available on MINIX
 .if !defined(__MINIX)
-TESTS_SUBDIRS+=		opencrypto
+TESTS_SUBDIRS=		opencrypto
 .endif # !defined(__MINIX)
 
 TESTSDIR=	${TESTSBASE}/crypto

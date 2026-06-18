@@ -743,7 +743,7 @@ static int map_header(struct vfs_exec_info *execi)
    * expects it to be aligned appropriately. From here we can only guess the
    * proper alignment, but 64 bits should work for all versions of ELF..
    */
-  static char hdr[10*PAGE_SIZE] __aligned(8);
+  _Alignas(8) static char hdr[10*PAGE_SIZE];
 
   pos = 0;	/* Read from the start of the file */
 

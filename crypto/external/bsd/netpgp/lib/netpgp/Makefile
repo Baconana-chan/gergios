@@ -20,10 +20,13 @@ EXTDIST=${.CURDIR}/../../dist
 INCS+= netpgp.h
 INCSDIR=/usr/include
 
-OPENSSL=${NETBSDSRCDIR}/crypto/external/bsd/openssl
+WOLFSSL=${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl
 LIBDPLIBS+=	mj		${.CURDIR}/../../libmj
-LIBDPLIBS+=	crypto		${OPENSSL}/lib/libcrypto
+LIBDPLIBS+=	wolfssl		${WOLFSSL}/lib
 LIBDPLIBS+=	z		${NETBSDSRCDIR}/lib/libz
 LIBDPLIBS+=	bz2		${NETBSDSRCDIR}/lib/libbz2
+CPPFLAGS+=	-I${WOLFSSL}/dist
+CPPFLAGS+=	-I${WOLFSSL}/dist/wolfssl
+CPPFLAGS+=	-I${WOLFSSL}/dist/wolfssl/openssl
 
 .include <bsd.lib.mk>

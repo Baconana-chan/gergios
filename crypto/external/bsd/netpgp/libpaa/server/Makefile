@@ -8,7 +8,7 @@ PROG=		paaserver
 SRCS=		b64.c libpaa.c server.c
 CPPFLAGS+=	-I${.CURDIR}/../../dist/include -I${.CURDIR}/../../dist/src/pgp2ssh
 
-LDADD+=		-lmj -lnetpgp -lcrypto -lz -lbz2
+LDADD+=		-lmj -lnetpgp -lwolfssl -lz -lbz2
 MKMAN=no
 WARNS=		0
 

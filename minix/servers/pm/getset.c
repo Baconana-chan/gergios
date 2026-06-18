@@ -21,7 +21,7 @@ do_get(void)
 /* Handle PM_GETUID, PM_GETGID, PM_GETGROUPS, PM_GETPID, PM_GETPGRP, PM_GETSID,
  * PM_ISSETUGID.
  */
-  register struct mproc *rmp = mp;
+  struct mproc *rmp = mp;
   int r;
   int ngroups;
 
@@ -98,7 +98,7 @@ do_set(void)
  * SETSID. These calls have in common that, if successful, they will be
  * forwarded to VFS as well.
  */
-  register struct mproc *rmp = mp;
+  struct mproc *rmp = mp;
   message m;
   int r, i;
   int ngroups;

@@ -8,7 +8,7 @@ char *itoa(int n);
 
 char *itoa(int n)
 {
-  register int r, k;
+  int r, k;
   int flag = 0;
 
   next = 0;

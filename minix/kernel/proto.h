@@ -51,7 +51,7 @@ void fpu_sigcontext(struct proc *, struct sigframe_sigcontext *fr, struct
 #endif
 void kmain(kinfo_t *cbi);
 void prepare_shutdown(int how);
-__dead void minix_shutdown(int how);
+void minix_shutdown(int how) __attribute__((__noreturn__));
 void bsp_finish_booting(void);
 
 /* proc.c */
@@ -93,7 +93,7 @@ void cstart(void);
 char *env_get(const char *key);
 
 /* system.c */
-int get_priv(register struct proc *rc, int proc_type);
+int get_priv(struct proc *rc, int proc_type);
 void set_sendto_bit(const struct proc *rc, int id);
 void unset_sendto_bit(const struct proc *rc, int id);
 void fill_sendto_mask(const struct proc *rc, sys_map_t *map);
@@ -204,7 +204,7 @@ void fpu_init(void);
 /* returns true if pfu is present and initialized */
 int is_fpu(void);
 void ser_putc(char);
-__dead void arch_shutdown(int);
+void arch_shutdown(int) __attribute__((__noreturn__));
 void restore_user_context(struct proc * p);
 void read_tsc(u32_t *high, u32_t *low);
 int arch_init_profile_clock(u32_t freq);

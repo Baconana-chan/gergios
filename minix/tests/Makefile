@@ -80,13 +80,8 @@ MINIX_TESTS= \
 61       64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 \
 81 82 83 84 85 86 87 88 89 90 91 92 93 94
 
-FILES += t84_h_nonexec.sh
-
-.if ${MACHINE_ARCH} == "i386"
-MINIX_TESTS+= \
-                  47          51                57 \
-   62
-.endif #  ${MACHINE_ARCH} == "i386"
+FILES += t84_h_nonexec.sh# NOTE: i386-only tests (47, 51, 57, 62) removed in Phase 4 i386 deprecation.
+# See docs/i386-deprecation-announcement.md and git tag archive/i386-last for details.
 
 .for t in ${MINIX_TESTS}
 PROGS+= test${t}

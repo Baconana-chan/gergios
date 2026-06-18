@@ -9,7 +9,7 @@
 __weak_alias(_Exit, _exit)
 #endif
 
-__dead void _exit(status)
+_Noreturn void _exit(status)
 int status;
 {
   void (*suicide)(void);

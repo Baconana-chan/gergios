@@ -228,14 +228,14 @@ Phase 4 established the dual-build transition infrastructure:
 ### 2. Architecture Migration (i386 → x86_64 + ARM64)
 
 #### Current State
-- Primary: i386 (32-bit x86)
-- ✅ x86_64: full implementation (build infra, kernel bootstrap, memory mgmt, syscalls, libraries, drivers)
-- Experimental ARM support
+- Primary: **x86_64** (64-bit) — sole x86 architecture
+- ✅ i386: **Phase 4 — Complete Removal** (code removed from main branch, preserved in git tag `archive/i386-last`)
+- Experimental ARM (earm) support
 - No ARM64 support
 
 #### Target State
 - Primary: x86_64 and ARM64
-- Deprecated: i386
+- Deprecated: i386 ✅ (fully removed)
 - Full 64-bit support
 
 #### Migration Steps
@@ -275,32 +275,52 @@ x86_64 migration completed across 6 phases:
 - [ ] Performance benchmarking
 - [ ] Security validation
 
-**Phase 4: i386 Deprecation**
-- [ ] Announce i386 deprecation timeline
-- [x] Mark i386 as deprecated (build scripts updated)
-- [x] Update documentation
-- [x] Provide migration guide for users
+**Phase 4: i386 Deprecation — COMPLETED ✅**
+- [x] Phase 1: Announcement and Preparation (Q2 2026)
+- [x] Phase 2: Soft Deprecation (Q2 2026) — x86_64 default, deprecation warnings, CI/CD priority shift
+- [x] Phase 3: Hard Deprecation (Q2 2026) — `-DMKI386=ON` required, community-only support
+- [x] Phase 4: Complete Removal (Q2 2026) — arch code deleted, build system cleaned, `__i386__` ifdefs cleaned
+- [x] Documentation: announcement, FAQ, troubleshooting, codebase audit, support channels, hard deprecation notice, archive guide
+- [x] Git tag: `archive/i386-last` preserves legacy code
 
-**Phase 5: i386 Removal**
-- [ ] Remove i386 architecture code
-- [ ] Clean up i386-specific code
-- [ ] Update build system
-- [ ] Final validation
+**
+
+For full details, see:
+- `planning/05_i386_deprecation_timeline.md` — full timeline with checkboxes
+- `docs/i386-deprecation-announcement.md` — announcement and status
+- `docs/archive/` — archived i386 documentation
+
+**Phase 5: i386 Removal — PARTIALLY COMPLETE**
+- [x] Remove i386-only directories (`sys/arch/i386/`, i386-specific drivers, `cmake/arch_i386.cmake`)
+- [x] Clean up build system (CMakeLists.txt, BSD Makefiles)
+- [x] Clean up standalone `__i386__` ifdefs (kernel, servers, libs core files)
+- [x] Remove i386-only tests
+- [ ] Separate shared x86 kernel arch code (`minix/kernel/arch/i386/` contains code shared with x86_64 via `__x86_64__` ifdefs)
+- [ ] Create `minix/kernel/arch/x86_64/` with 64-bit native assembly
+- [ ] Create `minix/lib/libsys/arch/x86_64/` with 64-bit I/O wrappers
+- [ ] Update `minix/kernel/CMakeLists.txt` — add proper `MACHINE_ARCH == "x86_64"` case
+- [ ] Fix `cmake/options.cmake` — ACPI/APIC/PCI/Watchdog must be available for x86_64
+- [ ] Restore ramdisk boot drivers for x86_64
+
+**
+
+**Critical Note**: `minix/kernel/arch/i386/`, `minix/lib/libsys/arch/i386/`, `minix/include/arch/i386/`, and `minix/servers/vm/arch/i386/` were RESTORED from git tag `archive/i386-last` because they contain SHARED x86 architecture code used by both i386 and x86_64 via `__i386__`/`__x86_64__` preprocessor conditionals. A proper `arch/x86_64/` directory must be created with 64-bit assembly files before these i386 arch directories can be fully deleted.
 
 #### Dependencies
-- Build system migration (should be done first)
+- Build system migration (completed ✅)
 - Rust integration (can be done in parallel)
+- C language modernization (C17 for C code)
 
 #### Risks
 - Complex architecture-specific code
+- x86_64 kernel still depends on code in `arch/i386/` — needs proper separation
 - Need access to ARM64 hardware for testing
 - Potential performance regressions
-- User resistance to deprecation
 
 
 ---
 
-### 3. C Language Modernization (C89 → C11 + Rust)
+### 3. C Language Modernization (C89 → C17 + Rust)
 
 #### Current State
 - C89/C90 standard throughout
@@ -308,43 +328,131 @@ x86_64 migration completed across 6 phases:
 - Manual memory management
 
 #### Target State
-- C11/C17 for existing C code
+- C17 for existing C code
 - Rust for new components
 - Gradual migration to Rust
 
 #### Migration Steps
 
-**Phase 1: Foundation**
-- [ ] Enable C11 support in compiler
-- [ ] Update coding standards
-- [ ] Set up Rust toolchain
-- [ ] Create Rust-C FFI interface standards
-- [ ] Build system integration for Rust
+**Phase 1: Foundation** ✅
+- [x] Enable C17 support in compiler (`-std=gnu17`)
+- [x] Update coding standards for C17 + Rust
+- [x] Set up Rust toolchain (rustc, cargo, cross-compilation)
+- [x] Create Rust-C FFI interface standards
+- [x] Build system integration for Rust (CMake add_rust_utility/add_rust_test)
+- [x] Add `__STDC_VERSION__` / feature-test-macro strategy to config.h
 
-**Phase 2: C11 Migration**
-- [ ] Audit code for C89 assumptions
-- [ ] Enable C11 features incrementally
-- [ ] Update kernel to use C11
-- [ ] Update servers to use C11
-- [ ] Update drivers to use C11
+**Status**: ✅ COMPLETED (see `planning/09_c_language_modernization.md` §Phase 1)
 
-**Phase 3: Rust Integration**
-- [ ] Create prototype Rust component
-- [ ] Implement Rust-C FFI layer
-- [ ] Migrate simple userland utilities to Rust
-- [ ] Set up Rust testing infrastructure
+**Phase 2: C17 Migration — Incremental per Component** ✅
+- [x] Audit code for C89/C99 assumptions (K&R style, implicit int, `register` keyword)
+- [x] Enable C17 features incrementally per subsystem:
+      • Kernel core — designated initializers, `_Alignas`, `_Static_assert`
+      • Servers (PM, VFS, VM) — `_Noreturn`, `_Generic`, compound literals
+      • Drivers — `__func__`, `inline`, anonymous structures
+- [x] Update `share/mk/bsd.sys.mk`: `-std=gnu99` → `-std=gnu17` (or drop for default)
+- [x] Update `cmake/`: set `CMAKE_C_STANDARD 17` with `CMAKE_C_EXTENSIONS ON`
+- [x] Resolve C17 `inline` semantics differences (C99→C17 changed linkage rules)
+- [x] Phase out `register` keyword (C17 deprecated, C23 removes)
+- [x] Verify no breakage: compile entire tree with `-std=gnu17 -Werror`
 
-**Phase 4: Critical Components**
-- [ ] Migrate memory management to Rust
-- [ ] Migrate string handling to Rust
-- [ ] Migrate parsing components to Rust
-- [ ] Migrate network protocol handling to Rust
+**Status**: ✅ COMPLETED (see `planning/09_c_language_modernization.md` §Phase 2a-2e)
+- ~200 `register` keywords removed across ~60 files
+- 31 `__dead` → `_Noreturn` across 22 files
+- `_Generic` MMIO macros for sound drivers (als4000, cmi8738)
+- `_Static_assert` for kernel struct invariants
 
-**Phase 5: Advanced Components**
-- [ ] Evaluate kernel components for Rust
-- [ ] Migrate server components to Rust
-- [ ] Migrate driver components to Rust
-- [ ] Comprehensive testing
+**Phase 3: Rust Integration** ✅
+- [x] Create prototype Rust component (basename, dirname, echo, true, false, yes, sleep, seq)
+- [x] Implement Rust-C FFI layer (syscall wrappers via `extern "C"`)
+- [x] Migrate string handling utilities to Rust
+- [x] Migrate parsing components (grep: Quick Search + regex) to Rust
+- [x] Create Rust test infrastructure (cargo test, CI integration, CTest)
+- [x] Set up Rust cross-compilation for x86_64 and earm
+
+**Status**: ✅ COMPLETED (see `planning/09_c_language_modernization.md` §Phase 3)
+- 10 utilities ported to Rust (basename, dirname, echo, true, false, yes, sleep, seq, grep, minix-rs)
+- grep: full POSIX implementation with Quick Search + regex + gzip + mmap
+- minix-rs: FFI bindings crate (Message struct, syscall, endpoint constants, 100+ call numbers)
+- Build integration: CMake add_rust_utility() + add_rust_test() + BSD Make
+
+**Phase 4: Critical Memory-Safe Components** ✅
+- [x] Migrate buffer/network parsers to Rust
+- [x] Create audio-buf: ring buffer management crate
+- [x] Create procfs-path: PID/path parsing crate
+- [x] Implement memory-safe IPC message handling in Rust (minix-rs validation layer)
+- [x] Create net-parse: TCP/UDP/DNS protocol parsers in Rust
+- [x] Add fuzz testing for FFI boundaries (cargo-fuzz, 6 targets)
+
+**Status**: ✅ COMPLETED (see `planning/09_c_language_modernization.md` §Phase 4)
+- 4 new crates: audio-buf (14 tests), procfs-path (16 tests), net-parse (23 tests), fuzz (6 targets)
+- All no_std, zero unsafe code (except Mmap::map)
+- minix-rs extended with IPC validation (is_pm_call, is_vfs_call, check_offset, etc.)
+
+**Phase 5: Advanced Components (kernel-adjacent)** ✅
+- [x] Create safe MMIO and port I/O wrappers (minix-driver)
+- [x] Evaluate PM/VFS for Rust rewrite (documented in planning/13 — NOT recommended)
+- [x] Create GlobalAlloc → C malloc/free bridge (minix-alloc)
+- [x] Assess ASan/MSan/TSan infrastructure (exists in LLVM tree, deferred to Phase 6)
+
+**Status**: ✅ COMPLETED (see `planning/09_c_language_modernization.md` §Phase 5 + `planning/13_pm_vfs_rust_evaluation.md`)
+- minix-driver: VolatileCell, MmioRegion (bounds-checked), port I/O FFI
+- minix-alloc: GlobalAlloc via malloc/free FFI, no_std
+- PM/VFS: Full rewrite impractical — incremental Rust helpers recommended
+- ASan/MSan/TSan: Infrastructure exists, integration deferred to Phase 6
+
+**Phase 6: CI/CD & Sanitizer Integration** ✅
+- [x] Set up QEMU-based test runner for MINIX (`scripts/run_qemu_test.sh`)
+- [x] Integrate ASan/MSan/TSan into CMake (`get_rust_sanitizer_flags()`, `RUST_SANITIZE_*` options)
+- [x] Create cargo-fuzz CI job for Rust-C FFI boundaries (3 fuzz targets, 5-10 min each)
+- [x] Add performance benchmarking (`scripts/run_benchmarks.sh`, hyperfine, 20+ variants)
+- [x] Add code coverage (`cargo llvm-cov` → Codecov, CI `rust-coverage` job)
+- [x] Full CI pipeline: 8 jobs (rust-build, rust-sanitizers, rust-fuzz, rust-coverage,
+      rust-benchmarks, build (legacy), qemu-test, static-analysis, security-scan)
+
+**Documents**: `planning/14_phase6_cicd_sanitizers.md`
+
+**Phase 7: Future Directions** 🔮 (отложено — GUI, Lua, rebranding не являются
+критическими на данном этапе)
+- [ ] Incremental PM helpers (signal mask, PID allocator)
+- [ ] Incremental VFS helpers (path validation, permission checks)
+- [ ] GUI infrastructure (framebuffer → Wayland — see planning/11)
+- [ ] GergiOS rebranding (see planning/10 §5)
+- [ ] Lua scripting integration (games, config, GUI)
+
+#### Key Technical Details
+
+**Why C17 over C11?**
+- C17 (N2176) is a bug-fix release of C11 — no new language features, but clarifies
+  undefined behavior, improves `_Atomic` semantics, and deprecates ancient features
+- Compiler support: GCC 8+, Clang 7+ (both widely available in 2026)
+- C17 is the last ISO C standard before C23; migrating to C17 now avoids two jumps
+
+**C99 → C17 migration surface (actual code changes needed):**
+- `register` keyword: remove throughout (deprecated in C17, removed in C23)
+- `__STDC_VERSION__` strategy: add `#if __STDC_VERSION__ >= 201710L` for C17 guards
+- `inline` semantics: C99 `extern inline` vs C17 `static inline` — audit header functions
+- `_Noreturn` (C11): replace `__dead`/`__attribute__((noreturn))` where appropriate
+- `_Alignas`/`_Alignof` (C11): replace compiler-`__attribute__((aligned))`
+- `_Static_assert` (C11): replace runtime assert.h compile-time checks
+- `__func__` (C99): standardize on `__func__` instead of custom `__FUNCTION__`
+- `_Generic` (C11): type-generic macros instead of `#define` overloading
+
+#### Success Metrics
+- **C17**: Full tree compiles with `-std=gnu17 -Werror` without warnings
+- **Rust**: 5+ Rust components in production (userland utilities)
+- **Memory safety**: 50% reduction in buffer-overflow CVEs in migrated components
+- **Coverage**: Full tree + Rust components in CI with ASan
+
+#### Dependencies
+- Build system migration (for Rust integration, C17 standard setting)
+- Architecture migration (for testing on x86_64 + ARM64)
+
+#### Risks
+- Learning curve for Rust
+- FFI complexity (panic safety, ownership across language boundary)
+- C17 `inline` semantics changes may cause subtle linker errors
+- Performance concerns for Rust in kernel-adjacent code
 
 #### Dependencies
 - Build system migration (for Rust integration)
@@ -706,10 +814,14 @@ Build System (CMake)
     │       ├─> Filesystem Migration (ext4)
     │       ├─> Driver Model Modernization
     │       └─> Bootloader Modernization
-    ├─> C Language Modernization (C11 + Rust)
+    ├─> C Language Modernization (C17 + Rust)
     │       ├─> Security Model Modernization
     │       ├─> Crypto Libraries Modernization
     │       └─> Network Stack Modernization
+    ├─> NetBSD Dependency Reduction (planning/10)
+    │       ├─> pkgsrc migration (tools, libs, externals)
+    │       ├─> musl libc migration
+    │       └─> GergiOS rebranding
     └─> Testing Framework Migration
             └─> All other migrations (for testing)
 ```

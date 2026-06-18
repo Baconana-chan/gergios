@@ -12,8 +12,13 @@ CPPFLAGS+=	-DBINDIR='"${BINDIR}"'
 DPADD+=	${LIBINSTALL}/libinstall.a
 LDADD+=	-L${LIBINSTALL} -linstall -ltermcap
 
-DPADD+=		${LIBFETCH} ${LIBSSL} ${LIBCRYPTO}
-LDADD+=		-lfetch -lssl -lcrypto
+# wolfSSL migration: replace OpenSSL with wolfSSL
+DPADD+=		${LIBFETCH} ${LIBWOLFSSL}
+LDADD+=		-lfetch -lwolfssl
+
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl
+CPPFLAGS+=-I${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl/dist/wolfssl/openssl
 
 DPADD+=		${LIBARCHIVE}
 LDADD+=		-larchive

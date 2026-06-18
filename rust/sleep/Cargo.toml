@@ -1,0 +1,7 @@
+[package]
+name = "sleep"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX sleep utility — suspend execution for a specified time"
+
+[dependencies]

@@ -1,0 +1,7 @@
+[package]
+name = "procfs-path"
+version = "0.1.0"
+edition = "2024"
+description = "MINIX ProcFS path parsing — PID, endpoint, and file name validation"
+
+[dependencies]

@@ -114,8 +114,8 @@ int get_fd(struct fproc *rfp, int start, mode_t bits, int *k, struct filp **fpt)
  * may yet fail.
  */
 
-  register struct filp *f;
-  register int i;
+  struct filp *f;
+  int i;
 
   /* Search the fproc fp_filp table for a free file descriptor. */
   for (i = start; i < OPEN_MAX; i++) {
@@ -176,7 +176,7 @@ get_filp(
  *===========================================================================*/
 struct filp *
 get_filp2(
-	register struct fproc *rfp,
+	struct fproc *rfp,
 	int fild,			/* file descriptor */
 	tll_access_t locktype
 )

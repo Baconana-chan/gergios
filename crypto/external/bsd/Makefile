@@ -8,10 +8,11 @@
 
 .include <bsd.own.mk>
 
+# OpenSSL removed — all components migrated to wolfSSL or libhcrypto
 .if defined(__MINIX)
-SUBDIR+= openssl .WAIT heimdal netpgp .WAIT libsaslc
+SUBDIR+= heimdal netpgp .WAIT libsaslc
 .else
-SUBDIR+= openssl .WAIT heimdal netpgp .WAIT openssh libsaslc
+SUBDIR+= heimdal netpgp .WAIT openssh libsaslc
 .endif # defined(__MINIX)
 
 .include <bsd.subdir.mk>

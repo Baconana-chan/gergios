@@ -1,0 +1,7 @@
+[package]
+name = "minix-driver"
+version = "0.1.0"
+edition = "2024"
+description = "Safe MMIO and port I/O wrappers for MINIX device drivers"
+
+[dependencies]

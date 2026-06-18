@@ -11,7 +11,7 @@ NOLINT=
 LIB=		kdc
 
 LIBDPLIBS+=	krb5		${.CURDIR}/../libkrb5		\
-		crypto		${SSLBASE}/lib/libcrypto	\
+		hcrypto		${HEIMBASE}/lib/libhcrypto	\
 		hdb		${.CURDIR}/../libhdb		\
 		hx509		${.CURDIR}/../libhx509		\
 		asn1		${.CURDIR}/../libasn1		\

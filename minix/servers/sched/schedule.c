@@ -86,7 +86,7 @@ static void pick_cpu(struct schedproc * proc)
 
 int do_noquantum(message *m_ptr)
 {
-	register struct schedproc *rmp;
+	struct schedproc *rmp;
 	int rv, proc_nr_n;
 
 	if (sched_isokendpt(m_ptr->m_source, &proc_nr_n) != OK) {
@@ -111,7 +111,7 @@ int do_noquantum(message *m_ptr)
  *===========================================================================*/
 int do_stop_scheduling(message *m_ptr)
 {
-	register struct schedproc *rmp;
+	struct schedproc *rmp;
 	int proc_nr_n;
 
 	/* check who can send you requests */
@@ -139,7 +139,7 @@ int do_stop_scheduling(message *m_ptr)
  *===========================================================================*/
 int do_start_scheduling(message *m_ptr)
 {
-	register struct schedproc *rmp;
+	struct schedproc *rmp;
 	int rv, proc_nr_n, parent_nr_n;
 	
 	/* we can handle two kinds of messages here */

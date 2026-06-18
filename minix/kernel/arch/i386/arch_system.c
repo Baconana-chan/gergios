@@ -141,7 +141,7 @@ void save_fpu(struct proc *pr)
 /* reserve a chunk of memory for fpu state; every one has to
  * be FPUALIGN-aligned.
  */
-static char fpu_state[NR_PROCS][FPU_XFP_SIZE] __aligned(FPUALIGN);
+_Alignas(FPUALIGN) static char fpu_state[NR_PROCS][FPU_XFP_SIZE];
 
 void arch_proc_reset(struct proc *pr)
 {

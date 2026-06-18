@@ -3,20 +3,12 @@
 #
 # Replicates minix/drivers/storage/Makefile
 
-# Always-required drivers
-if(MACHINE_ARCH STREQUAL "i386")
-    add_subdirectory(at_wini)
-    add_subdirectory(floppy)
-endif()
+# i386-specific storage drivers have been removed (Phase 4 i386 deprecation).
+# Only drivers that work across architectures are kept.
 
 # Optional drivers
 if(NOT MKIMAGEONLY)
-    if(MACHINE_ARCH STREQUAL "i386")
-        add_subdirectory(ahci)
-        add_subdirectory(fbd)
-        add_subdirectory(filter)
-        add_subdirectory(virtio_blk)
-    elseif(MACHINE_ARCH STREQUAL "earm")
+    if(MACHINE_ARCH STREQUAL "earm")
         add_subdirectory(mmc)
     endif()
     add_subdirectory(vnd)

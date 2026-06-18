@@ -19,6 +19,13 @@ add_compile_options(
 # ARM-specific link flags
 set(KERNEL_LINKER_SCRIPT "arch/${MACHINE_ARCH}/kernel.lds")
 
+# x86-specific options are not applicable to ARM; force them OFF
+set(USE_WATCHDOG OFF CACHE BOOL "Watchdog driver support" FORCE)
+set(USE_ACPI OFF CACHE BOOL "ACPI power management support" FORCE)
+set(USE_APIC OFF CACHE BOOL "APIC interrupt controller support" FORCE)
+set(USE_DEBUGREG OFF CACHE BOOL "Debug register support" FORCE)
+set(USE_PCI OFF CACHE BOOL "PCI bus support" FORCE)
+
 # ARM-specific compile definitions
 add_compile_definitions(
     __arm__

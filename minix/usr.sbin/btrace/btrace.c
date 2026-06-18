@@ -11,7 +11,7 @@
 
 static btrace_entry buf[BTBUF_SIZE];
 
-static void __dead
+static _Noreturn void
 usage(void)
 {
 	fprintf(stderr, "usage:\n"

@@ -152,7 +152,7 @@ do_getsysinfo(void)
  *===========================================================================*/
 int do_getprocnr(void)
 {
-  register struct mproc *rmp;
+  struct mproc *rmp;
 
   /* This check should be replaced by per-call ACL checks. */
   if (who_e != RS_PROC_NR) {

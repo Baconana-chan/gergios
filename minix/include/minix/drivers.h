@@ -27,10 +27,7 @@
 #include <sys/types.h>
 
 #include <machine/interrupt.h>	/* IRQ vectors and miscellaneous ports */
-#if defined(__i386__)
-#include <machine/bios.h>	/* BIOS index numbers */
-#include <machine/ports.h>	/* Well-known ports */
-#endif
+/* NOTE: i386-specific includes (bios.h, ports.h) removed in Phase 4 i386 deprecation */
 
 #include <errno.h>
 #include <lib.h>

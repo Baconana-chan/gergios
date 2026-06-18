@@ -43,12 +43,13 @@ __RCSID("$NetBSD: crypto.c,v 1.5 2011/02/12 23:21:32 christos Exp $");
 #include <stdlib.h>
 #include <string.h>
 
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/md5.h>
-#include <openssl/rand.h>
+/* wolfSSL OpenSSL compatibility layer */
+#include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/buffer.h>
+#include <wolfssl/openssl/evp.h>
+#include <wolfssl/openssl/hmac.h>
+#include <wolfssl/openssl/md5.h>
+#include <wolfssl/openssl/rand.h>
 
 #include "crypto.h"
 
@@ -169,7 +170,7 @@ saslc__crypto_nonce(size_t len)
 	if ((n = malloc(len)) == NULL)
 		return NULL;
 
-	if (RAND_pseudo_bytes((unsigned char *)n, (int)len) != 1) {
+	if (RAND_bytes((unsigned char *)n, (int)len) != 1) {
 		free(n);
 		return NULL;
 	}

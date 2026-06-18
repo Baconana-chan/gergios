@@ -55,7 +55,8 @@ __RCSID("$NetBSD: print-tcp.c,v 1.6 2015/03/31 21:59:35 christos Exp $");
 #include "nameser.h"
 
 #ifdef HAVE_LIBCRYPTO
-#include <openssl/md5.h>
+/* wolfSSL migration */
+#include <wolfssl/openssl/md5.h>
 #include <signature.h>
 
 static int tcp_verify_signature(netdissect_options *ndo,

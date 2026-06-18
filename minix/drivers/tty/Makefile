@@ -2,7 +2,7 @@
 
 .if ${MKIMAGEONLY} == "no"
 SUBDIR+=	pty
-.endif # ${MACHINE_ARCH} == "i386"
+.endif # ${MKIMAGEONLY} == "no"
 
 SUBDIR+=	tty
 

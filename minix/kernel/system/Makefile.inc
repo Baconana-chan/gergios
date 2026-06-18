@@ -39,9 +39,5 @@ SRCS+= 	\
 	do_schedctl.c \
 	do_statectl.c
 
-.if ${MACHINE_ARCH} == "i386"
-SRCS+=  \
-	do_devio.c \
-	do_vdevio.c
-.endif
+# NOTE: i386-specific system sources (do_devio.c, do_vdevio.c) removed in Phase 4
 

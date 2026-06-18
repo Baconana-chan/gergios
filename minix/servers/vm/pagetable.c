@@ -107,11 +107,10 @@ int kernmappings = 0;
 #endif
 
 static void *spare_pagequeue;
-static char static_sparepages[VM_PAGE_SIZE*STATIC_SPAREPAGES] 
-	__aligned(VM_PAGE_SIZE);
+_Alignas(VM_PAGE_SIZE) static char static_sparepages[VM_PAGE_SIZE*STATIC_SPAREPAGES];
 
 #if defined(__arm__)
-static char static_sparepagedirs[ARCH_PAGEDIR_SIZE*STATIC_SPAREPAGEDIRS + ARCH_PAGEDIR_SIZE] __aligned(ARCH_PAGEDIR_SIZE);
+_Alignas(ARCH_PAGEDIR_SIZE) static char static_sparepagedirs[ARCH_PAGEDIR_SIZE*STATIC_SPAREPAGEDIRS + ARCH_PAGEDIR_SIZE];
 #endif
 
 void pt_assert(pt_t *pt)

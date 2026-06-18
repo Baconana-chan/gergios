@@ -2,17 +2,13 @@
 # Bus drivers
 #
 # Replicates minix/drivers/bus/Makefile
-
-# PCI (required on i386)
-if(MACHINE_ARCH STREQUAL "i386")
-    add_subdirectory(pci)
-endif()
+#
+# NOTE: i386-specific bus drivers (pci, ti1225) were removed
+# in Phase 4 i386 deprecation.
 
 # Architecture-specific optional drivers
 if(NOT MKIMAGEONLY)
-    if(MACHINE_ARCH STREQUAL "i386")
-        add_subdirectory(ti1225)
-    elseif(MACHINE_ARCH STREQUAL "earm")
+    if(MACHINE_ARCH STREQUAL "earm")
         add_subdirectory(i2c)
     endif()
 endif()

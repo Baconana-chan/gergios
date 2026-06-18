@@ -24,7 +24,7 @@ int do_getmcontext(struct proc * caller, message * m_ptr)
 {
 /* Retrieve machine context of a process */
 
-  register struct proc *rp;
+  struct proc *rp;
   int proc_nr, r;
   mcontext_t mc;
 
@@ -75,7 +75,7 @@ int do_setmcontext(struct proc * caller, message * m_ptr)
 {
 /* Set machine context of a process */
 
-  register struct proc *rp;
+  struct proc *rp;
   int proc_nr, r;
   mcontext_t mc;
 

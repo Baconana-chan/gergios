@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-static void __dead
+static _Noreturn void
 usage(void)
 {
 	fprintf(stderr,

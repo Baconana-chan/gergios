@@ -32,7 +32,7 @@ int do_fork(struct proc * caller, message * m_ptr)
 #if defined(__i386__)
   char *old_fpu_save_area_p;
 #endif
-  register struct proc *rpc;		/* child process pointer */
+  struct proc *rpc;		/* child process pointer */
   struct proc *rpp;			/* parent process pointer */
   int gen;
   int p_proc;

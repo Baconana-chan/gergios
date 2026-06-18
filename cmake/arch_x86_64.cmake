@@ -1,9 +1,11 @@
 # cmake/arch_x86_64.cmake
-# Architecture-specific definitions for x86_64
+# Architecture-specific definitions for x86_64 (RECOMMENDED)
 #
-# This is a prototype for the x86_64 architecture port.
-# Status: BUILD INFRASTRUCTURE ONLY — kernel ASM, pagetables, and
-# server code for x86_64 have not been implemented yet.
+# x86_64 is the default build target since Phase 2 of the i386 deprecation.
+# i386 is deprecated — see docs/i386-deprecation-announcement.md.
+#
+# Phase 1-6: Full x86_64 implementation is complete (build infra, kernel
+# bootstrap, memory management, system calls/signals, libraries, drivers).
 
 # CPU model for x86_64
 set(MACHINE_CPU "x86_64")

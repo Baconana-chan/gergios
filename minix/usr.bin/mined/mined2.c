@@ -128,7 +128,7 @@ void GOTO(void)
  */
 void PD(void)
 {
-  register int i;
+  int i;
 
   for (i = 0; i < screenmax; i++)
   	if (forward_scroll() == ERRORS)
@@ -148,7 +148,7 @@ void PD(void)
  */
 void PU(void)
 {
-  register int i;
+  int i;
 
   for (i = 0; i < screenmax; i++)
   	if (reverse_scroll() == ERRORS)
@@ -274,8 +274,8 @@ void MP(void)
 
 void move_previous_word(FLAG remove)
 {
-  register char *begin_line;
-  register char *textp;
+  char *begin_line;
+  char *textp;
   char start_char = *cur_text;
   char *start_pos = cur_text;
 
@@ -323,7 +323,7 @@ void MN(void)
 
 void move_next_word(FLAG remove)
 {
-  register char *textp = cur_text;
+  char *textp = cur_text;
 
 /* Move to the end of the current word. */
   while (*textp != '\n' && alpha(*textp))
@@ -454,7 +454,7 @@ void S(int character)
  */
 void CTL(void)
 {
-  register char ctrl;
+  char ctrl;
 
   status_line("Enter control character.", NULL);
   if ((ctrl = getch()) >= '\01' && ctrl <= '\037') {
@@ -480,9 +480,9 @@ void LIB(void)
  * Line_insert() inserts a new line with text pointed to by `string'.
  * It returns the address of the new line.
  */
-LINE *line_insert(register LINE *line, char *string, int len)
+LINE *line_insert(LINE *line, char *string, int len)
 {
-  register LINE *new_line;
+  LINE *new_line;
 
 /* Allocate space for LINE structure and text */
   new_line = install_line(string, len);
@@ -502,10 +502,10 @@ LINE *line_insert(register LINE *line, char *string, int len)
 /*
  * Insert() insert the string `string' at the given line and location.
  */
-int insert(register LINE *line, char *location, char *string)
+int insert(LINE *line, char *location, char *string)
 {
-  register char *bufp = text_buffer;	/* Buffer for building line */
-  register char *textp = line->text;
+  char *bufp = text_buffer;	/* Buffer for building line */
+  char *textp = line->text;
 
   if (length_of(textp) + length_of(string) >= MAX_CHARS) {
   	error("Line too long", NULL);
@@ -540,9 +540,9 @@ int insert(register LINE *line, char *location, char *string)
  * Line_delete() deletes the argument line out of the line list. The pointer to
  * the next line is returned.
  */
-LINE *line_delete(register LINE *line)
+LINE *line_delete(LINE *line)
 {
-  register LINE *next_line = line->next;
+  LINE *next_line = line->next;
 
 /* Delete the line */
   line->prev->next = line->next;
@@ -563,11 +563,11 @@ LINE *line_delete(register LINE *line)
  * startposition and endposition and fixes the screen accordingly. It
  * returns the number of lines deleted.
  */
-void delete(register LINE *start_line, char *start_textp, LINE *end_line,
+void delete(LINE *start_line, char *start_textp, LINE *end_line,
 							char *end_textp)
 {
-  register char *textp = start_line->text;
-  register char *bufp = text_buffer;	/* Storage for new line->text */
+  char *textp = start_line->text;
+  char *bufp = text_buffer;	/* Storage for new line->text */
   LINE *line, *stop;
   int line_cnt = 0;			/* Nr of lines deleted */
   int count = 0;
@@ -655,7 +655,7 @@ int lines_saved;			/* Nr of lines in buffer */
  */
 void PT(void)
 {
-  register int fd;		/* File descriptor for buffer */
+  int fd;		/* File descriptor for buffer */
 
   if ((fd = scratch_file(READ)) == ERRORS)
   	error("Buffer is empty.", NULL);
@@ -671,7 +671,7 @@ void PT(void)
  */
 void IF(void)
 {
-  register int fd;		/* File descriptor of file */
+  int fd;		/* File descriptor of file */
   char name[LINE_LEN];		/* Buffer for file name */
 
 /* Get the file name */
@@ -693,8 +693,8 @@ void IF(void)
 void file_insert(int fd, FLAG old_pos)
 {
   char line_buffer[MAX_CHARS];		/* Buffer for next line */
-  register LINE *line = cur_line;
-  register int line_count = nlines;	/* Nr of lines inserted */
+  LINE *line = cur_line;
+  int line_count = nlines;	/* Nr of lines inserted */
   LINE *page = cur_line;
   int ret = ERRORS;
 
@@ -749,9 +749,9 @@ void file_insert(int fd, FLAG old_pos)
  */
 void WB(void)
 {
-  register int new_fd;		/* Filedescriptor to copy file */
+  int new_fd;		/* Filedescriptor to copy file */
   int yank_fd;			/* Filedescriptor to buffer */
-  register int cnt;		/* Count check for read/write */
+  int cnt;		/* Count check for read/write */
   int ret = 0;			/* Error check for write */
   char file[LINE_LEN];		/* Output file */
 
@@ -850,7 +850,7 @@ void set_up(FLAG remove)
  */
 FLAG checkmark(void)
 {
-  register LINE *line;
+  LINE *line;
   FLAG cur_seen = FALSE;
 
 /* Special case: check is mark_line and cur_line are the same. */
@@ -883,7 +883,7 @@ FLAG checkmark(void)
  */
 int legal(void)
 {
-  register char *textp = mark_line->text;
+  char *textp = mark_line->text;
 
 /* Locate mark_text on mark_line */
   while (textp != mark_text && *textp++ != '\0')
@@ -900,8 +900,8 @@ int legal(void)
 void yank(LINE *start_line, char *start_textp, LINE *end_line, char *end_textp,
 								FLAG remove)
 {
-  register LINE *line = start_line;
-  register char *textp = start_textp;
+  LINE *line = start_line;
+  char *textp = start_textp;
   int fd;
 
 /* Creat file to hold buffer */
@@ -961,7 +961,7 @@ void yank(LINE *start_line, char *start_textp, LINE *end_line, char *end_textp,
 int scratch_file(FLAG mode)
 {
   static int trials = 0;		/* Keep track of trails */
-  register char *y_ptr, *n_ptr;
+  char *y_ptr, *n_ptr;
   int fd;				/* Filedescriptor to buffer */
 
 /* If yank_status == NOT_VALID, scratch_file is called for the first time */
@@ -1093,8 +1093,8 @@ void change(char *message, FLAG file)
   char mess_buf[LINE_LEN];	/* Buffer to hold message */
   char replacement[LINE_LEN];	/* Buffer to hold subst. pattern */
   REGEX *program;			/* Program resulting from compilation */
-  register LINE *line = cur_line;
-  register char *textp;
+  LINE *line = cur_line;
+  char *textp;
   long lines = 0L;		/* Nr of lines on which subs occurred */
   long subs = 0L;			/* Nr of subs made */
   int page = y;			/* Index to check if line is on screen*/
@@ -1158,8 +1158,8 @@ void change(char *message, FLAG file)
  */
 char *substitute(LINE *line, REGEX *program, char *replacement)
 {
-  register char *textp = text_buffer;
-  register char *subp = replacement;
+  char *textp = text_buffer;
+  char *subp = replacement;
   char *linep = line->text;
   char *amp;
 
@@ -1213,8 +1213,8 @@ char *substitute(LINE *line, REGEX *program, char *replacement)
  */
 void search(char *message, FLAG method)
 {
-  register REGEX *program;
-  register LINE *match_line;
+  REGEX *program;
+  LINE *match_line;
 
 /* Get the expression */
   if ((program = get_expression(message)) == NULL)
@@ -1242,8 +1242,8 @@ void search(char *message, FLAG method)
  */
 int find_y(LINE *match_line)
 {
-  register LINE *line;
-  register int count = 0;
+  LINE *line;
+  int count = 0;
 
 /* Check if match_line is on the same page as currently displayed. */
   for (line = top_line; line != match_line && line != bot_line->next;
@@ -1303,9 +1303,9 @@ char *too_long = "Regular expression too long";
  * allocates space for the expression, and copies the expression buffer into
  * this field.
  */
-void finished(register REGEX *program, int *last_exp)
+void finished(REGEX *program, int *last_exp)
 {
-  register int length = (last_exp - exp_buffer) * sizeof(int);
+  int length = (last_exp - exp_buffer) * sizeof(int);
 
 /* Allocate space */
   program->result.expression = (int *) alloc(length);
@@ -1320,9 +1320,9 @@ void finished(register REGEX *program, int *last_exp)
  * the union. If all went well the expression is saved and the expression
  * pointer is set to the saved (and compiled) expression.
  */
-void compile(register char *pattern, REGEX *program)
+void compile(char *pattern, REGEX *program)
 {
-  register int *expression = exp_buffer;
+  int *expression = exp_buffer;
   int *prev_char;			/* Pointer to previous compiled atom */
   int *acct_field;		/* Pointer to last BRACKET start */
   FLAG negate;			/* Negate flag for BRACKET */
@@ -1459,9 +1459,9 @@ void compile(register char *pattern, REGEX *program)
  * Match() will look through the whole file until a match is found.
  * NULL is returned if no match could be found.
  */
-LINE *match(REGEX *program, char *string, register FLAG method)
+LINE *match(REGEX *program, char *string, FLAG method)
 {
-  register LINE *line = cur_line;
+  LINE *line = cur_line;
   char old_char;				/* For saving chars */
 
 /* Corrupted program */
@@ -1503,9 +1503,9 @@ LINE *match(REGEX *program, char *string, register FLAG method)
  * indicates FORWARD or REVERSE search. It scans through the whole string
  * until a match is found, or the end of the string is reached.
  */
-int line_check(register REGEX *program, char *string, FLAG method)
+int line_check(REGEX *program, char *string, FLAG method)
 {
-  register char *textp = string;
+  char *textp = string;
 
 /* Assign start_ptr field. We might find a match right away! */
   program->start_ptr = textp;
@@ -1548,9 +1548,9 @@ int line_check(register REGEX *program, char *string, FLAG method)
  * (and expression). Check() return MATCH for a match, NO_MATCH is the string
  * couldn't be matched or REG_ERROR for an illegal opcode in expression.
  */
-int check_string(REGEX *program, register char *string, int *expression)
+int check_string(REGEX *program, char *string, int *expression)
 {
-  register int opcode;		/* Holds opcode of next expr. atom */
+  int opcode;		/* Holds opcode of next expr. atom */
   char c;				/* Char that must be matched */
   char *mark;			/* For marking position */
   int star_fl;			/* A star has been born */
@@ -1621,7 +1621,7 @@ int check_string(REGEX *program, register char *string, int *expression)
  * It searches backwards until the (in check_string()) marked position
  * is reached, or a match is found.
  */
-int star(REGEX *program, register char *end_position, register char *string,
+int star(REGEX *program, char *end_position, char *string,
 							int *expression)
 {
   do {
@@ -1638,7 +1638,7 @@ int star(REGEX *program, register char *end_position, register char *string,
  * it returns MATCH. if it isn't it returns NO_MATCH. These returns values
  * are reversed when the NEGATE field in the opcode is present.
  */
-int in_list(int *list, int c, register int list_length, int opcode)
+int in_list(int *list, int c, int list_length, int opcode)
 {
   if (c == '\0' || c == '\n')	/* End of string, never matches */
   	return NO_MATCH;

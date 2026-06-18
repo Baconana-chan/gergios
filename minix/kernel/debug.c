@@ -16,7 +16,7 @@
 int runqueues_ok_cpu(unsigned cpu)
 {
   int q, l = 0;
-  register struct proc *xp;
+  struct proc *xp;
   struct proc **rdy_head, **rdy_tail;
 
   rdy_head = get_cpu_var(cpu, run_q_head);
@@ -256,9 +256,7 @@ void print_proc(struct proc *pp)
 		pp->p_priority, pp->p_user_time,
 		pp->p_sys_time, ex64hi(pp->p_cycles),
 		ex64lo(pp->p_cycles), pp->p_cpu,
-#if defined(__i386__)
-		pp->p_seg.p_cr3,
-#elif defined(__arm__)
+#if defined(__arm__)
 		pp->p_seg.p_ttbr,
 #endif
 		rtsflagstr(pp->p_rts_flags), miscflagstr(pp->p_misc_flags),

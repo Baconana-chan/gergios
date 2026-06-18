@@ -785,7 +785,7 @@ void lmfs_invalidate(
 {
 /* Remove all the blocks belonging to some device from the cache. */
 
-  register struct buf *bp;
+  struct buf *bp;
 
   assert(device != NO_DEV);
 
@@ -846,7 +846,7 @@ static void rw_scattered(
 {
 /* Read or write scattered data from a device. */
 
-  register struct buf *bp;
+  struct buf *bp;
   register iovec_t *iop;
   static iovec_t iovec[NR_IOREQS];
   off_t pos;
@@ -1137,7 +1137,7 @@ void lmfs_flushdev(dev_t dev)
 {
 /* Flush all dirty blocks for one device. */
 
-  register struct buf *bp;
+  struct buf *bp;
   static noxfer_buf_ptr_t *dirty;
   static unsigned int dirtylistsize = 0;
   unsigned int ndirty;
@@ -1245,7 +1245,7 @@ void lmfs_set_blocksize(size_t new_block_size)
 void lmfs_buf_pool(int new_nr_bufs)
 {
 /* Initialize the buffer pool. */
-  register struct buf *bp;
+  struct buf *bp;
 
   assert(new_nr_bufs >= MINBUFS);
 

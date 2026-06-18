@@ -41,7 +41,7 @@
 int
 do_trace(void)
 {
-  register struct mproc *child;
+  struct mproc *child;
   struct ptrace_range pr;
   int i, r, req;
 
@@ -253,11 +253,11 @@ do_trace(void)
  *				trace_stop				     *
  *===========================================================================*/
 void
-trace_stop(register struct mproc *rmp, int signo)
+trace_stop(struct mproc *rmp, int signo)
 {
 /* A traced process got a signal so stop it. */
 
-  register struct mproc *rpmp = mproc + rmp->mp_tracer;
+  struct mproc *rpmp = mproc + rmp->mp_tracer;
   int r;
 
   r = sys_trace(T_STOP, rmp->mp_endpoint, 0L, (long *) 0);

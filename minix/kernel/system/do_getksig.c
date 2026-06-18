@@ -21,7 +21,7 @@ int do_getksig(struct proc * caller, message * m_ptr)
  * call to get one. Find a process with pending signals. If no signals are
  * available, return NONE in the process number field.
  */
-  register struct proc *rp;
+  struct proc *rp;
 
   /* Find the next process with pending signals. */
   for (rp = BEG_USER_ADDR; rp < END_PROC_ADDR; rp++) {

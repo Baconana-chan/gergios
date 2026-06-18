@@ -193,9 +193,14 @@ SRCS+=	print-ip6.c
 .endif
 
 .if (${MKCRYPTO} != "no")
-CPPFLAGS+=-DHAVE_LIBCRYPTO=1 
-LDADD+=	-lcrypto -lcrypt
-DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
+# wolfSSL migration: replace OpenSSL with wolfSSL
+WOLFSSL=${NETBSDSRCDIR}/crypto/external/gpl2/wolfssl
+CPPFLAGS+=-DHAVE_LIBCRYPTO=1
+CPPFLAGS+=-I${WOLFSSL}/dist
+CPPFLAGS+=-I${WOLFSSL}/dist/wolfssl
+CPPFLAGS+=-I${WOLFSSL}/dist/wolfssl/openssl
+LDADD+=	-lwolfssl -lcrypt
+DPADD+=	${LIBWOLFSSL} ${LIBCRYPT}
 .endif
 
 CLEANFILES+=	version.c tcpdump.8

@@ -18,7 +18,7 @@ LIBDPLIBS+=	krb5		${HEIMBASE}/lib/libkrb5		\
 		com_err		${HEIMBASE}/lib/libcom_err	\
 		roken		${HEIMBASE}/lib/libroken	\
 		heimntlm	${HEIMBASE}/lib/libheimntlm	\
-		crypto		${SSLBASE}/lib/libcrypto
+		hcrypto		${HEIMBASE}/lib/libhcrypto
 
 HEIMSRCS= gkrb5_err.et spnego.asn1 gssapi.asn1
 
