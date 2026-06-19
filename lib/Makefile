@@ -116,7 +116,9 @@ SUBDIR+=	../external/apache2/mDNSResponder/lib
 .endif
 
 #SUBDIR+=	../external/bsd/am-utils/lib
+.if ${MKBLACKLIST:Uno} != "no"
 SUBDIR+=	../external/bsd/blacklist/lib
+.endif
 
 SUBDIR+=	../external/bsd/flex/lib
 #SUBDIR+=	../external/bsd/tre/lib
@@ -292,7 +294,9 @@ SUBDIR+=	../external/bsd/openldap/lib	# depends on libcrypto, ...
 #==================== 3rd library dependency barrier ====================
 SUBDIR+=	.WAIT
 
+.if ${MKBIND:Uno} != "no"
 SUBDIR+=	../external/bsd/bind/lib	# depends on heimdal, libcrypto
+.endif
 
 .if ${MKDTRACE} != "no"
 SUBDIR+=        ../external/cddl/osnet/lib/libdtrace	# depends on libproc

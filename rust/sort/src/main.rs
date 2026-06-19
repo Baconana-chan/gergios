@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 
-fn main() {
+fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let mut argv = &args[1..];
 
@@ -104,7 +104,7 @@ fn main() {
     }
 
     // Write output
-    let write_result = if let Some(ref out_file) = output {
+    let write_result: io::Result<()> = if let Some(ref out_file) = output {
         let mut f = File::create(out_file)?;
         for line in &lines {
             writeln!(f, "{line}")?;
@@ -123,4 +123,5 @@ fn main() {
         eprintln!("sort: write error: {e}");
         std::process::exit(1);
     }
+    Ok(())
 }

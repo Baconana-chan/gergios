@@ -1506,14 +1506,17 @@ do_rc()
 		${extra_scripts}
 	failed=$(( ${failed} + $? ))
 
-	if ! find_file_in_dirlist blacklistd "blacklistd" \
-	    "${SRC_DIR}/external/bsd/blacklist/etc/rc.d" \
-	    "${SRC_DIR}/etc/rc.d"; then
-	    failed=1
-	else
-	    populate_dir "$op" true "${dir}" "${DEST_DIR}/etc/rc.d" 555 \
-		blacklistd
-	    failed=$(( ${failed} + $? ))
+	# blacklistd removed from tree — available via pkgsrc
+	if [ -d "${SRC_DIR}/external/bsd/blacklist/etc/rc.d" ]; then
+	    if ! find_file_in_dirlist blacklistd "blacklistd" \
+	        "${SRC_DIR}/external/bsd/blacklist/etc/rc.d" \
+	        "${SRC_DIR}/etc/rc.d"; then
+	        failed=1
+	    else
+	        populate_dir "$op" true "${dir}" "${DEST_DIR}/etc/rc.d" 555 \
+		    blacklistd
+	        failed=$(( ${failed} + $? ))
+	    fi
 	fi
 
 	if $SOURCEMODE && [ -n "${generated_scripts}" ]; then

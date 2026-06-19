@@ -44,7 +44,8 @@ option(MKCOVERAGE "Build with coverage profiling" OFF)
 
 # x86-specific options (from bsd.own.mk: _MKVARS.yes adds these
 # only when MACHINE_ARCH matches x86 architectures)
-# Default ON for x86 and x86_64; arch_earm.cmake forces OFF for ARM.
+# Default ON for x86 and x86_64; arch_earm.cmake and arch_aarch64.cmake
+# force OFF for non-x86 architectures.
 option(USE_WATCHDOG "Watchdog driver support" ON)
 option(USE_ACPI "ACPI power management support" ON)
 option(USE_APIC "APIC interrupt controller support" ON)

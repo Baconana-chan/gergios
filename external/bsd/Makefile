@@ -1,18 +1,65 @@
 #	$NetBSD: Makefile,v 1.54 2015/09/28 17:12:46 christos Exp $
+#	$GergiOS: Cleaned up external/bsd/Makefile — pkgsrc-only packages removed
 
 .include <bsd.own.mk>
 
-#MINIX:
-SUBDIR=	bind byacc dhcpcd \
-	fetch file flex less \
-	libarchive libevent libpcap mdocml \
-	openresolv tcpdump tmux top
+# GergiOS core: only essential packages that are not easily replaceable via pkgsrc
+SUBDIR=	dhcpcd \
+	libarchive libevent libpcap
 
 .if (${MKATF} != "no")
 SUBDIR+= atf
 .endif
 .if (${MKCRYPTO} != "no")
 SUBDIR+= pkg_install
+.endif
+.if (${MKBYACC} != "no")
+SUBDIR+= byacc
+.endif
+.if (${MKBZIP2} != "no")
+SUBDIR+= bzip2
+.endif
+.if (${MKFETCH} != "no")
+SUBDIR+= fetch
+.endif
+.if (${MKFILE} != "no")
+SUBDIR+= file
+.endif
+.if (${MKFLEX} != "no")
+SUBDIR+= flex
+.endif
+.if (${MKLESS} != "no")
+SUBDIR+= less
+.endif
+.if (${MKMDOCML} != "no")
+SUBDIR+= mdocml
+.endif
+.if (${MKOPENRESOLV} != "no")
+SUBDIR+= openresolv
+.endif
+.if (${MKTCPDUMP} != "no")
+SUBDIR+= tcpdump
+.endif
+.if (${MKTMUX} != "no")
+SUBDIR+= tmux
+.endif
+.if (${MKTOP} != "no")
+SUBDIR+= top
+.endif
+.if (${MKBIND} != "no")
+SUBDIR+= bind
+.endif
+.if (${MKDHCP} != "no")
+SUBDIR+= dhcp
+.endif
+.if (${MKBLACKLIST} != "no")
+SUBDIR+= blacklist
+.endif
+.if (${MKNVI} != "no")
+SUBDIR+= nvi
+.endif
+.if (${MKCTWM} != "no")
+SUBDIR+= ctwm
 .endif
 # IP Filter
 .if (${MKIPFILTER} != "no")
@@ -42,8 +89,5 @@ SUBDIR+= pcc
 SUBDIR+= libproc
 SUBDIR+= librtld_db
 .endif
-
-#MINIX:
-SUBDIR+= blacklist dhcp nvi
 
 .include <bsd.subdir.mk>

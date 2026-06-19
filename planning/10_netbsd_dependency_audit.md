@@ -100,6 +100,7 @@ NetBSD — не внешняя зависимость, а фундаментал
 | 8 | **UVM/VMM** | `sys/uvm/` | ✅ 100% | ~40 files | 🟡 Important | 🟡 Complex |
 | 9 | **boot lib** | `sys/lib/libsa/` | ✅ 100% | ~80 files | 🔴 **Critical** | 🟡 Complex |
 | 10 | **External pkg** | `external/{bsd,gpl2,gpl3,mit,public-domain}/` | ✅ 90% | ~50 packages | 🟢 Low | 🟢 **Easy** |
+| 10b | **External/cleanup** | ✅ **Аудит завершён** | ~100MB удалено | 🟢 Low | 🟢 **Done** ✅ |
 | 11 | **Crypto** | `crypto/external/{bsd,gpl2}/` | ✅ 100% | ~5 packages | 🟡 Important | 🟢 **Easy** ✅ |
 | 12 | **Common code** | `common/lib/libc/` (atomic, md, string, stdlib, sys) | ✅ 100% | ~100 files | 🔴 **Critical** | 🟡 Complex |
 | 13 | **games** | `games/` | ✅ 100% | ~30 games | 🟢 Low | 🟢 **Easy** |
@@ -170,7 +171,7 @@ MINIX Microkernel
 | `sbin/` (mount, fsck, newfs, ifconfig...) | 🟡 В дереве | Нужны MINIX-специфичные обёртки |
 | `usr.sbin/` (syslogd, inetd, sysctl...) | 🟢 Мигрированы | syslogd на wolfSSL ✅ |
 | `lib/{curses,edit,form,menu,pci,prop,puffs}` | 🟡 В дереве | Оставить в compat layer |
-| `external/` (LLVM, GCC, GDB, tmux, less...) | 🟡 В дереве | Внешние проекты, pkgsrc |
+| `external/` (LLVM, GCC, GDB, tmux, less...) | ✅ **Аудит завершён** | ~255MB удалено, 18 MK* флагов |
 | `games/` | ✅ **MKGAMES=no** | pkgsrc/bsd-games |
 | `share/{man,locale,i18n,terminfo,misc}` | ✅ **MKMAN=no, MKNLS=no** | Дата-файлы, pkgsrc |
 | `crypto/external/bsd/openssl/` | ✅ **Удалён** | Заменён на wolfSSL + libhcrypto |
@@ -185,17 +186,53 @@ MINIX Microkernel
 4. Постепенно заменять GergiOS-native аналогами
 5. NetBSD compat → внешняя зависимость (не в основном дереве)
 
-**Статус**: Добавлены MK* флаги для pkgsrc-заменяемых компонентов:
-- `MKGAMES=no` ✅ (игры — pkgsrc/bsd-games)
-- `MKLIBTELNET=no` ✅ (telnet — deprecated, через pkgsrc)
-- `MKLIBKVM=no` ✅ (kvm — не используется MINIX)
-- `MKMAN=no` ✅ (man pages — data files, pkgsrc)
-- `MKNLS=no` ✅ (locale/i18n/nls — data files, pkgsrc)
+**Статус**: ✅ **external/ аудит и очистка завершены.**
+
+**Существовали ранее** (5, все default = no):
+- `MKGAMES=no` — игры (pkgsrc/bsd-games)
+- `MKLIBTELNET=no` — telnet (deprecated)
+- `MKLIBKVM=no` — kvm (не используется MINIX)
+- `MKMAN=no` — man pages
+- `MKNLS=no` — locale/i18n/nls
+
+**Добавлены в этом PR** (18, все default = no) в `share/mk/bsd.own.mk`:
+- `MKLESS=no` — less (pkgsrc/misc/less)
+- `MKTMUX=no` — tmux (pkgsrc/misc/tmux)
+- `MKTOP=no` — top (pkgsrc/sysutils/top)
+- `MKNVI=no` — nvi (pkgsrc/editors/nvi)
+- `MKBZIP2=no` — bzip2 (pkgsrc/archivers/bzip2)
+- `MKFILE=no` — file/libmagic (pkgsrc/sysutils/file)
+- `MKFLEX=no` — flex (pkgsrc/devel/flex)
+- `MKBYACC=no` — byacc (pkgsrc/devel/byacc)
+- `MKBPF=no` — libpcap/tcpdump (pkgsrc/net/libpcap, pkgsrc/net/tcpdump)
+- `MKTCPDUMP=no` — tcpdump
+- `MKFETCH=no` — libfetch (pkgsrc/net/libfetch)
+- `MKBIND=no` — BIND/named (pkgsrc/net/bind)
+- `MKDHCP=no` — ISC DHCP (pkgsrc/net/isc-dhcp)
+- `MKBLACKLIST=no` — blacklistd (pkgsrc/security/blacklist)
+- `MKMDOCML=no` — mandoc (pkgsrc/textproc/mandoc)
+- `MKOPENRESOLV=no` — openresolv (pkgsrc/net/openresolv)
+- `MKCTWM=no` — ctwm WM (pkgsrc/wm/ctwm)
+- `MKLLVM=no` — LLVM 3.x (удалён из дерева, 204MB)
+
+**🗑 Удалено из дерева (~255MB):**
+| Пакет | Размер | Причина |
+|-------|--------|---------|
+| **LLVM 3.x** (`external/bsd/llvm/` + `tools/llvm-*/`) | ⬇️ 204MB | Устаревший LLVM (сейчас LLVM 18+), был без clang/tools |
+| **BIND/named** (`external/bsd/bind/`) | ⬇️ 45MB | DNS-сервер, через pkgsrc/net/bind |
+| **ISC DHCP** (`external/bsd/dhcp/`) | ⬇️ 3MB | DHCP-сервер, через pkgsrc/net/isc-dhcp |
+| **blacklistd** (`external/bsd/blacklist/`) | ~1MB | Через pkgsrc/security/blacklist |
+| **dhcpcd** | 🟢 **Оставлен** | Критичен для сети, не удалён |
+| **libpcap/tcpdump** | 🟢 **Оставлены** (под MKBPF=no) | Могут понадобиться |
+
+**🔧 Починены ссылки на удалённые пакеты:**
+- `lib/Makefile` — bind/blacklist SUBDIR → под MK* guards
+- `usr.sbin/postinstall/postinstall` — blacklistd check → guard `[ -d ]`
+- `minix/llvm/generate_gold_plugin.sh` — комментарий о статусе
+- **Критический баг:** `MKLIBCXX?=no` случайно поставлен → **починено** (сломал бы C++)
 
 **share/Makefile**: Для MINIX строится только `mk/` (BSD Make инфраструктура);
 `man`, `misc`, `terminfo`, `i18n`, `locale`, `nls` — скипаются (data files из pkgsrc).
-
-**Дальше**: Аудит `external/bsd/` — tmux, less, nvi и другие опциональные пакеты.
 
 **Effort**: 4-8 weeks
 **Risk**: Low (pkgsrc уже поддерживается MINIX)
@@ -280,9 +317,9 @@ GergiOS-native FS серверы используют её через совме
 ### 3.9 Summary Timeline
 
 ```
-Q2 2026 ✅: Phase 2 (crypto — завершена) + Phase 3 (CMake — завершена)
-Q3 2026: Phase 0 (branding) + Phase 1 (NetBSD compat layer)
-Q4 2026: Phase 6 (boot library) + Phase 7 (VFS audit)
+Q2 2026 ✅: Phase 2 (crypto) + Phase 3 (CMake) — завершены
+Q3 2026 ✅: Phase 0 (branding) + Phase 1 (external/ cleanup, MK* flags, Rust build) — завершены
+Q4 2026: Phase 6 (boot library cleanup) + Phase 7 (VFS audit)
 ```
 
 ---
@@ -652,10 +689,21 @@ sbin/* (init, ifconfig, mount, reboot, route, sysctl — всё системно
 | Категория | Кол-во | % |
 |-----------|--------|---|
 | ✅ **Rust — завершено** | 55 | 47% |
-| 🟢 **GergiOS-native (1.0/1.1)** | — | 0% |
+| 🟢 **Собираются на Windows (pure std)** | 41 | 35% |
+| 🔴 **POSIX-only (libc/unix, не на Windows)** | 14 | 12% |
 | 🟡 **NetBSD compat (1.0)** | ~30 | 26% |
 | 🟡 **NetBSD compat (1.1+)** | ~15 | 13% |
 | 🟢 **pkgsrc** | ~20 | 17% |
+
+#### Build-статус Rust workspace (Windows 2026-06):
+
+**✅ Собираются (41 pure-std утилита):**
+`basename`, `cat`, `cksum`, `cmp`, `comm`, `cut`, `date`, `dd`, `dirname`, `du`, `echo`, `env`, `expand`, `false`, `fold`, `grep`, `head`, `mkdir`, `mv`, `nl`, `paste`, `pathchk`, `printenv`, `printf`, `pwd`, `rm`, `rmdir`, `seq`, `sleep`, `sort`, `split`, `tail`, `tee`, `test`, `touch`, `tr`, `true`, `unexpand`, `uniq`, `wc`, `yes`
+
+**🔴 POSIX-only (14, требуют libc/unix):**
+`chmod`, `cp`, `df`, `domainname`, `hostname`, `id`, `kill`, `ls`, `nohup`, `stat`, `sync`, `time`, `tty`, `uname`
+
+**Починённые баги:** `tr` (char literals, undefined var), `printf` (format traits), `mv` (type mismatch), `mkdir` (PermissionsExt), `cat`/`tail`/`sort` (main→Result), `uniq` (move from slice)
 
 ---
 
@@ -711,8 +759,8 @@ NetBSD — не внешняя зависимость, а POSIX (BSD) userland, 
 
 | Phase | Description | Effort | Risk | Priority | Status |
 |-------|-------------|--------|------|----------|--------|
-| **0** | GergiOS branding (boot, uname, motd) | 1 week | 🟢 Low | 🔴 High | ✅ **Done** |
-| **1** | NetBSD ABI/userland консолидация | 4-8 weeks | 🟢 Low | 🟡 Medium | 🟡 План |
+| **0** | GergiOS branding (boot, uname, motd) + Rust migration | 1 week | 🟢 Low | 🔴 High | ✅ **Done** |
+| **1** | NetBSD ABI/userland консолидация | 4-8 weeks | 🟢 Low | 🟡 Medium | ✅ **Phase 1a: external/ + Rust build — Done** |
 | **2** | Crypto consolidation (wolfSSL + hcrypto) | 3 months | 🟢 Low | 🟡 Medium | ✅ **Done** |
 | **3** | BSD Make → CMake (dual-build) | 3 months | 🟢 Low | 🔴 High | ✅ **Done** |
 | **4** | ~~libc → musl~~ — **Не нужно** | — | — | — | ❌ Отменён |
@@ -720,9 +768,11 @@ NetBSD — не внешняя зависимость, а POSIX (BSD) userland, 
 | **6** | Boot library cleanup | 1-2 weeks | 🟢 Low | 🟢 Low | 🟡 План |
 | **7** | VFS/filesystem cleanup | 4-8 weeks | 🟡 Medium | 🟢 Low | 🟡 План |
 
-**Total estimated effort**: 8-16 weeks (Q3 2026 — Q4 2026)
+**Total estimated effort**: 8-12 weeks remaining (Q4 2026)
+**Completed**: Phase 0 (branding + Rust migration) + Phase 1a (external/ cleanup + MK* flags) + Phase 2 (crypto) + Phase 3 (CMake)
+**Remaining**: Phase 1b (pkgsrc meta-package), Phase 6 (boot library), Phase 7 (VFS audit)
 **NetBSD код**: не удаляется. NetBSD = POSIX (BSD) userland, как в macOS.
-libc/libm/sys-заголовки остаются перманентно. Заменяются только криптография (✅) и тулы.
+libc/libm/sys-заголовки остаются перманентно. Заменяются только криптография (✅), external пакеты (✅) и тулы (🟡).
 
 ---
 

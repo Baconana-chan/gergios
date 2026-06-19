@@ -1,16 +1,20 @@
-/* x86_64 kernel entry point.
+/* Dual-boot kernel entry point for x86_64.
  *
- * Boot sequence:
- * 1. Multiboot-compliant bootloader (GRUB) loads kernel at _kern_phys_base
- * 2. We enter in 32-bit protected mode (standard multiboot)
- * 3. We immediately set up the page tables for long mode:
- *    - Identity map low 4MB (so we can execute while transitioning)
- *    - Map kernel to high canonical address (0xFFFF8000F0400000)
- * 4. Enable PAE (required for long mode), then EFER.LME (long mode enable)
- * 5. Load 64-bit GDT with a 64-bit code segment
- * 6. Set CR0.PG to enable paging (this enters long mode)
- * 7. Far jump to 64-bit code segment
- * 8. In 64-bit mode: set up stack, jump to pre_init, then kmain
+ * Supports two bootloaders:
+ *
+ * A) GRUB / Multiboot (32-bit protected mode entry):
+ *    - Standard Multiboot v1 protocol
+ *    - Enters in 32-bit protected mode at multiboot_init
+ *    - Sets up page tables, transitions to long mode
+ *    - Calls pre_init(mbi, magic) with multiboot info
+ *
+ * B) Limine (64-bit long mode entry):
+ *    - ELF entry point starts in 64-bit long mode (set up by Limine)
+ *    - Limine protocol provides memory map, modules, framebuffer via
+ *      request/response structures placed in .limine_requests section
+ *    - Calls limine_pre_init() which reads the responses
+ *
+ * Both paths converge: pg_clear() → pg_identity() → kmain()
  */
 
 #include "kernel/kernel.h"
@@ -34,7 +38,84 @@ IMPORT(pre_init)
 IMPORT(kmain)
 IMPORT(switch_to_user)
 
-/* Page table structures for long mode transition.
+#ifdef USE_LIMINE
+IMPORT(limine_pre_init)
+#endif
+
+/* =========================================================================
+ * Limine Entry Point (64-bit long mode)
+ *
+ * Limine loads the kernel as ELF64 and jumps to the ELF entry point
+ * in 64-bit long mode. No 32→64 bit transition is needed.
+ *
+ * At entry:
+ *   - CPU is in 64-bit long mode (CS.L=1, paging enabled)
+ *   - Stack is undefined
+ *   - All registers are undefined
+ *
+ * We call limine_pre_init() which reads responses from the
+ * .limine_requests section and fills the kinfo struct.
+ *
+ * NOTE: This entry point serves dual purpose:
+ *   - Limine enters here directly in 64-bit mode
+ *   - The multiboot header's HAS_ADDR+mh_entry_addr directs GRUB
+ *     to multiboot_init (32-bit) instead of this ELF entry
+ * =========================================================================
+ */
+.section .unpaged.text, "ax"
+.code64
+
+ENTRY(MINIX)
+#ifdef USE_LIMINE
+	/* Set up stack (identity-mapped during early boot) */
+	movabs	$load_stack_start, %rsp
+	mov	$0, %rbp
+	push	$0
+	popf
+
+	/* Set up kernel segments */
+	mov	$0x10, %ax		/* kernel data selector */
+	mov	%ax, %ds
+	mov	%ax, %es
+	mov	%ax, %ss
+	xor	%ax, %ax
+	mov	%ax, %fs
+	mov	%ax, %gs
+
+	/* Initialize KERNEL_GS_BASE for SWAPGS-based syscall entry */
+	lea	load_stack_start(%rip), %rcx
+	subq	$64, %rcx
+	movq	%rcx, (%rcx)
+	movq	%rcx, %rax
+	shrq	$32, %rcx
+	movq	%rcx, %rdx
+	mov	$0xC0000102, %ecx	/* MSR IA32_KERNEL_GS_BASE */
+	wrmsr
+
+	/* Call limine_pre_init() — reads Limine responses, sets up pagetables */
+	call	limine_pre_init
+
+	/* Switch to high-mapped stack and jump to kmain */
+	movabs	$k_initial_stktop, %rsp
+	push	$0
+	mov	%rax, %rdi
+	call	kmain
+#else
+	/* USE_LIMINE not set — this entry point should never be reached
+	 * because the multiboot header's HAS_ADDR+mh_entry_addr directs
+	 * GRUB to multiboot_init (32-bit entry) directly. If we somehow
+	 * end up here in 64-bit mode, we cannot simply jmp to 32-bit
+	 * code — halt instead.
+	 */
+	hlt
+	jmp	.-2
+#endif
+
+	/* Not reached */
+hang_limine:
+	jmp	hang_limine
+
+/* Page table structures for long mode transition (multiboot path).
  * We need:
  * - PML4 table (1 entry: maps high kernel + identity)
  * - PDP table (2 entries: one for identity, one for kernel)
@@ -59,12 +140,12 @@ gdt64:
 	/* Null descriptor */
 	.quad 0
 	/* Kernel code: 64-bit, ring 0, present, executable, long mode */
-	.word 0			/* limit 15:0 */
-	.word 0			/* base 15:0 */
-	.byte 0			/* base 23:16 */
+	.word 0
+	.word 0
+	.byte 0
 	.byte 0x98		/* present, ring 0, code, non-conforming */
 	.byte 0x20		/* long mode (L=1), db=0 for 64-bit */
-	.byte 0			/* base 31:24 */
+	.byte 0
 	/* Kernel data: ring 0, present, writable */
 	.word 0
 	.word 0
@@ -91,16 +172,26 @@ gdt64_ptr:
 	.word (5 * 8) - 1	/* limit */
 	.quad gdt64		/* base (64-bit address) */
 
-.text
+/* =========================================================================
+ * Multiboot entry (32-bit protected mode)
+ *
+ * GRUB uses the multiboot header's mh_entry_addr field (set to
+ * multiboot_init) to enter in 32-bit protected mode, NOT the ELF
+ * entry point (which is MINIX above, for Limine).
+ * =========================================================================
+ */
+.section .unpaged.text
 .code32
 
-ENTRY(MINIX)
-	jmp multiboot_init
-
-/* Multiboot header. */
+/* Multiboot header with HAS_ADDR flag so mh_entry_addr is honoured.
+ * This allows Limine to use the ELF entry (64-bit) while GRUB uses
+ * the multiboot entry (32-bit at multiboot_init).
+ */
 .balign 8
 
-#define MULTIBOOT_FLAGS (MULTIBOOT_HEADER_WANT_MEMORY | MULTIBOOT_HEADER_MODS_ALIGNED)
+#define MULTIBOOT_FLAGS (MULTIBOOT_HEADER_WANT_MEMORY | \
+			 MULTIBOOT_HEADER_MODS_ALIGNED | \
+			 MULTIBOOT_HEADER_HAS_ADDR)
 
 multiboot_magic:
 	.long MULTIBOOT_HEADER_MAGIC
@@ -108,11 +199,16 @@ multiboot_flags:
 	.long MULTIBOOT_FLAGS
 multiboot_checksum:
 	.long -(MULTIBOOT_HEADER_MAGIC + MULTIBOOT_FLAGS)
-	.long 0
-	.long 0
-	.long 0
-	.long 0
-	.long 0
+multiboot_header_addr:
+	.long multiboot_magic		/* physical addr of this header */
+multiboot_load_addr:
+	.long _kern_phys_base		/* physical load address */
+multiboot_load_end_addr:
+	.long _kern_phys_base + _kern_size	/* load end */
+multiboot_bss_end_addr:
+	.long _kern_phys_base + _kern_size	/* BSS end */
+multiboot_entry_addr:
+	.long multiboot_init		/* GRUB jumps here (32-bit!) */
 multiboot_mode_type:
 	.long MULTIBOOT_VIDEO_MODE_EGA
 multiboot_width:

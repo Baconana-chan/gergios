@@ -26,11 +26,15 @@ if(MKPAE)
     target_compile_definitions(vm PRIVATE PAE=1)
 endif()
 
-# ARM linker script
+# ARM / ARM64 linker script
 if(MACHINE_ARCH STREQUAL "earm")
     target_link_options(vm PRIVATE
         -T "${CMAKE_CURRENT_SOURCE_DIR}/arch/earm/vm.lds"
     )
+endif()
+
+if(MACHINE_ARCH STREQUAL "aarch64")
+    target_compile_definitions(vm PRIVATE __aarch64__)
 endif()
 
 # Magic pass flags (VM-specific: skip malloc instrumentation)

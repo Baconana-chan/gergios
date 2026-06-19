@@ -256,6 +256,279 @@ create_protos()
 }
 
 #
+# Check for Limine bootloader availability and set paths
+#
+# Sets:
+#   LIMINE_BIN — path to limine executable
+#   LIMINE_DATA — path to Limine data directory
+#   LIMINE_VER — Limine version string
+#
+# Returns 0 if Limine is available, 1 if not.
+#
+check_limine()
+{
+	# Try to locate limine binary
+	LIMINE_BIN="${LIMINE_BIN:-$(command -v limine 2>/dev/null || true)}"
+	if [ -z "${LIMINE_BIN}" ]; then
+		return 1
+	fi
+
+	# Get version
+	LIMINE_VER=$("${LIMINE_BIN}" --version 2>/dev/null || echo "unknown")
+
+	# Locate data directory
+	LIMINE_DATA="${LIMINE_DIR:-}"
+	if [ -z "${LIMINE_DATA}" ] || [ ! -d "${LIMINE_DATA}" ]; then
+		# Try --print-data-dir (Limine 8.x+)
+		LIMINE_DATA=$("${LIMINE_BIN}" --print-data-dir 2>/dev/null || true)
+	fi
+	if [ -z "${LIMINE_DATA}" ] || [ ! -d "${LIMINE_DATA}" ]; then
+		# Try common paths
+		for d in /usr/share/limine /usr/local/share/limine /opt/limine/share; do
+			if [ -d "$d" ] && [ -f "$d/limine.sys" ]; then
+				LIMINE_DATA="$d"
+				break
+			fi
+		done
+	fi
+	if [ -z "${LIMINE_DATA}" ] || [ ! -d "${LIMINE_DATA}" ]; then
+		return 1
+	fi
+
+	return 0
+}
+
+#
+# Check for Limine AAC64 (ARM64) support
+#
+# Sets:
+#   LIMINE_AAC64 — path to BOOTAA64.EFI in LIMINE_DATA
+#
+# Returns 0 if AAC64 is supported, 1 if not.
+#
+check_limine_aac64()
+{
+	if [ -z "${LIMINE_DATA}" ] || [ ! -d "${LIMINE_DATA}" ]; then
+		return 1
+	fi
+
+	if [ -f "${LIMINE_DATA}/BOOTAA64.EFI" ]; then
+		LIMINE_AAC64="${LIMINE_DATA}/BOOTAA64.EFI"
+		return 0
+	fi
+
+	# Maybe the aac64 data is in a separate directory
+	for d in "${LIMINE_DATA}/aac64" "${LIMINE_DATA%/*}/limine-aac64" \
+		"/usr/share/limine-aac64" "/usr/local/share/limine-aac64"; do
+		if [ -f "$d/BOOTAA64.EFI" ]; then
+			LIMINE_AAC64="$d/BOOTAA64.EFI"
+			LIMINE_DATA="$d"
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+#
+# Find QEMU AArch64 UEFI firmware (AAVMF)
+#
+# Sets:
+#   QEMU_AAVMF_CODE — path to AAVMF_CODE.fd
+#   QEMU_AAVMF_VARS — path to AAVMF_VARS.fd (if available)
+#
+# Returns 0 if firmware is found, 1 if not.
+#
+find_qemu_firmware_aarch64()
+{
+	for path in \
+		/usr/share/qemu-efi-aarch64/QEMU_EFI.fd \
+		/usr/share/edk2/aarch64/QEMU_EFI.fd \
+		/usr/share/AAVMF/AAVMF_CODE.fd \
+		/usr/share/ovmf/aarch64/QEMU_EFI.fd \
+		/usr/share/qemu/edk2-aarch64-code.fd \
+		/usr/lib/edk2/aarch64/QEMU_EFI.fd; do
+		if [ -f "$path" ]; then
+			QEMU_AAVMF_CODE="$path"
+			QEMU_AAVMF_VARS="${path%/*}/AAVMF_VARS.fd"
+			[ -f "${QEMU_AAVMF_VARS}" ] || QEMU_AAVMF_VARS=""
+			return 0
+		fi
+	done
+	return 1
+}
+
+#
+# Generate limine.conf for the boot image
+#
+# $1 : output path for limine.conf
+# $2 : kernel path (relative to ESP root, e.g., /kernel)
+# $3 : module directory (relative to ESP root, e.g., /boot/modules)
+# $4 : kernel cmdline
+#
+create_limine_cfg()
+{
+	local OUT="$1"
+	local KERN_PATH="$2"
+	local MOD_DIR="$3"
+	local CMDLINE="$4"
+
+	# Normalise kernel path: ensure it starts with /
+	case "${KERN_PATH}" in
+		/*) ;;
+		*) KERN_PATH="/${KERN_PATH}" ;;
+	esac
+
+	# Add modules (generate per-file MODULE_PATH lines)
+	_add_modules() {
+		local dir="$1"
+		if [ -n "${dir}" ] && [ -d "${dir}" ]; then
+			for _m in "${dir}"/mod*; do
+				if [ -f "${_m}" ]; then
+					echo "	MODULE_PATH=boot:///$(basename ${_m})"
+				fi
+			done
+		fi
+	}
+
+	local MODS
+	MODS="$(_add_modules "${MOD_DIR}")"
+
+	# Default entry
+	cat > "${OUT}" <<END_LIMINE_CFG
+TIMEOUT=5
+
+:GergiOS (Limine)
+	PROTOCOL=limine
+	KERNEL_PATH=boot://${KERN_PATH}
+${MODS}
+	CMDLINE=${CMDLINE}
+
+:GergiOS (Limine, safe mode)
+	PROTOCOL=limine
+	KERNEL_PATH=boot://${KERN_PATH}
+${MODS}
+	CMDLINE=${CMDLINE} bootopts=-s
+END_LIMINE_CFG
+}
+
+#
+# Secure Boot signing infrastructure
+#
+
+#
+# Find Secure Boot signing tools on the host
+#
+# Sets:
+#   SBSIGN_BIN — path to sbsign
+#   SBVERIFY_BIN — path to sbverify
+#   OPSSL_BIN — path to openssl
+#   CERT2ESL_BIN — path to cert-to-efi-sig-list (optional)
+#
+# Returns 0 if sbsign + sbverify + openssl are found, 1 otherwise.
+#
+find_signing_tools()
+{
+	SBSIGN_BIN="${SBSIGN_BIN:-$(command -v sbsign 2>/dev/null || true)}"
+	SBVERIFY_BIN="${SBVERIFY_BIN:-$(command -v sbverify 2>/dev/null || true)}"
+	OPSSL_BIN="${OPSSL_BIN:-$(command -v openssl 2>/dev/null || true)}"
+	CERT2ESL_BIN="${CERT2ESL_BIN:-$(command -v cert-to-efi-sig-list 2>/dev/null || true)}"
+
+	if [ -z "${SBSIGN_BIN}" ] || [ -z "${SBVERIFY_BIN}" ] || [ -z "${OPSSL_BIN}" ]; then
+		return 1
+	fi
+	return 0
+}
+
+#
+# Locate Secure Boot signing keys
+#
+# Looks in SB_KEY_DIR (default: $OBJ/secure-boot-keys/), then in well-known paths.
+#
+# Sets:
+#   SB_KEY — path to private key (PEM)
+#   SB_CERT — path to certificate (PEM)
+#   SB_DER — path to certificate (DER)
+#   SB_ESL — path to EFI Signature List (optional)
+#
+# Returns 0 if key and cert are found, 1 otherwise.
+#
+find_sb_keys()
+{
+	local key_dir="${SB_KEY_DIR:-./secure-boot-keys}"
+
+	# Try configured directory first
+	if [ -f "${key_dir}/signing.key" ] && [ -f "${key_dir}/signing.pem" ]; then
+		SB_KEY="${key_dir}/signing.key"
+		SB_CERT="${key_dir}/signing.pem"
+		SB_DER="${key_dir}/signing.der"
+		SB_ESL="${key_dir}/signing.esl"
+		[ -f "${SB_DER}" ] || SB_DER=""
+		[ -f "${SB_ESL}" ] || SB_ESL=""
+		return 0
+	fi
+
+	# Try alternate paths (OBJ-relative, home dir)
+	for d in "${OBJ}/secure-boot-keys" "${HOME}/.gergios-sb-keys"; do
+		if [ -f "${d}/signing.key" ] && [ -f "${d}/signing.pem" ]; then
+			SB_KEY="${d}/signing.key"
+			SB_CERT="${d}/signing.pem"
+			SB_DER="${d}/signing.der"
+			SB_ESL="${d}/signing.esl"
+			[ -f "${SB_DER}" ] || SB_DER=""
+			[ -f "${SB_ESL}" ] || SB_ESL=""
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+#
+# Sign an EFI binary with sbsign
+#
+# $1 : input EFI binary path
+# $2 : output signed binary path (default: overwrite input)
+#
+# Uses SB_KEY and SB_CERT from find_sb_keys().
+# Returns 0 on success, 1 on failure.
+#
+sign_efi()
+{
+	local input="$1"
+	local output="${2:-${input}}"
+	local tmp_output="${output}.signed.tmp"
+
+	if [ ! -f "${input}" ]; then
+		echo "   ERROR: cannot sign — ${input} not found" >&2
+		return 1
+	fi
+
+	echo "   Signing $(basename ${input})..."
+
+	# Sign to temp file first to avoid corrupting the original on failure
+	"${SBSIGN_BIN}" --key "${SB_KEY}" --cert "${SB_CERT}" \
+		--output "${tmp_output}" "${input}" 2>&1 || {
+		echo "   WARNING: sbsign failed for $(basename ${input})" >&2
+		rm -f "${tmp_output}"
+		return 1
+	}
+
+	# Verify signature
+	if [ -n "${SBVERIFY_BIN}" ]; then
+		"${SBVERIFY_BIN}" --cert "${SB_CERT}" "${tmp_output}" 2>/dev/null || {
+			echo "   WARNING: signature verification failed for $(basename ${output})" >&2
+			rm -f "${tmp_output}"
+			return 1
+		}
+	fi
+
+	# Atomic replacement: signed temp → final output
+	mv -f "${tmp_output}" "${output}"
+	return 0
+}
+
+#
 # Clone grub repository and build efi boot binary
 #
 fetch_and_build_grub()

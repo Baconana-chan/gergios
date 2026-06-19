@@ -44,10 +44,10 @@ fn main() {
     };
 
     let output: Box<dyn Write> = if argv.len() > 1 {
-        match File::create(argv[1]) {
+        match File::create(&argv[1]) {
             Ok(f) => Box::new(f),
             Err(e) => {
-                eprintln!("uniq: {}: {e}", argv[1]);
+                eprintln!("uniq: {}: {e}", &argv[1]);
                 std::process::exit(1);
             }
         }

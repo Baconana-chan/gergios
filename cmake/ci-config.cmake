@@ -19,7 +19,8 @@
 # Architecture (i386 is Phase 3 hard deprecated — not in default CI)
 set(CI_ARCHITECTURES
     x86_64      # Primary: default build target
-    earm        # Secondary: ARM support
+    earm        # Secondary: ARM 32-bit support
+    aarch64     # Future: ARM64 support (Phase 1: build infra)
 )
 
 # Build Types

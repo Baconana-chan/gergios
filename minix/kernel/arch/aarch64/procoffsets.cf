@@ -1,0 +1,13 @@
+# procoffsets.cf — ARM64 Assembly Offset Definitions (Phase 1 Stub)
+#
+# This file defines offset symbols used by assembly code in head.S and mpx.S.
+# Phase 1: empty stub — Phase 2 will define actual ARM64 offsets when the
+# kernel entry code is implemented.
+#
+# ARM64 offset requirements (Phase 2+):
+#   - PROC_REG_OFFSETS (x0–x30 save area offsets in stackframe)
+#   - SAVED_ELR_OFFSET, SAVED_SPSR_OFFSET
+#   - USER_SP_OFFSET
+#   - PROC_NAME_OFFSET, PROC_ENDPOINT_OFFSET
+#
+# See arch/x86_64/procoffsets.cf for reference format.

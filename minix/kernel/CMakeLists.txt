@@ -82,6 +82,30 @@ if(MACHINE_ARCH STREQUAL "earm")
         arch/earm/hw_intr.c
         arch/earm/do_padconf.c
     )
+elseif(MACHINE_ARCH STREQUAL "x86_64")
+    set(KERNEL_ARCH_SOURCES
+        arch/x86_64/mpx.S
+        arch/x86_64/arch_clock.c
+        arch/x86_64/arch_do_vmctl.c
+        arch/x86_64/arch_system.c
+        arch/x86_64/klib.S
+        arch/x86_64/memory.c
+        arch/x86_64/protect.c
+        arch/x86_64/direct_tty_utils.c
+        arch/x86_64/arch_reset.c
+        arch/x86_64/pg_utils.c
+        arch/x86_64/exception.c
+        arch/x86_64/i8259.c
+        arch/x86_64/limine.c
+    )
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    # Phase 2: Kernel Bootstrap
+    set(KERNEL_ARCH_SOURCES
+        arch/aarch64/head.S          # ARM64 entry, EL1 init, MMU
+        arch/aarch64/vectors.S       # VBAR_EL1 exception vector table
+        arch/aarch64/startup.c       # C startup: PL011 UART, hello
+        arch/aarch64/pre_init.c      # Boot info setup
+    )
 endif()
 
 # Optional sources
@@ -110,6 +134,17 @@ if(MACHINE_ARCH STREQUAL "earm")
     set(UNPAGED_ARCH_OBJECTS
         head.o
         pre_init.o
+        direct_tty_utils.o
+        pg_utils.o
+        klib.o
+        utility.o
+        arch_reset.o
+    )
+elseif(MACHINE_ARCH STREQUAL "x86_64")
+    set(UNPAGED_ARCH_OBJECTS
+        head.o
+        pre_init.o
+        limine.o
         direct_tty_utils.o
         pg_utils.o
         klib.o
@@ -146,6 +181,20 @@ if(MACHINE_ARCH STREQUAL "earm")
         udivmodsi4.o
         aeabi_uldivmod.o
     )
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    # Phase 2: Kernel Bootstrap — unpaged objects
+    set(UNPAGED_ARCH_OBJECTS
+        head.o
+        vectors.o
+        pre_init.o
+        startup.o
+    )
+    # ARM64 has hardware integer division (UDIV/SDIV), so no
+    # software division routines needed for the unpaged section.
+    # Phase 2+ will add klib.o, utility.o, etc.
+    set(UNPAGED_MINLIB_OBJECTS)
+    set(UNPAGED_SYS_OBJECTS)
+    set(UNPAGED_MINIC_OBJECTS)
 endif()
 
 # ============================================================================

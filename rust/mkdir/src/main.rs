@@ -7,7 +7,6 @@
 
 use std::fs;
 use std::io;
-use std::os::unix::fs::PermissionsExt;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -29,7 +28,7 @@ fn main() {
                     eprintln!("mkdir: option requires an argument: -m");
                     std::process::exit(1);
                 }
-                mode = match u32::from_str_radix(argv[0], 8) {
+                mode = match u32::from_str_radix(argv[0].as_str(), 8) {
                     Ok(m) => Some(m),
                     Err(_) => {
                         eprintln!("mkdir: invalid mode: {}", argv[0]);
@@ -61,7 +60,8 @@ fn main() {
 
         match result {
             Ok(()) => {
-                // Set mode if specified (after creating)
+                // Set mode if specified (after creating) — Unix only
+                #[cfg(unix)]
                 if let Some(m) = mode {
                     use std::os::unix::fs::PermissionsExt;
                     if let Err(e) = fs::set_permissions(dir, fs::Permissions::from_mode(m & 0o777)) {

@@ -32,7 +32,7 @@ char *video_mem = (char *) MULTIBOOT_VIDEO_BUFFER;
 /* Kernel may use memory */
 int kernel_may_alloc = 1;
 
-static int mb_set_param(char *bigbuf, char *name, char *value, kinfo_t *cbi) 
+int mb_set_param(char *bigbuf, char *name, char *value, kinfo_t *cbi) 
 {
 	char *p = bigbuf;
 	char *bufend = bigbuf + MULTIBOOT_PARAM_BUF_SIZE;
@@ -74,7 +74,7 @@ static int mb_set_param(char *bigbuf, char *name, char *value, kinfo_t *cbi)
 	return 0;
 }
 
-int overlaps(multiboot_module_t *mod, int n, int cmp_mod)
+int __unpaged overlaps(multiboot_module_t *mod, int n, int cmp_mod)
 {
 	multiboot_module_t *cmp = &mod[cmp_mod];
 	int m;

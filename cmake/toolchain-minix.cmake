@@ -55,6 +55,8 @@ endmacro()
 # Select ELF format and tool prefix based on architecture
 if(MACHINE_ARCH STREQUAL "x86_64")
     _set_tool_prefix("x86_64-elf64-minix")
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    _set_tool_prefix("aarch64-elf64-minix")
 else()
     # i386, earm, and others use 32-bit ELF
     _set_tool_prefix("${MACHINE_ARCH}-elf32-minix")

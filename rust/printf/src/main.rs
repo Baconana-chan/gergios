@@ -89,36 +89,20 @@ fn main() {
                         // Strip length modifiers from spec
                         let rust_spec = spec.replace("ll", "").replace('l', "").replace('h', "").replace('z', "").replace('t', "").replace('j', "").replace('L', "");
                         let output = if rust_spec.ends_with('f') || rust_spec.ends_with('F') || rust_spec.ends_with('e') || rust_spec.ends_with('E') || rust_spec.ends_with('g') || rust_spec.ends_with('G') || rust_spec.ends_with('a') || rust_spec.ends_with('A') {
-                            // Floating point
-                            if rust_spec == "%f" || rust_spec == "%F" {
-                                format!("{num}")
-                            } else if rust_spec == "%e" || rust_spec == "%E" {
-                                format!("{num:e}")
-                            } else if rust_spec == "%g" || rust_spec == "%G" {
-                                format!("{num:g}")
-                            } else {
-                                format!("{rust_spec}", num = num)
-                            }
+                            // Floating point (Rust doesn't support %g directly; Display is closest)
+                            format!("{num}")
                         } else if rust_spec.ends_with('d') || rust_spec.ends_with('i') {
-                            let num_i = num as i64;
-                            format!("{rust_spec}", num_i = num_i)
+                            format!("{}", num as i64)
                         } else if rust_spec.ends_with('u') {
-                            let num_u = num as u64;
-                            format!("{rust_spec}", num_u = num_u)
+                            format!("{}", num as u64)
                         } else if rust_spec.ends_with('o') {
-                            let num_u = num as u64;
-                            match rust_spec.as_str() {
-                                "%#o" => format!("{num_u:o}"),
-                                _ => format!("{num_u:o}"),
-                            }
+                            format!("{:o}", num as u64)
                         } else if rust_spec.ends_with('x') {
-                            let num_u = num as u64;
-                            format!("{num_u:x}")
+                            format!("{:x}", num as u64)
                         } else if rust_spec.ends_with('X') {
-                            let num_u = num as u64;
-                            format!("{num_u:X}")
+                            format!("{:X}", num as u64)
                         } else {
-                            format!("{rust_spec}", num = num)
+                            format!("{num}")
                         };
                         let _ = write!(out, "{output}");
                         arg_idx += 1;

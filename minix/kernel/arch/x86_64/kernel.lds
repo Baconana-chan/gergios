@@ -34,6 +34,16 @@ SECTIONS
 	.unpaged_bss  ALIGN(4096)  : { unpaged_*.o(.bss COMMON) }
 	__k_unpaged__kern_unpaged_end = .;
 
+	/* Limine boot protocol requests section.
+	 * This section contains the request structures that the Limine
+	 * bootloader scans to find which services the kernel needs.
+	 * Must be accessible at boot time (in unpaged part).
+	 * If limine.o is not unpaged, keep it here in low memory.
+	 */
+	.limine_requests ALIGN(64) : { *(.limine_requests) }
+	__k_unpaged__limine_requests_start = .;
+	__k_unpaged__limine_requests_end = .;
+
 	. += _kern_offset;
 
 	. = ALIGN(4096); usermapped_start = .;

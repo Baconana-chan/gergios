@@ -42,8 +42,11 @@ fn main() {
         let delete_chars: Vec<char> = if complement {
             // Delete everything NOT in s1
             let s1_chars: Vec<char> = s1.chars().collect();
-            let all_chars = ('\\u{0}'..='\\u{ff}').chain('\u{100}'..='\u{10ffff}');
-            all_chars.filter(|c| !s1_chars.contains(c)).collect()
+            // Iterate over all bytes 0-255
+            (0u8..=255u8)
+                .map(|b| b as char)
+                .filter(|c| !s1_chars.contains(c))
+                .collect()
         } else {
             s1.chars().collect()
         };
@@ -73,7 +76,7 @@ fn main() {
             if s1_set.contains(&ch) {
                 map.push(ch); // Keep original
             } else {
-                let idx = s1_chars.iter().position(|&x| x == ch).unwrap_or(s1_chars.len() - 1);
+                let idx = s1_set.iter().position(|&x| x == ch).unwrap_or(s1_set.len().saturating_sub(1));
                 map.push(s2.chars().nth(idx.min(s2.chars().count().saturating_sub(1))).unwrap_or(last_s2));
             }
         }

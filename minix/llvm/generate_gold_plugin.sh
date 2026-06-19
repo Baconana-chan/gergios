@@ -3,7 +3,7 @@
 cd $(dirname $0)
 
 : ${NETBSDSRCDIR=${PWD}/../..}
-: ${LLVMSRCDIR=${NETBSDSRCDIR}/external/bsd/llvm/dist}
+: ${LLVMSRCDIR=${NETBSDSRCDIR}/external/bsd/llvm/dist} # NOTE: external/bsd/llvm was deleted — LLVM 3.x removed from tree
 : ${ARCH=i386}
 : ${JOBS=1}
 : ${OBJ_LLVM=${NETBSDSRCDIR}/../obj_llvm.${ARCH}}

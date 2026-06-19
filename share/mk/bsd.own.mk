@@ -35,6 +35,31 @@ MKCOVERAGE?=	no
 MKGAMES?=	no
 MKLIBTELNET?=	no
 MKLIBKVM?=	no
+MKLESS?=	no
+MKTMUX?=	no
+MKTOP?=		no
+MKNVI?=		no
+MKBZIP2?=	no
+MKFILE?=	no
+MKFLEX?=	no
+MKBYACC?=	no
+MKBPF?=		no
+MKTCPDUMP?=	no
+MKFETCH?=	no
+MKBIND?=	no
+MKDHCP?=	no
+MKBLACKLIST?=	no
+MKMDOCML?=	no
+MKOPENRESOLV?=	no
+MKCTWM?=	no
+
+# LLVM 3.x — удалён из дерева (204MB устаревшего кода)
+MKLLVM?=	no
+
+# Limine bootloader support
+# При включении (MKLIMINE=yes) ядро собирается с поддержкой
+# Limine protocol (64-bit entry) параллельно с Multiboot.
+MKLIMINE?=	no
 
 # Data files — man pages, locale, i18n: pkgsrc
 MKMAN?=		no
@@ -1507,7 +1532,7 @@ ${var}?= yes
 #MINIX-specific vars
 .for var in \
 	USE_WATCHDOG USE_ACPI USE_PAE USE_APIC USE_DEBUGREG USE_SYSDEBUG \
-	USE_LIVEUPDATE USE_PCI USE_BITCODE USE_MAGIC USE_ASR
+	USE_LIVEUPDATE USE_PCI USE_BITCODE USE_MAGIC USE_ASR USE_LIMINE
 .if (${${var:S/USE_/MK/}} == "no")
 ${var}:= no
 .else

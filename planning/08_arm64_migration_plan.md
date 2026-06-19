@@ -14,7 +14,7 @@ ARM64 is fundamentally different from 32-bit ARM — it is not merely a 64-bit e
 |-----------|------|-------------------|--------|------------------|
 | Build system (CMake) | ✅ arch_i386.cmake | ✅ arch_earm.cmake | ✅ arch_x86_64.cmake | ❌ Missing |
 | Kernel ASM (boot, traps, ctx) | ✅ Complete | ✅ Complete | ✅ Complete | ❌ Missing |
-| Memory management (VM) | ✅ Complete | ✅ Complete (v7) | ✅ Complete | ❌ Missing |
+| Memory management (VM) | ✅ Complete | ✅ Complete (v7) | ✅ Complete | ✅ arch/aarch64/include/vm.h + pagetable.h + __aarch64__ in pagetable.c |
 | Signals/mcontext/syscalls | ✅ Complete | ✅ Complete | ✅ Complete | ❌ Missing |
 | libsys arch | ✅ Complete | ✅ 3 files | ✅ Complete | ❌ Missing |
 | libminc arch (setjmp/longjmp) | ✅ Complete | ✅ Complete | ✅ Complete | ❌ Missing |
@@ -76,62 +76,66 @@ Phase 8: Testing + Polish         → Full functional testing, documentation
 
 ---
 
-## Phase 1: Build Infrastructure 🟢 (Easiest)
+## Phase 1: Build Infrastructure ✅ **Выполнена**
 
-### 1.1 cmake/arch_aarch64.cmake
+### 1.1 cmake/arch_aarch64.cmake ✅
 
-Create architecture definition for ARM64:
+Created architecture definition for ARM64 (see `cmake/arch_aarch64.cmake`):
+- `MACHINE_CPU=aarch64`, `GNU_ARCH=aarch64`, `GNU_PLATFORM=aarch64-elf64-minix`
+- `-march=armv8-a`, `-mstrict-align`, `-fomit-frame-pointer` (Release only)
+- `__aarch64__`, `__ARM_ARCH_8__`, `_LP64`, `__LP64__`
+- x86 options (USE_WATCHDOG, USE_ACPI, etc.) forced OFF (same as arch_earm.cmake)
 
-```cmake
-# === ARM64 (AArch64) Architecture ===
-set(MACHINE_CPU "aarch64")
-set(GNU_ARCH "aarch64")
-set(MACHINE_GNU_PLATFORM "${GNU_ARCH}-elf64-minix")
+### 1.2 cmake/toolchain-minix.cmake ✅
 
-# Compile flags for ARMv8-A
-add_compile_options(-march=armv8-a)
-# ARM64 requires 16-byte stack alignment
-add_compile_options(-mstrict-align)
+Added tool prefix: `_set_tool_prefix("aarch64-elf64-minix")`
+`CMAKE_SYSTEM_PROCESSOR="aarch64"` already existed.
 
-# ARM64-specific compile definitions
-add_compile_definitions(
-    __aarch64__
-    __ARM_ARCH_8__
-    _LP64
-    __LP64__
-)
-```
+### 1.3 CMakePresets.json ✅
 
-### 1.2 cmake/toolchain-minix.cmake
+- `aarch64-debug`: Debug build, Ninja, MACHINE_ARCH=aarch64
+- `aarch64-release`: Release build, Ninja, MACHINE_ARCH=aarch64
+- Build presets for both
 
-Already has aarch64 case:
-```cmake
-elseif(MACHINE_ARCH STREQUAL "aarch64")
-    set(CMAKE_SYSTEM_PROCESSOR "aarch64")
-```
+### 1.4 cmake/options.cmake ✅
 
-Need to add tool prefix handling:
-```cmake
-if(MACHINE_ARCH STREQUAL "aarch64")
-    _set_tool_prefix("aarch64-elf64-minix")
-```
+Updated comment to mention aarch64 alongside earm for force-off options.
 
-### 1.3 CMakePresets.json
+### 1.5 cmake/ci-config.cmake ✅
 
-- Add `aarch64-debug` preset
-- Add `aarch64-release` preset
+Added aarch64 to CI_ARCHITECTURES list.
 
-### 1.4 cmake/options.cmake
+### 1.6 minix/kernel/arch/aarch64/ — stub files ✅
 
-Verify MINIX options are compatible with ARM64 (no architecture-specific assumptions).
+Minimum required files for cmake configure:
+- `kernel.lds` — stub linker script (OUTPUT_ARCH(aarch64), ENTRY(_start))
+- `procoffsets.cf` — stub offset definitions for Phase 2+
+- `include/` — empty directory (for include paths)
 
-### 1.5 Verify
+### 1.7 minix/include/arch/aarch64/include/archtypes.h ✅
+
+Stub header with register convention documentation.
+
+### 1.8 minix/kernel/CMakeLists.txt ✅
+
+Added `elseif(MACHINE_ARCH STREQUAL "aarch64")` cases:
+- KERNEL_ARCH_SOURCES: empty (Phase 2 will add head.S, mpx.S, etc.)
+- UNPAGED_*_OBJECTS: empty sets
+
+### Status: ✅ **Build infrastructure complete**
 
 - `cmake -DMACHINE_ARCH=aarch64 ..` succeeds
-- Compiler flags are correct (`-march=armv8-a`)
-
-**Estimated effort**: 2-3 days
-**Dependencies**: None (build system infrastructure only)
+- `cmake --build .` will fail (expected — no kernel arch code yet)
+- **Добавленные/изменённые файлы**:
+  - 🆕 `cmake/arch_aarch64.cmake`
+  - ✏️ `cmake/toolchain-minix.cmake`
+  - ✏️ `CMakePresets.json`
+  - ✏️ `cmake/options.cmake`
+  - ✏️ `cmake/ci-config.cmake`
+  - 🆕 `minix/kernel/arch/aarch64/kernel.lds`
+  - 🆕 `minix/kernel/arch/aarch64/procoffsets.cf`
+  - 🆕 `minix/include/arch/aarch64/include/archtypes.h`
+  - ✏️ `minix/kernel/CMakeLists.txt`
 
 ---
 
@@ -328,7 +332,7 @@ SECTIONS {
 
 ---
 
-## Phase 3: Memory Management 🔴
+## Phase 3: Memory Management ✅ **Выполнена**
 
 ### 3.1 ARM64 Translation Tables
 
@@ -338,73 +342,70 @@ ARM64 uses a **4-level or 3-level translation table** depending on page size and
 ```
 Level 0:  47:39 (9 bits) → Table (512 entries, 4KB)
 Level 1:  38:30 (9 bits) → Table (512 entries, 4KB)
-Level 2:  29:21 (9 bits) → Table (512 entries, 4KB)
-Level 3:  20:12 (9 bits) → Page (512 entries, 4KB)
+Level 2:  29:21 (9 bits) → Table (512 entries, 4KB)  ← PDE level (MINIX 2-level abstraction)
+Level 3:  20:12 (9 bits) → Page (512 entries, 4KB)   ← PTE level
           11:0  (12 bits) → Page offset
 ```
 
-**ARM64 PTE format (64-bit):**
+**ARM64 PTE format (64-bit) — defined in `minix/include/arch/aarch64/include/vm.h`:**
 ```
-Bit    | Field       | Description
--------|-------------|------------------------------
-0      | Valid       | Entry valid
-1      | Table/Page  | 0=Table, 1=Page
-2-5    | AttrIndx    | Index into MAIR (memory type)
-6-9    | NS, AP, SH  | Security, access, shareability
-10     | AF          | Access flag
-11     | nG          | Not global
-12-47  | Output addr | Physical address (bits [47:12])
-48-50  | Reserved    | For SW use (MINIX flags)
-51     | DBM         | Dirty bit modifier
-52-53  | Contiguous  | Contiguous hint
-54-55  | PXN/UXN     | Privileged/User execute never
-56-59  | Reserved    | (used by some extensions)
-60-61  | PBHA        | Page-based hardware attributes
-62-63  | Ignored     | (used for SW)
+Bit    | Field       | AARCH64_VM_* constant          | Description
+-------|-------------|--------------------------------|------------------------------
+0      | Valid       | PRESENT                        | Entry valid
+1      | Page/Table  | PAGE or TABLE                  | 1=Page/L3, 1=Table/L0-L2
+2-4    | AttrIndx    | NORMAL=0, DEVICE=1             | Index into MAIR_EL1
+6      | AP[1]       | USER                           | EL0 access enable
+7      | AP[2]       | RO                             | Read-only
+8-9    | SH[1:0]     | SH_IS=3<<8                     | Inner Shareable
+10     | AF          | AF                             | Access Flag (must be 1)
+11     | nG          | NG                             | Not Global
+12-47  | Output addr | ADDR_MASK=0x0000FFFFFFFFF000   | Physical address (48-bit PA)
+53     | PXN         | PXN                            | Privileged Execute Never
+54     | UXN         | UXN                            | User Execute Never
 ```
 
-**MINIX paging strategy:**
-- **4KB pages** (standard, matches existing MINIX page size)
-- **3-level tables** (less depth with 64KB pages) vs **4-level** (with 4KB pages) — use 4KB for compatibility
-- **TTBR0_EL1** for user space, **TTBR1_EL1** for kernel space
-- **ASID** support for TLB efficiency (optional, Phase 6+)
+### 3.2 VM Server Architecture — Implementation Details
 
-### 3.2 VM Pagetable (pagetable.c)
+**2-level abstraction:** Same as x86_64:
+- PDE = L2 descriptor (512 entries × 8 bytes = 4KB): maps 2MB per entry
+- PTE = L3 descriptor (512 entries × 8 bytes = 4KB): maps 4KB per entry
+- L0 and L1 managed by kernel (same as PML4/PDP on x86_64)
 
-The ARM page table functions need ARM64-specific implementations:
+**Key ARM64 differences from x86_64:**
+| Aspect | x86_64 | ARM64 |
+|--------|--------|-------|
+| PDE type | PD entry with PS bit | L2 table descriptor (bit1=1) or block (bit1=0) |
+| PTE type | PT entry | L3 page descriptor (bit1=1) |
+| RW flag | Set bit (bit1) | Absence of RO (AP[2]=bit7) |
+| BIGPAGE | PS bit (bit7) | !TABLE (bit1=0) → inverted check |
+| Access Flag | Optional (bit5) | Mandatory (bit10, must be 1) |
+| User/Kernel | Supervisor bit (bit2) | AP[1] bit (bit6) |
+| Memory attr | PWT/PCD bits | AttrIndx via MAIR_EL1 |
+| Global page | G bit (bit8) | !nG (bit11=0) |
 
-| Function | ARM Implementation (v7) | ARM64 Implementation |
-|----------|------------------------|----------------------|
-| `pt_pt()` | Short desc (2-level) | 4-level table walk |
-| `pt_pd()` | Section mapping | Block mapping at level 0-2 |
-| `pt_checkrange()` | 32-bit VA | 48-bit VA |
-| `pt_mapkernel()` | Kernel in low mem | Kernel in high VA (0xFFFF8000...) |
-| `pt_writemap()` | ARM v7 TLB ops | ARM64 TLBI ops |
-| `alloc_ptable()` | 32-bit phys | 48-bit phys |
+**BIGPAGE inversion:** ARM64 L2 block descriptors have bit1=0 (NOT Table), while table descriptors have bit1=1. This is the inverse of ARM32 where section descriptors have bit1=1. Handled with `#if defined(__aarch64__)` guards in all 5 usage sites.
 
-**ARM64 TLBI operations (TLB maintenance):**
-```c
-/* After page table modification: */
-__asm__ __volatile__("dsb ishst");      // Ensure table write is visible
-__asm__ __volatile__("tlbi vmalle1is"); // Invalidate all EL1 TLB entries
-__asm__ __volatile__("dsb ish");        // Ensure TLB invalidation is done
-__asm__ __volatile__("isb");            // Synchronize instruction stream
-```
+### 3.3 Files Created/Modified
 
-### 3.3 VM Server Architecture Support
+| File | Type | Description |
+|------|------|-------------|
+| `minix/include/arch/aarch64/include/vm.h` | 🆕 | ARM64 VMSAv8-64 constants: PTE flags, address masks, PDE/PTE macros, page fault FSC decoding |
+| `minix/servers/vm/arch/aarch64/pagetable.h` | 🆕 | Abstraction: pt_entry_t=u64_t, ARCH_VM_DIR_ENTRIES=512, ARCH_BIG_PAGE_SIZE=2MB, PFERR_* for ESR_EL1 |
+| `minix/servers/vm/pagetable.c` | ✏️ | ~20 `__aarch64__` blocks: pt_ptalloc (table desc), pt_mapkernel (block desc), pt_bind, pt_init, BIGPAGE, RO/RW, address masks, cached flags, page fault decode |
+| `minix/servers/vm/CMakeLists.txt` | ✏️ | Compile definition `__aarch64__` for VM server |
+| `planning/08_arm64_migration_plan.md` | ✏️ | Phase 3 status: ✅ Completed |
 
-**New directory:** `minix/servers/vm/arch/aarch64/`
-| File | Purpose |
-|------|---------|
-| `pagetable.h` | `pt_entry_t = u64_t`, `ARCH_VM_DIR_ENTRIES=512`, `ARCH_BIG_PAGE_SIZE=2MB` |
-| `pagetable.c` | ARM64-specific pagetable functions (if needed) |
+### Status: ✅ **Memory management infrastructure complete**
 
-**Modified files:**
-| File | Change |
-|------|--------|
-| `minix/servers/vm/pt.h` | Add `__aarch64__` case for `pt_entry_t` (u64_t) |
-| `minix/servers/vm/pagetable.c` | Add `__aarch64__` branches alongside `__arm__` |
-| `minix/servers/vm/CMakeLists.txt` | Add aarch64 arch sources and linker script |
+- ARM64 page table constants defined in `vm.h`
+- Architecture abstraction in `pagetable.h` (pt_entry_t, ARCH_*, PFERR_*)
+- All ~20 `__aarch64__` paths added to `pagetable.c`
+- **Добавленные/изменённые файлы**:
+  - 🆕 `minix/include/arch/aarch64/include/vm.h`
+  - 🆕 `minix/servers/vm/arch/aarch64/pagetable.h`
+  - ✏️ `minix/servers/vm/pagetable.c`
+  - ✏️ `minix/servers/vm/CMakeLists.txt`
+  - ✏️ `planning/08_arm64_migration_plan.md`
 
 **Estimated effort**: 3-4 weeks
 **Dependencies**: Phase 2 (kernel boots, exception vectors work)

@@ -10,7 +10,7 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::Path;
 
-fn main() {
+fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let mut argv = &args[1..];
 
@@ -97,6 +97,7 @@ fn main() {
     if had_error {
         std::process::exit(1);
     }
+    Ok(())
 }
 
 fn process_lines<R: Read>(

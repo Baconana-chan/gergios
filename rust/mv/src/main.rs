@@ -8,6 +8,7 @@
 
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::Path;
 
 fn main() {
@@ -57,7 +58,7 @@ fn main() {
             }
         }
     } else {
-        if let Err(e) = do_move(sources[0], target, force, interactive) {
+        if let Err(e) = do_move(&sources[0], target, force, interactive) {
             eprintln!("mv: {e}");
             std::process::exit(1);
         }

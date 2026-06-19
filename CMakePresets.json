@@ -94,7 +94,7 @@
         },
         {
             "name": "earm-debug",
-            "displayName": "ARM Debug",
+            "displayName": "ARM Debug (32-bit)",
             "description": "Debug build for ARM (earm)",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build-earm",
@@ -102,6 +102,30 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-minix.cmake",
                 "MACHINE_ARCH": "earm"
+            }
+        },
+        {
+            "name": "aarch64-debug",
+            "displayName": "ARM64 Debug",
+            "description": "Debug build for ARM64 (AArch64)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-aarch64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-minix.cmake",
+                "MACHINE_ARCH": "aarch64"
+            }
+        },
+        {
+            "name": "aarch64-release",
+            "displayName": "ARM64 Release",
+            "description": "Release build for ARM64 (AArch64)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build-aarch64-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/cmake/toolchain-minix.cmake",
+                "MACHINE_ARCH": "aarch64"
             }
         }
     ],
@@ -125,6 +149,14 @@
         {
             "name": "earm-debug",
             "configurePreset": "earm-debug"
+        },
+        {
+            "name": "aarch64-debug",
+            "configurePreset": "aarch64-debug"
+        },
+        {
+            "name": "aarch64-release",
+            "configurePreset": "aarch64-release"
         }
     ],
     "testPresets": [
