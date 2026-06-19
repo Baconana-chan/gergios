@@ -1,0 +1,5 @@
+[package]
+name = "cksum"
+version = "1.0.0"
+edition = "2021"
+description = "Display file checksums and block counts (POSIX) - Rust implementation for GergiOS"

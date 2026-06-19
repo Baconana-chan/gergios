@@ -1,0 +1,9 @@
+[package]
+name = "ls"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX ls utility — list directory contents"
+
+[dependencies]
+libc = "0.2"
+chrono = "0.4.31"

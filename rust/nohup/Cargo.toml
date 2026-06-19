@@ -1,0 +1,8 @@
+[package]
+name = "nohup"
+version = "1.0.0"
+edition = "2021"
+description = "Invoke a utility immune to hangups (POSIX) - Rust implementation for GergiOS"
+
+[dependencies]
+libc = "0.2"

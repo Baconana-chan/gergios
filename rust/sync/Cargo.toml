@@ -1,0 +1,8 @@
+[package]
+name = "sync"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX sync utility — flush filesystem caches"
+
+[dependencies]
+libc = "0.2"

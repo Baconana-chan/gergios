@@ -1,0 +1,7 @@
+[package]
+name = "tee"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX tee utility — read from stdin and write to stdout and files"
+
+[dependencies]

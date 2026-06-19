@@ -1,0 +1,8 @@
+[package]
+name = "touch"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX touch utility — update file timestamps"
+
+[dependencies]
+libc = "0.2"

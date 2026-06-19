@@ -769,39 +769,63 @@ For full details, see:
 ### 10. Crypto Libraries Modernization
 
 #### Current State
-- Legacy OpenSSL
-- Potential security vulnerabilities
+- ✅ OpenSSL 0.9.8/1.0.1p — **полностью заменён**
+- ✅ wolfSSL 5.9.1 — основной крипто-провайдер
+- ✅ libhcrypto (heimdal) — для Kerberos (OpenSSL-совместимый API)
+- Нет Rust crypto в production (отложено)
 
 #### Target State
-- Modern OpenSSL or LibreSSL
-- Rust crypto libraries for new code
+- ✅ wolfSSL как sole crypto provider
+- ✅ libhcrypto для heimdal (OpenSSL ABI-совместимость)
+- OpenSSL полностью удалён из дерева
 
 #### Migration Steps
 
-**Phase 1: Evaluation**
-- [ ] Evaluate OpenSSL versions
-- [ ] Evaluate LibreSSL
-- [ ] Evaluate Rust crypto
-- [ ] Choose approach
+**Phase 1: Быстрые победы (libsaslc, libfetch, libevent, pkg_install)**
+- [x] Заменить `<openssl/*.h>` на `<wolfssl/openssl/*.h>`
+- [x] Заменить `-lcrypto`/`-lssl` на `-lwolfssl` в LDADD
+- [x] Настроить wolfSSL с OPENSSL_COMPAT_DEFINES
+- [x] 7 компонентов переведены на wolfSSL
 
-**Phase 2: Migration**
-- [ ] Update OpenSSL version
-- [ ] Update crypto APIs
-- [ ] Add Rust crypto support
-- [ ] Update dependencies
+**Status**: ✅ COMPLETED
 
-**Phase 3: Testing**
-- [ ] Security testing
-- [ ] Compatibility testing
-- [ ] Performance testing
+**Phase 2: Средняя сложность (netpgp, tcpdump, dhcp)**
+- [x] netpgp: BIGNUM, SHA, RSA, DSA, AES — wolfSSL compat слой покрывает
+- [x] tcpdump: проверен, не требует OpenSSL напрямую
+- [x] dhcp: переведён на wolfSSL
+- [x] 3 компонента переведены на wolfSSL
+
+**Status**: ✅ COMPLETED
+
+**Phase 3: Высокая сложность (heimdal → libhcrypto)**
+- [x] Собран libhcrypto (heimdal's own crypto library) из dist/lib/hcrypto/
+- [x] LibTomMath интегрирован для BN операций
+- [x] config.h: HAVE_OPENSSL → HAVE_HCRYPTO
+- [x] crypto-headers.h переключен на `<hcrypto/*>` включает
+- [x] 10+ Makefile'ов обновлены: `-lcrypto` → `-lhcrypto`
+- [x] heimdal собирается без OpenSSL (проверено препроцессором)
+
+**Status**: ✅ COMPLETED (подробно: `planning/15_crypto_migration.md`)
+
+**Phase 4: Очистка — OpenSSL удалён**
+- [x] `crypto/Makefile.openssl` — удалён
+- [x] `crypto/external/bsd/openssl/` — удалён с диска
+- [x] `crypto/external/bsd/Makefile` — openssl убран из SUBDIR
+- [x] heimdal SSLBASE — убран из Makefile.inc и libhx509/Makefile
+- [x] netpgp CLI (7 Makefile'ов): `-lcrypto` → `-lwolfssl`
+- [x] dhcp/Makefile.inc: `-lcrypto` → `-lwolfssl`
+- [x] tests: libcrypto subdir убран, ссылки обновлены
+- [x] planning/15_crypto_migration.md — полная документация
+
+**Status**: ✅ COMPLETED
 
 #### Dependencies
-- C language modernization
+- C language modernization (независимо)
 
 #### Risks
-- API compatibility
-- Security vulnerabilities
-- Performance impact
+- ✅ API compatibility — решён через wolfSSL compat слой + libhcrypto
+- ✅ Security — wolfSSL 5.9.1 активно поддерживается
+- ✅ Performance — wolfSSL benchmarks в `docs/wolfssl-performance-report.md`
 
 
 ---

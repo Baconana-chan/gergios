@@ -1,4 +1,4 @@
-# /etc/rc.minix - MINIX system startup script
+# /etc/rc.minix - GergiOS system startup script
 
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 

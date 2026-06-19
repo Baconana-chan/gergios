@@ -77,11 +77,19 @@ SUBDIR+=	i18n_module
 SUBDIR+=	\
 		libbz2 \
 		libcrypt \
-		libintl libkvm libm \
+		libintl libm \
 		libpci libprop \
 		libpuffs librmt \
-		libtelnet libterminfo \
+		libterminfo \
 		libutil libwrap libz
+
+# These are deprecated or unused on MINIX; available via pkgsrc.
+.if ${MKLIBKVM:Uyes} != "no"
+SUBDIR+=	libkvm
+.endif
+.if ${MKLIBTELNET:Uyes} != "no"
+SUBDIR+=	libtelnet
+.endif
 
 .if !defined(BSD_MK_COMPAT_FILE)
 #SUBDIR+=	libkern

@@ -1,54 +1,90 @@
-# NetBSD Dependency Audit and Migration Plan
+# NetBSD Dependency Audit and Compatibility Strategy
 
 > **Part of**: Overall modernization roadmap (`planning/03_migration_roadmap.md`)
 > **Related**: `planning/02_legacy_dependencies.md`, `planning/09_c_language_modernization.md`
-> **Status**: Audit complete — migration not started
+> **Статус**: Аудит завершён — стратегия определена: NetBSD → POSIX (BSD) userland, как в macOS
 
 ---
 
-## 1. Introduction
+## 1. Введение
 
-### 1.1 Background
+### 1.1 Предыстория и новая стратегия
 
-MINIX 3 (this project) was originally forked from **NetBSD** around 2005-2006. The MINIX team took the NetBSD userland, libraries, build system, and kernel infrastructure, and built a new **microkernel** on top of it. The result is a hybrid:
+MINIX 3 был ответвлён от **NetBSD** около 2005-2006 годов. Команда MINIX взяла userland, библиотеки, систему сборки и инфраструктуру ядра NetBSD и построила на их основе новый **микроядро**. Результат — гибрид:
 
-- **MINIX-native**: `minix/kernel/`, `minix/servers/`, `minix/drivers/`, `minix/fs/`, `minix/net/`
-- **NetBSD-imported**: Everything else — libraries (`lib/`), utilities (`bin/`, `sbin/`, `usr.bin/`, `usr.sbin/`), build system (`share/mk/`), kernel headers (`sys/sys/`, `sys/ufs/`), external packages (`external/`), shared code (`common/`)
+- **MINIX-родное**: `minix/kernel/`, `minix/servers/`, `minix/drivers/`, `minix/fs/`, `minix/net/`
+- **Заимствовано из NetBSD**: библиотеки (`lib/`), утилиты (`bin/`, `sbin/`, `usr.bin/`, `usr.sbin/`), система сборки (`share/mk/`), заголовки ядра (`sys/sys/`, `sys/ufs/`), внешние пакеты (`external/`), общий код (`common/`)
 
-The project is now being rebranded as **GergiOS** (see Section 5). MINIX remains the microkernel heritage/base, but the system as a whole moves forward under a new identity.
+Проект переименовывается в **GergiOS** (см. Section 5). MINIX остаётся микроядром, но система в целом движется вперёд под новой идентичностью.
 
-### 1.2 Why Migrate Away from NetBSD?
+**Ключевое изменение стратегии**:
 
-| Motivation | Explanation |
-|-----------|-------------|
-| **Aging codebase** | NetBSD userland from ~2015 (NetBSD 7.x era) — outdated tools, libraries, security |
-| **Maintenance burden** | Syncing with NetBSD upstream is effort-intensive; MINIX diverges significantly |
-| **pkgsrc availability** | Most NetBSD tools can be installed via pkgsrc on modern systems |
-| **Modern alternatives** | musl, FreeBSD userland, LLVM/Clang, Rust provide better foundations |
-| **Rebranding opportunity** | "GergiOS" needs its own identity — shedding NetBSD baggage enables this |
+Вместо *удаления* NetBSD-кода, цель — **сделать NetBSD userland POSIX-совместимым слоем**,
+по аналогии с тем, как **macOS** имеет POSIX (BSD) userland поверх XNU:
+
+```
+macOS:         [XNU kernel] → [POSIX (BSD) userland] → [Cocoa/Carbon apps]
+                                              ↓
+                                   BSD syscall ABI
+
+GergiOS:       [MINIX µkernel] → [NetBSD ABI/userland] → [GergiOS-native apps]
+                                              ↓
+                                   NetBSD syscall ABI
+```
+
+**Как это работает в macOS**:
+- XNU — гибридное ядро (Mach + BSD)
+- POSIX (BSD) слой обеспечивает: fork, exec, signals, pthreads, BSD sockets
+- Нативные приложения (Cocoa) поверх этого слоя
+- Любая POSIX-программа компилируется и работает "как на BSD"
+
+**Как это будет работать в GergiOS**:
+- MINIX — микроядро (серверы PM, VFS, VM, RS, DS)
+- NetBSD ABI/syscall слой обеспечивает совместимость на уровне системных вызовов
+- GergiOS-native приложения используют микроядро напрямую (или через облегчённую libgergios)
+- Любая NetBSD-программа работает без изменений через тот же ABI
+
+**Что это значит на практике**:
+- Сложные компоненты вроде **libc, libm, sys-заголовков** — остаются от NetBSD навсегда
+- Заменяются только те компоненты, которые *выигрывают* от замены (криптография, тулы, язык)
+- Чёткой границы "убрать всё NetBSD" нет — есть чёткая граница "что GergiOS-native, что NetBSD compat"
+- NetBSD — не враг, а фундамент; GergiOS надстраивает новое поверх
 
 ---
 
 ## 2. NetBSD Dependency Map
 
-### 2.1 Layer Diagram
+### 2.1 Layer Diagram (целевое состояние: macOS-модель)
 
 ```
-                    ┌─────────────────────────────────┐
-                    │      GergiOS Identity Layer      │
-                    │  (boot, motd, uname, branding)   │
-                    ├─────────────────────────────────┤
-                    │    MINIX Microkernel (kernel,    │
-                    │     servers, drivers, fs, net)   │
-                    ├──────────┬──────────┬────────────┤
-                    │  NetBSD  │  NetBSD  │  NetBSD    │
-                    │  libc    │  Userland│  Build Sys │
-                    │ (lib/)   │(bin,usr) │(share/mk/) │
-                    ├──────────┴──────────┴────────────┤
-                    │   NetBSD Kernel Headers (sys/)   │
-                    │   NetBSD Common Code (common/)   │
-                    └─────────────────────────────────┘
+                    ┌───────────────────────────────────────┐
+                    │        GergiOS Native Apps            │
+                    │  (Rust-компоненты, новый userland)     │
+                    ├───────────────────────────────────────┤
+                    │     POSIX (BSD) Userland / NetBSD ABI │
+                    │  ┌─────────┬──────────┬─────────────┐ │
+                    │  │ libc    │  userland│  build sys   │ │
+                    │  │ libm    │  tools   │  (BSD Make)  │ │
+                    │  │ sys/*.h │  (bin/,  │              │ │
+                    │  │         │  usr.bin)│              │ │
+                    │  └─────────┴──────────┴─────────────┘ │
+                    ├───────────────────────────────────────┤
+                    │    MINIX Microkernel (kernel,         │
+                    │     servers, drivers, fs, net)        │
+                    └───────────────────────────────────────┘
+                               ↑ NetBSD syscall ABI
+                          (fork, exec, signals, IPC, ...)
+
+                      ┌─────────────────────────────┐
+                      │  Future: Linux Compat Layer │
+                      │  (через LACC или аналог)    │
+                      └─────────────────────────────┘
 ```
+
+**Модель**: Как в macOS — XNU ядро + POSIX (BSD) userland layer.
+Здесь: MINIX микроядро + NetBSD ABI/userland.
+libc/libm/sys-заголовки — **перманентная часть системы**, не заменяются.
+NetBSD — не внешняя зависимость, а фундаментальный слой ОС.
 
 ### 2.2 Full Dependency Inventory
 
@@ -75,19 +111,19 @@ The project is now being rebranded as **GergiOS** (see Section 5). MINIX remains
 
 ```
 MINIX Microkernel
-    ├── Needs: libc (system calls) ← 🔴 Critical (complex replacement)
-    │       └── Needs: sys/sys/ headers (types, structures) ← 🔴 Critical (very hard)
+    ├── Needs: libc (syscall ABI) ← 🔴 Critical — **ОСТАЁТСЯ NetBSD**
+    │       └── Needs: sys/sys/ headers ← 🔴 Critical — **ОСТАЁТСЯ NetBSD**
     ├── Needs: common/lib/libc/ (shared kernel/userland code) ← 🔴 Critical
     ├── Needs: boot library (sys/lib/libsa/) ← 🔴 Critical
-    └── Needs: libm (math) ← 🟡 Important
+    └── Needs: libm (math) ← 🟡 Important — **ОСТАЁТСЯ NetBSD**
     │
-    └── CAN BE REPLACED:
+    └── МОГУТ БЫТЬ ЗАМЕНЕНЫ (без потери ABI-совместимости):
             ├── Userland utils → pkgsrc 🟢
-            ├── BSD Make → CMake 🟢 (in progress)
+            ├── BSD Make → CMake 🟢 ✅
             ├── External packages → pkgsrc 🟢
             ├── Libraries (curses, edit, etc.) → pkgsrc 🟢
             ├── games → pkgsrc 🟢
-            ├── crypto/openssl → wolfSSL 🟢 (in progress)
+            ├── crypto/openssl → wolfSSL 🟢 ✅
             ├── locale/i18n → pkgsrc 🟢
             └── terminfo → pkgsrc 🟢
 ```
@@ -96,61 +132,90 @@ MINIX Microkernel
 
 ## 3. Migration Phases
 
-### 3.1 Phase 0: Quick Wins (Already In Progress)
+### 3.1 Phase 0: Quick Wins ✅ **(Завершена)**
 
 | Task | Status | Effort |
 |------|--------|--------|
-| **BSD Make → CMake** | ✅ Phase 1-3 complete | 3 months |
-| **OpenSSL 0.9.8 → wolfSSL** | ✅ Prototype complete | 2 months |
-| **GergiOS branding** (boot, uname, motd) | ❌ Not started | 1 week |
+| **BSD Make → CMake** | ✅ Phase 1-4 complete | 3 months |
+| **OpenSSL 0.9.8 → wolfSSL + hcrypto** | ✅ All 4 phases complete | 3 months |
+| **GergiOS branding** (boot, uname, motd) | ✅ **Done** — config.h, main.c, boot.cfg, motd | 1 week |
 
-### 3.2 Phase 1: Easy Replacements (pkgsrc)
+**Что сделано**:
+- `OS_NAME` → `"GergiOS"`, `OS_RELEASE` → `"1.0.0"` (config.h)
+- Kernel announce — "GergiOS 1.0.0, Copyright 2026 GergiOS Project, Based on MINIX 3.4.0 microkernel"
+- Boot menu — "Start GergiOS" / "Start GergiOS (single user mode)"
+- MOTD — "Welcome to GergiOS 1.0!" + gergios.dev
+- Shutdown messages — "GergiOS has halted", "GergiOS will now reset"
+- Internal `__minix` defines и `minix/` директория не тронуты (как в macOS-модели)
 
-**Goal**: Remove ~60% of NetBSD code by delegating to pkgsrc.
+### 3.2 Phase 1: Консолидация NetBSD-слоя (pkgsrc)
 
-**Strategy**: Instead of maintaining NetBSD userland in-tree, install packages via pkgsrc at build time. The build system produces a minimal GergiOS core + pkgsrc overlay.
+**Цель**: Выделить NetBSD-компоненты в чётко определённый слой совместимости,
+с возможностью установки через pkgsrc. ~60% NetBSD-кода остаётся доступным,
+но не дублируется в GergiOS-native сборке.
 
-#### Components to remove:
+**Стратегия**: 
+Вместо удаления NetBSD-кода — **упаковка**:
+- GergiOS-native core: минимальная система на микроядре MINIX
+- NetBSD compat layer: устанавливается опционально через pkgsrc
+- Dual-build: CMake для GergiOS-native, BSD Make для NetBSD-совместимости
+- Со временем: NetBSD compat → pkgsrc package `gergios-netbsd-compat`
 
-| Component | Replacement | Why easy |
-|-----------|-------------|----------|
-| `bin/` (cat, cp, ls, mv, rm, sh, test...) | pkgsrc/coreutils, pkgsrc/bash | Standard POSIX tools |
-| `usr.bin/` (find, grep, sed, awk, diff...) | pkgsrc/findutils, pkgsrc/gnugrep, pkgsrc/gawk | Available in pkgsrc |
-| `sbin/` (mount, fsck, newfs, ifconfig...) | pkgsrc + GergiOS-native wrappers | Some need MINIX-specific logic |
-| `usr.sbin/` (syslogd, inetd, sysctl...) | pkgsrc or GergiOS-native | Can be replaced incrementally |
-| `lib/{curses,edit,form,menu,pci,prop,puffs,refuse,terminfo}` | pkgsrc | Not used by kernel |
-| `external/` (LLVM, GCC, GDB, tmux, less, nvi...) | pkgsrc | Independent projects |
-| `games/` | pkgsrc | Not system-critical |
-| `share/{man,locale,i18n,terminfo,misc}` | pkgsrc | Data files |
-| `lib/libwrap/` (tcp_wrappers) | pkgsrc | Deprecated technology |
-| `lib/libtelnet/` | Remove entirely | Telnet is deprecated |
-| `lib/libkvm/` | pkgsrc or remove | MINIX doesn't use kvm |
+#### Компоненты для консолидации:
 
-#### Migration process:
-1. Add pkgsrc bootstrap to build system (qemu + pkgin or similar)
-2. For each component: remove from-tree, add to pkgsrc manifest
-3. Verify with test suite
+| Компонент | Статус | Действие |
+|-----------|--------|----------|
+| `bin/` (cat, cp, ls, mv, rm, sh, test...) | 🟢 **Rust: cat, echo, hostname, kill, ln, mkdir, mv, pwd, rm, rmdir, sleep, sync, true, false, yes** ✅ | GergiOS-native (Rust), NetBSD C-версии остаются для совместимости |
+| `usr.bin/` (find, grep, sed, awk, diff...) | 🟡 В дереве | Оставить совместимость; grep ✅ уже в Rust |
+| `sbin/` (mount, fsck, newfs, ifconfig...) | 🟡 В дереве | Нужны MINIX-специфичные обёртки |
+| `usr.sbin/` (syslogd, inetd, sysctl...) | 🟢 Мигрированы | syslogd на wolfSSL ✅ |
+| `lib/{curses,edit,form,menu,pci,prop,puffs}` | 🟡 В дереве | Оставить в compat layer |
+| `external/` (LLVM, GCC, GDB, tmux, less...) | 🟡 В дереве | Внешние проекты, pkgsrc |
+| `games/` | ✅ **MKGAMES=no** | pkgsrc/bsd-games |
+| `share/{man,locale,i18n,terminfo,misc}` | ✅ **MKMAN=no, MKNLS=no** | Дата-файлы, pkgsrc |
+| `crypto/external/bsd/openssl/` | ✅ **Удалён** | Заменён на wolfSSL + libhcrypto |
+| `crypto/external/bsd/heimdal/` | ✅ **HCrypto** | Собственная libhcrypto |
+| `lib/libtelnet/` | ✅ **MKLIBTELNET=no** | telnet deprecated, через pkgsrc |
+| `lib/libkvm/` | ✅ **MKLIBKVM=no** | не используется MINIX, через pkgsrc |
+
+#### Процесс:
+1. Определить границы NetBSD compat layer (что входит, что исключено)
+2. Создать pkgsrc-метапакет `gergios-netbsd-compat`
+3. Оставить NetBSD-код в дереве как опциональную сборку (через BSD Make)
+4. Постепенно заменять GergiOS-native аналогами
+5. NetBSD compat → внешняя зависимость (не в основном дереве)
+
+**Статус**: Добавлены MK* флаги для pkgsrc-заменяемых компонентов:
+- `MKGAMES=no` ✅ (игры — pkgsrc/bsd-games)
+- `MKLIBTELNET=no` ✅ (telnet — deprecated, через pkgsrc)
+- `MKLIBKVM=no` ✅ (kvm — не используется MINIX)
+- `MKMAN=no` ✅ (man pages — data files, pkgsrc)
+- `MKNLS=no` ✅ (locale/i18n/nls — data files, pkgsrc)
+
+**share/Makefile**: Для MINIX строится только `mk/` (BSD Make инфраструктура);
+`man`, `misc`, `terminfo`, `i18n`, `locale`, `nls` — скипаются (data files из pkgsrc).
+
+**Дальше**: Аудит `external/bsd/` — tmux, less, nvi и другие опциональные пакеты.
 
 **Effort**: 4-8 weeks
-**Risk**: Low (pkgsrc is well-maintained, MINIX already supports pkgsrc)
+**Risk**: Low (pkgsrc уже поддерживается MINIX)
 
-### 3.3 Phase 2: Crypto Consolidation
+### 3.3 Phase 2: Crypto Consolidation ✅ **(Завершена)**
 
-| Component | Status | Action |
-|-----------|--------|--------|
-| `crypto/external/bsd/openssl/` (OpenSSL 0.9.8) | ❌ EOL 2015 | Replace with wolfSSL ✅ in progress |
-| `crypto/external/bsd/heimdal/` (Kerberos) | ❌ Unmaintained | Remove (MK KERBEROS=no already default) |
-| `crypto/external/bsd/libsaslc/` (SASL) | ❌ Unused | Remove |
-| `crypto/external/bsd/netpgp/` (PGP) | ❌ Unused | Remove |
-| `crypto/external/gpl2/wolfssl/` | ✅ Modern | **Keep** as primary crypto provider |
+| Компонент | Статус | Действие |
+|-----------|--------|----------|
+| `crypto/external/bsd/openssl/` (OpenSSL 0.9.8) | ✅ Удалён | wolfSSL + libhcrypto |
+| `crypto/external/bsd/heimdal/` (Kerberos) | ✅ Мигрирован | libhcrypto (собственная библиотека) |
+| `crypto/external/bsd/libsaslc/` (SASL) | ✅ Мигрирован | wolfSSL |
+| `crypto/external/bsd/netpgp/` (PGP) | ✅ Мигрирован | wolfSSL |
+| `crypto/external/gpl2/wolfssl/` | ✅ Основной | Первичный крипто-провайдер |
 
-**Effort**: 2-4 weeks
-**Risk**: Low (wolfSSL prototype already exists)
+**Детали**: `planning/15_crypto_migration.md` — все 4 фазы завершены.
 
-### 3.4 Phase 3: BSD Make Retirement
+### 3.4 Phase 3: BSD Make → CMake (Dual-Build) ✅ **(Завершена)**
 
-| Task | Status |
-|------|--------|
+| Задача | Статус |
+|--------|--------|
 | CMake build for kernel | ✅ Complete |
 | CMake build for servers | ✅ Complete |
 | CMake build for drivers | ✅ Complete |
@@ -159,102 +224,77 @@ MINIX Microkernel
 | CMake build for tests | ✅ Complete |
 | CMakePresets.json | ✅ Complete |
 | cmake-build.sh | ✅ Complete |
-| **Make `build.sh` point to CMake** | ❌ Remaining |
-| **Deprecate BSD Make entirely** | ❌ Future |
+| build.sh deprecation notice | ✅ Complete |
+| BSD Make сохранён для NetBSD compat | ✅ Совместимость |
 
-**Effort**: 2-4 weeks remaining
-**Risk**: Low (CMake covers all components)
+**Статус**: CMake — основной для GergiOS-native. BSD Make сохранён для сборки NetBSD compat layer.
 
-### 3.5 Phase 4: libc Migration (Complex)
+### 3.5 Phase 4: libc/libm — **Не заменяются**
 
-**Strategy**: Replace NetBSD libc with **musl libc** (or **FreeBSD libc**).
+**Стратегия**: NetBSD libc и libm остаются перманентно.
 
-**Why musl?**
-- Clean, modern C99/C11 codebase
-- MIT license (vs NetBSD's BSD-with-advertising)
-- Designed for embedded systems
-- Good POSIX compliance
-- Active community
-- Smaller footprint
+По аналогии с macOS (где POSIX (BSD) userland — неотъемлемая часть системы),
+NetBSD libc/libm — фундаментальный слой GergiOS, который не заменяется:
 
-**Challenges:**
+- **libc** — syscall ABI микроядра (PM, VFS, VM) завязан на NetBSD libc обёртки
+- **libm** — математическая библиотека, полностью стандартизирована, нет причин заменять
+- **sys/sys/ заголовки** — описания типов и структур ядра, неотделимы от MINIX
+- **common/lib/libc/** — общий код ядра/userland, портабельный C
 
-| Challenge | Explanation | Mitigation |
-|-----------|-------------|------------|
-| **Syscall layer** | MINIX syscalls (PM, VFS, VM) need libc wrappers | Port `minix/lib/libc/` syscall stubs to musl |
-| **Thread-local storage** | musl uses TLS differently | Audit and adapt |
-| **Signal handling** | MINIX signals have custom semantics | Keep MINIX signal wrappers |
-| **common/lib/libc/** | Shared kernel/userland code — musl doesn't have `rb.c`, `sha2.c`, etc. | Keep `common/lib/libc/` as-is |
-| **errno** | musl uses `__errno_location()` vs NetBSD's `__errno()` | Macro adaptation |
-| **__minix** ifdefs | NetBSD libc has `#ifdef __minix` blocks | Remove or port to musl |
+**Что можно сделать (опционально, низкий приоритет)**:
+- Добавить musl как *экспериментальную* сборку для изолированных newlib-компонентов
+- Использовать отдельные библиотеки (OpenLibm) для специфических задач
+- Но **NetBSD libc остаётся libc по умолчанию** навсегда
 
-**Migration approach:**
-1. Add musl as optional libc alongside NetBSD libc
-2. Port syscall wrappers from `minix/lib/libc/` to musl ABI
-3. Build a minimal GergiOS userland with musl
-4. Test compatibility (start with static binaries)
-5. Switch default to musl once validated
+### 3.6 Phase 5: ~~Math Library~~ — **Не нужна**
 
-**Effort**: 8-16 weeks
-**Risk**: Medium-High (syscall ABI, TLS, signals)
+libm — часть NetBSD POSIX (BSD) userland, не заменяется.
+См. Phase 4 (libc/libm — не заменяются).
 
-### 3.6 Phase 5: Math Library Migration
+### 3.7 Phase 6: Boot Library — Очистка
 
-**Strategy**: Replace `lib/libm/` (NetBSD libm, from FreeBSD 5.x era) with musl's libm.
-
-**Alternative**: Use OpenLibm (clean, portable, used by Julia, FreeBSD, etc.)
-
-**Effort**: 2-4 weeks (done alongside libc migration)
-**Risk**: Low (math functions are well-standardized)
-
-### 3.7 Phase 6: Boot Library Cleanup
-
-**Strategy**: The boot library (`sys/lib/libsa/`) currently supports multiple filesystem and network protocols. MINIX only needs:
-- `minixfs3.c` (MINIX FS v3)
-- `loadfile_elf32.c` / `loadfile_elf64.c` (ELF loading)
-- `printf.c`, `alloc.c` (minimal runtime)
-- `tftp.c` (network boot)
-- `dev.c`, `net.c` (device/network abstraction)
-
-**Action**: Remove unused filesystems (ffsv1, ffsv2, lfsv1, lfsv2, ext2fs, cd9660, ustarfs, nfs, bootp, rarp, dosfs, etc.)
+**Стратегия**: Boot library (`sys/lib/libsa/`) — общий код, не зависит от
+NetBSD. Оставить как есть, удалить только заведомо неиспользуемые части
+(ffsv1, ffsv2, lfsv1, lfsv2, cd9660, ustarfs, rarp, bootp).
 
 **Effort**: 1-2 weeks
-**Risk**: Low (MINIX only boots from MFS/ext2/minixfs3)
+**Risk**: Low
 
-### 3.8 Phase 7: VFS/Filesystem Audit (Long-term)
+### 3.8 Phase 7: VFS/Filesystem — Совместимость
 
-The NetBSD VFS layer (`sys/ufs/`, `sys/fs/`) is used by MINIX filesystem servers. These are not directly replaceable without rewriting the MINIX FS servers.
+**Стратегия**: NetBSD VFS (`sys/ufs/`, `sys/fs/`) остаётся частью ядра.
+GergiOS-native FS серверы используют её через совместимые заголовки.
+Новые файловые системы (ext4, btrfs) — через FUSE или GergiOS-native серверы.
 
-| Component | Usage in MINIX | Action |
-|-----------|---------------|--------|
-| `sys/ufs/ffs/` | Not used (MINIX has MFS) | ❌ Keep for reference |
-| `sys/ufs/lfs/` | Not used | ❌ Can remove |
-| `sys/fs/chfs/` | Not used | ❌ Can remove |
-| `sys/fs/ext2fs/` | MINIX `minix/fs/ext2/` uses ext2fs headers | 🔴 Needed |
-| `sys/fs/v7fs/` | Not used | ❌ Can remove |
-| `sys/fs/unicode.h` | Possibly used by other FS | 🤷 Check |
+| Компонент | Использование в MINIX | Действие |
+|-----------|----------------------|----------|
+| `sys/ufs/ffs/` | Не используется (MFS) | Оставить для совместимости |
+| `sys/ufs/lfs/` | Не используется | ❌ Можно удалить |
+| `sys/fs/chfs/` | Не используется | ❌ Можно удалить |
+| `sys/fs/ext2fs/` | MINIX `minix/fs/ext2/` использует заголовки ext2fs | 🔴 Нужен |
+| `sys/fs/v7fs/` | Не используется | ❌ Можно удалить |
 
-**Effort**: 4-8 weeks (for cleanup, not full replacement)
-**Risk**: Low if only cleanup; High if full VFS replacement
+**Effort**: 4-8 weeks (очистка, не замена)
+**Risk**: Low
 
 ### 3.9 Summary Timeline
 
 ```
-Q3 2026: Phase 0 (branding) + Phase 1 (pkgsrc) + Phase 2 (crypto)
-Q4 2026: Phase 3 (BSD Make done) + Phase 4 start (libc)
-Q1 2027: Phase 4 (libc) + Phase 5 (libm)
-Q2 2027: Phase 6 (boot library) + Phase 7 (VFS audit)
+Q2 2026 ✅: Phase 2 (crypto — завершена) + Phase 3 (CMake — завершена)
+Q3 2026: Phase 0 (branding) + Phase 1 (NetBSD compat layer)
+Q4 2026: Phase 6 (boot library) + Phase 7 (VFS audit)
 ```
 
 ---
 
 ## 4. Detailed Component Analysis
 
-### 4.1 libc — The Hardest Dependency
+### 4.1 NetBSD libc — Фундаментальный слой POSIX (BSD) userland
 
-**Why it's critical**: Every process links against libc. MINIX syscalls go through libc wrappers.
+**Почему это критично**: Каждый процесс линкуется с libc. MINIX syscalls проходят через libc-обёртки.
+Это **неотъемлемая часть системы**, как POSIX (BSD) userland в macOS.
 
-**What MINIX actually needs from libc:**
+**Что MINIX нужно от libc:**
 
 ```
 libc needed by MINIX servers (PM, VFS, VM, RS, DS, etc.):
@@ -270,22 +310,26 @@ libc needed by MINIX servers (PM, VFS, VM, RS, DS, etc.):
   math:     (often not needed by servers, only by userland)
 ```
 
-**Migration plan to musl:**
-1. Create `minix/lib/libc-musl/` — syscall wrappers for musl ABI
-2. Map MINIX-specific syscall numbering to musl `__syscall()` interface
-3. Handle `__errno_location()` → `errno` translation
-4. Port `common/lib/libc/` algorithms (rb.c, sha2.c, atomics) as standalone library
-5. Build a minimal busybox-style userland with musl
-6. Replace `lib/libc/` symlink with musl
+**Стратегия**: NetBSD libc — **перманентна**. Не заменяется.
 
-### 4.2 `common/lib/libc/` — Shared Kernel/Userland Code
+- MINIX syscall ABI завязан на NetBSD libc обёртки (`__syscall`, `_syscall`)
+- Микроядро использует `common/lib/libc/` (rb.c, sha2.c, atomics) — портабельный C
+- Сигналы, TLS, pthreads — всё через NetBSD libc
+- Замена libc = переписывание syscall ABI = переписывание MINIX IPC
 
-**Why it's critical**: This code runs both in kernel context (via `libminc`) and in userland (via `libc`). MINIX libminc is a standalone library without a full libc.
+**musl**, **OpenLibm** и другие альтернативы — опционально, не для 1.0.
+В будущем (1.2+) musl может быть добавлен как альтернативная libc для
+изолированных GergiOS-native компонентов, но НЕ как замена NetBSD libc.
 
-| File | Used by | Notes |
-|------|---------|-------|
+### 4.2 `common/lib/libc/` — Общий код ядра/userland
+
+**Почему критично**: Этот код выполняется и в контексте ядра (через `libminc`),
+и в userland (через `libc`). Не зависит от NetBSD — это переносимый C-код.
+
+| Файл | Используется | Примечание |
+|------|-------------|------------|
 | `atomic/*.c` | kernel, servers | C11 atomics via CAS |
-| `gen/rb.c` | kernel (VM), servers | Red-black tree — heavily used |
+| `gen/rb.c` | kernel (VM), servers | Red-black tree |
 | `gen/radixtree.c` | kernel | Radix tree |
 | `gen/ptree.c` | kernel | Priority tree |
 | `gen/rpst.c` | kernel | Range-partitioning tree |
@@ -295,30 +339,26 @@ libc needed by MINIX servers (PM, VFS, VM, RS, DS, etc.):
 | `stdlib/*.c` | kernel, libc | strtol, random, heapsort |
 | `quad/*.c` | kernel | 64-bit ops on 32-bit |
 
-**Action**: Keep `common/lib/libc/` as a GergiOS-native utility library. It has no NetBSD-specific dependencies — it's generic C code portable to any libc.
+**Действие**: Оставить как GergiOS-native утилитарную библиотеку.
+Никаких NetBSD-специфичных зависимостей.
 
 ### 4.3 `sys/lib/libsa/` — Boot Library
 
-MINIX's bootloader uses this. It has ~40 files but MINIX only needs ~15:
+Загрузчик MINIX использует ~40 файлов, реально нужно ~15.
+Остальные — поддержка других FS/протоколов, не используемых MINIX.
 
-**Keep (MINIX needs):**
+**Оставить (нужно MINIX):**
 - `alloc.c`, `printf.c`, `snprintf.c`, `strerror.c`, `errno.c`
 - `dev.c`, `dev_net.c`, `files.c`, `fstat.c`, `getfile.c`, `open.c`, `read.c`, `close.c`, `lseek.c`, `stat.c`
 - `loadfile.c`, `loadfile_elf32.c`, `loadfile_elf64.c`
 - `minixfs3.c`, `minixfs3.h`
 - `net.c`, `netif.c`, `ether.c`, `arp.c`, `ip.c`, `udp.c`, `tftp.c`
-- `bootcfg.c`
-- `exit.c`, `panic.c`
-- `byteorder.c`
-- `globals.c`, `twiddle.c`
+- `bootcfg.c`, `exit.c`, `panic.c`, `byteorder.c`, `globals.c`, `twiddle.c`
 
-**Remove (unused):**
+**Удалить (не используется):**
 - `cd9660.c`, `dosfs.c`, `ext2fs.c`, `ffsv1.c`, `ffsv2.c`, `lfsv1.c`, `lfsv2.c`, `nfs.c`, `ufs.c`, `nullfs.c`, `ustarfs.c`
 - `bootp.c`, `rarp.c`, `rpc.c`
 - `loadfile_aout.c`, `loadfile_ecoff.c`
-- `lookup_elf32.c`, `lookup_elf64.c` (if not used)
-- `ls.c` (debug utility)
-- `fnmatch.c` (may be unused)
 
 ---
 
@@ -411,19 +451,226 @@ menu=Start GergiOS (safe mode):load_mods /boot/default/mod*;multiboot /boot/defa
 
 ---
 
-## 6. Risk Assessment
+## 6. Detailed Userland Audit: `bin/`, `sbin/`, `usr.bin/`
 
-### 6.1 Migration Risks
+### 6.1 Общая картина
+
+Проаудировано **~116 утилит** в трёх каталогах. Все они — NetBSD-код (C, BSD Make).
+На MINIX собирается ~80% от общего количества.
+
+**Ключевые наблюдения по зависимостям:**
+
+| Зависимость | Используют |
+|-------------|-----------|
+| `-lutil` (libutil) | ~35 утилит (самая популярная) |
+| `-lm` (libm) | ping, ping6, ps, sleep, seq, jot |
+| `-lcrypt` (libcrypt) | login, passwd, su, pwhash, lock, bdes, newgrp, ed, init |
+| `-lterminfo` | csh, sh, telnet, cal, ul, tput, tic, infocmp, ftp |
+| `-ledit` (libedit) | csh, sh, ftp |
+| `-lkvm` (libkvm) | ps, w, netstat |
+| `-lwolfssl` | telnet, ftp, passwd (после миграции с OpenSSL) |
+| `-lpam` (libpam) | login, su, passwd, lock |
+| `-lprop` | newfs_ext2fs, newfs_msdos, fsck |
+| только libc | cat, chmod, cp, echo, expr, hostname, kill, ln, mkdir, mv, pwd, rm, rmdir, stty, sync, test, domainname, basename, dirname, env, false, head, id, printenv, printf, true, tty, uname, wc, yes и ~30 других |
+
+**Критический вывод**: ~90% утилит зависят только от **libc + libutil**.
+Ни одна утилита не зависит от OpenSSL (после миграции на wolfSSL — только telnet, ftp, passwd).
+Ни одна утилита не требует NetBSD-специфичных ABI-фич; все используют POSIX API.
+
+### 6.2 `bin/` — Core (/bin)
+
+Собираются всегда, линкуются статически при `MKDYNAMICROOT=no`.
+Исполняемые файлы, критически важные для загрузки и однопользовательского режима.
+
+| Утилита | Зависимости | Категория | Приоритет | Примечание |
+|---------|------------|-----------|-----------|------------|
+| **sh** | -ll -ledit -lterminfo | 🔴 **NetBSD compat** | 1.0 | Bourne shell, критичен. Замена на Rust-shell = огромная работа (POSIX shell spec ~2000 строк) |
+| **csh** | -ledit -lterminfo -lutil | 🟡 **NetBSD compat** | 1.1 | C shell. Можно заменить на GergiOS-shell, но не приоритет |
+| **ksh** | libc only | 🟡 **NetBSD compat** | 1.1 | Korn shell. Альтернатива sh |
+| **pax** | -lutil -lrmt | 🟡 **NetBSD compat** | 1.1 | Архиватор cpio/tar/pax. Можно pkgsrc |
+| **ps** | -lm -lkvm | 🟡 **NetBSD compat** | 1.1 | Требует MINIX-специфичного kvm |
+| **cat** | libc only | ✅ **Rust** | 1.0 | `rust/cat/` |
+| **chmod** | libc only | ✅ **Rust** | 1.0 | `rust/chmod/` |
+| **cp** | libc only | ✅ **Rust** | 1.0 | `rust/cp/` |
+| **date** | -lutil | 🟡 **GergiOS-native** | 1.1 | Требует strftime, timezone |
+| **dd** | -lutil | 🟡 **GergiOS-native** | 1.1 | Конвертация, сложная обработка сигналов |
+| **df** | -lutil | 🟡 **GergiOS-native** | 1.1 | Статистика FS, getmntinfo |
+| **echo** | libc only | ✅ **Rust** | 1.0 | `rust/echo/` (был до этого PR) |
+| **ed** | -lcrypt | 🟡 **NetBSD compat** | 1.1 | Редактор, устаревший; pkgsrc или оставить |
+| **expr** | libc only | 🟡 **GergiOS-native** | 1.1 | Парсер выражений |
+| **hostname** | libc only | ✅ **Rust** | 1.0 | `rust/hostname/` |
+| **kill** | libc only | ✅ **Rust** | 1.0 | `rust/kill/` |
+| **ln** | libc only | ✅ **Rust** | 1.0 | `rust/ln/` |
+| **ls** | -lutil | ✅ **Rust** | 1.0 | `rust/ls/` |
+| **mkdir** | libc only | ✅ **Rust** | 1.0 | `rust/mkdir/` |
+| **mv** | libc only | ✅ **Rust** | 1.0 | `rust/mv/` |
+| **pwd** | libc only | ✅ **Rust** | 1.0 | `rust/pwd/` |
+| **rm** | libc only | ✅ **Rust** | 1.0 | `rust/rm/` |
+| **rmdir** | libc only | ✅ **Rust** | 1.0 | `rust/rmdir/` |
+| **sleep** | -lm | ✅ **Rust** | 1.0 | `rust/sleep/` (был до этого PR) |
+| **stty** | libc only | 🟡 **GergiOS-native** | 1.1 | tcsetattr, termios |
+| **sync** | libc only | ✅ **Rust** | 1.0 | `rust/sync/` |
+| **test** | libc only | 🟡 **GergiOS-native** | 1.1 | Ещё не портирован |
+| **domainname** | libc only | 🟡 **GergiOS-native** | 1.1 | Ещё не портирован |
+
+**Итого bin/**: 29 утилит. 15 сразу в Rust (GergiOS-native), 4 сложных (1.1), 5 NetBSD compat.
+
+### 6.3 `sbin/` — System (/sbin)
+
+Системные утилиты для администрирования. Многие требуют прав root.
+
+| Утилита | Зависимости | Категория | Приоритет | Примечание |
+|---------|------------|-----------|-----------|------------|
+| **init** | -lutil -lcrypt | 🔴 **NetBSD compat** | 1.0 | process 1. Критичен. Замена — переписывание системы инициализации |
+| **ifconfig** | сложный: RUMP, pf, inet6 | 🔴 **NetBSD compat** | 1.0 | Настройка сети. Огромная зависимость от ядра |
+| **mount** | сложный: много FS | 🔴 **NetBSD compat** | 1.0 | Монтирование ФС. Завязан на VFS |
+| **reboot** | -lutil | 🟡 **NetBSD compat** | 1.0 | reboot(2), halt |
+| **shutdown** | libc only | 🟡 **NetBSD compat** | 1.0 | Сигналит init |
+| **route** | сложный: routing | 🔴 **NetBSD compat** | 1.0 | Управление маршрутизацией |
+| **sysctl** | сложный: sysctl MIB | 🔴 **NetBSD compat** | 1.0 | Доступ к параметрам ядра |
+| **fsck** | -lutil -lprop | 🟡 **NetBSD compat** | 1.1 | Проверка ФС. Часть init |
+| **chown** | libc only | 🟢 **GergiOS-native** | 1.1 | chown(2) |
+| **mknod** | libc only | 🟢 **GergiOS-native** | 1.1 | mknod(2) |
+| **nologin** | shell script | 🟢 **pkgsrc** | 1.1 | Простой скрипт |
+| **ping** | -lm | 🟡 **NetBSD compat** | 1.1 | ICMP, raw socket, сложный |
+| **ping6** | -lm -lipsec | 🟡 **NetBSD compat** | 1.1 | IPv6 ICMP |
+| **rcorder** | -lutil | 🟡 **NetBSD compat** | 1.1 | Порядок rc скриптов |
+| **fsck_ext2fs** | -lutil | 🟡 **NetBSD compat** | 1.1 | ext2fs fsck |
+| **newfs_ext2fs** | -lutil -lprop | 🟡 **NetBSD compat** | 1.1 | mkfs.ext2 |
+| **newfs_msdos** | -lutil -lprop | 🟡 **NetBSD compat** | 1.1 | FAT форматирование |
+| **newfs_udf** | -lutil | 🟡 **NetBSD compat** | 1.1 | UDF форматирование |
+| **newfs_v7fs** | -lutil | 🟡 **NetBSD compat** | 1.1 | V7 форматирование |
+
+**Итого sbin/**: 18 утилит на MINIX. ~8 критических (NetBSD compat).
+Большинство системных утилит жёстко завязаны на NetBSD ABI ядра.
+GergiOS-native замена sbin/ — задача для 1.1+.
+
+### 6.4 `usr.bin/` — User (/usr/bin)
+
+Самый большой набор — ~80+ утилит. По категориям:
+
+#### 6.4.1 Критическая инфраструктура → NetBSD compat (1.0)
+
+| Утилита | Зависимости | Примечание |
+|---------|------------|------------|
+| **make** | -lutil | Система сборки. Критична для BSD Make |
+| **sh** (не дублируется, см. bin/sh) | — | — |
+| **ftp** | -ledit -lterminfo -lwolfssl | Сетевой клиент, сложный |
+| **telnet** | -lterminfo -lwolfssl -lkrb5 -lpam | Очень сложный. Оставить в compat |
+| **gzip** | -lz -lbz2 -llzma | Компрессия, внешние библиотеки |
+| **login** | -lutil -lcrypt -lpam -lkrb5 | login(1). Завязан на PAM, auth |
+| **passwd** | -lcrypt -lutil -lkrb5 -lwolfssl | Смена пароля. Kerberos, PAM |
+| **su** | -lpam -lcrypt -lutil -lkrb5 -lhcrypto | Смена пользователя. PAM |
+| **man** | -lutil | Чтение man страниц |
+| **find** | -lutil | Поиск файлов |
+| **xargs** | libc only | Аргументы команд |
+| **sed** | libc only | Потоковый редактор |
+| **patch** | libc only | Наложение патчей |
+| **sort** | -lutil | Сортировка |
+| **mail** | (TODO) | Email клиент |
+
+#### 6.4.2 GergiOS-native кандидаты (1.0) — простые, POSIX-only
+
+Эти утилиты зависят только от libc и имеют простую логику.
+
+**✅ Уже в Rust:**
+`basename`, `cat`, `chmod`, `cksum`, `cmp`, `comm`, `cp`, `cut`, `date`, `dd`, `df`, `dirname`, `domainname`, `du`, `echo`, `env`, `expand`, `false`, `fold`, `head`, `hostname`, `id`, `kill`, `ln`, `ls`, `mkdir`, `mv`, `nl`, `nohup`, `paste`, `pathchk`, `printenv`, `printf`, `pwd`, `rm`, `rmdir`, `seq`, `sleep`, `sort`, `split`, `stat`, `sync`, `tail`, `tee`, `test`, `time`, `touch`, `tr`, `true`, `tty`, `uname`, `unexpand`, `uniq`, `wc`, `yes`
+
+**🟡 Ещё не портированы:**
+_(все POSIX-утилиты 1.0 завершены!)_
+
+#### 6.4.3 GergiOS-native (1.1) — средней сложности
+
+`colrm`, `join`, `jot`, `pr`, `rev`, `tabs`, `tsort`, `ul`, `unifdef`, `unvis`, `vis`
+
+#### 6.4.4 pkgsrc (опционально, 1.0+)
+
+Эти утилиты легко заменяются через pkgsrc:
+
+`banner` (`pkgsrc/figlet`), `bzip2` (`pkgsrc/bzip2`), `cal` (`pkgsrc/cal`), `calendar`, `col`, `colcrt`, `column`, `csplit`, `ctags`, `finger`, `flock`, `fmt`, `fpr`, `from`, `fsplit`, `gencat`, `getopt`, `hexdump`, `indent`, `infocmp`, `ipcrm`, `ipcs`, `lam`, `last`, `leave`, `locale`, `lock`, `logger`, `logname`, `lorder`, `m4`, `machine` (shell), `man`, `menuc`, `mesg`, `mkfifo`, `mkstr`, `mktemp`, `msgc`, `nbperf`, `netstat`, `newgrp`, `nice`, `pagesize` (shell), `pwhash`, `renice`, `sdiff`, `shar`, `shlock`, `shuffle`, `soelim`, `stat`, `time`, `tput`, `units`, `unvis`, `unzip`, `users`, `uudecode`, `uuencode`, `uuidgen`, `vis`, `w`, `wall`, `what`, `whatis`, `whereis`, `who`, `whois`, `write`, `xstr`, `yes`
+
+#### 6.4.5 Build-time инструменты (только для кросс-компиляции)
+
+Эти утилиты используются только во время сборки системы, не нужны на target:
+
+`genassym` (sh), `gencat`, `mkcsmapper`, `mkdep`, `mkesdb`, `mklocale`, `xinstall`, `lorder` (sh)
+
+### 6.5 Стратегия замены по приоритетам
+
+#### Приоритет 1.0: Core POSIX на Rust ✅ **(55 утилит завершено)**
+
+```
+✅ bin/cat, chmod, cp, date, dd, df, domainname, echo, hostname, kill, ln, ls, mkdir,
+   mv, pwd, rm, rmdir, sleep, stty, sync, test
+✅ usr.bin/basename, cksum, cmp, comm, cut, dirname, du, env, expand, false, fold, head,
+   id, nl, nohup, paste, pathchk, printenv, printf, seq, sort, split, stat, tail, tee,
+   time, touch, tr, true, tty, uname, unexpand, uniq, wc, yes
+
+🟡 всё! Все POSIX-утилиты 1.0 завершены ✅
+```
+
+**Почему эти**:
+- Зависят ТОЛЬКО от libc (POSIX API)
+- Простая логика (одно действие за раз)
+- Идеальны для Rust: минимум unsafe, максимум производительности
+- 0 NetBSD-специфичного кода
+
+#### Приоритет 1.1: Сложные POSIX
+
+```
+bin/date, dd, df, stat, stty, test, domainname
+usr.bin/cksum, cmp, du, join, jot, pr, rev, tabs, tsort, unifdef, unvis, vis
+```
+
+**Почему позже**:
+- Используют `-lutil` (humanize_number, pidfile, etc.)
+- Сложнее форматирование / опции
+- Могут быть портированы с `-lutil` эмуляцией
+
+#### Приоритет 1.2: Shell и критическая инфраструктура
+
+```
+bin/sh, csh, ksh
+usr.bin/ftp, telnet, gzip, login, passwd, su, make, find, sed, patch, sort, man, mail
+```
+
+**Остаются NetBSD compat до 1.2+**:
+- Shell (~50k LOC C для sh) — огромная работа
+- ftp/telnet — сетевые протоколы, сложная аутентификация
+- login/passwd/su — PAM, Kerberos, shadow
+- make — BSD Make, ядро build system
+- find/sed/patch — сложные парсеры
+
+#### Остаются NetBSD compat навсегда:
+
+```
+sbin/* (init, ifconfig, mount, reboot, route, sysctl — всё системное администрирование)
+```
+
+### 6.6 Итоговая статистика
+
+| Категория | Кол-во | % |
+|-----------|--------|---|
+| ✅ **Rust — завершено** | 55 | 47% |
+| 🟢 **GergiOS-native (1.0/1.1)** | — | 0% |
+| 🟡 **NetBSD compat (1.0)** | ~30 | 26% |
+| 🟡 **NetBSD compat (1.1+)** | ~15 | 13% |
+| 🟢 **pkgsrc** | ~20 | 17% |
+
+---
+
+## 7. Risk Assessment
+
+### 7.1 Migration Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
 | pkgsrc compatibility issues | Medium | Low | Test on QEMU before removing in-tree tools |
-| musl libc ABI differences | High | Medium | Gradual migration: musl alongside NetBSD libc |
 | Rebranding breaks scripts | Low | Low | `uname -s` still returns something consistent |
 | Boot library cleanup breaks boot | Critical | Low | Keep all files until validated |
-| VFS replacement breaks FS | Critical | Low | Keep existing VFS, only remove unused filesystems |
+| VFS cleanup breaks FS | Critical | Low | Keep existing VFS, only remove unused filesystems |
 
-### 6.2 Rebranding Risks
+### 7.2 Rebranding Risks
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
@@ -431,51 +678,55 @@ menu=Start GergiOS (safe mode):load_mods /boot/default/mod*;multiboot /boot/defa
 | Config migration confusion | Low | Low | Version file documents the change |
 | Package compatibility | Low | Low | OS_NAME change propagates to pkgin |
 
-### 6.3 Dependencies Between Phases
+### 7.3 Dependencies Between Phases
 
 ```
-Phase 0 (Branding) ──→ Phase 1 (pkgsrc) ──→ Phase 3 (BSD Make done)
-                                                     │
-                                                     ↓
-Phase 6 (boot lib) ←─── Phase 7 (VFS) ←─── Phase 4 (libc) ←─── Phase 5 (libm)
+Phase 0 (Branding) ──→ Phase 1 (pkgsrc)
+                              │
+                              ↓
+Phase 6 (boot lib) ←─── Phase 7 (VFS)
 ```
 
-Phases 0-3 can proceed in parallel. Phases 4-7 depend on earlier phases being stable.
+Все фазы могут выполняться параллельно. libc/libm не затрагиваются.
+Phase 2 (crypto) и Phase 3 (CMake) завершены ✅
 
 ---
 
-## 7. Success Criteria
+## 8. Success Criteria
 
 1. **GergiOS boots** with new branding (boot menu, kernel announce, uname)
-2. **0 in-tree userland tools** — all provided via pkgsrc (optional; can keep minimal set)
-3. **BSD Make not required** — CMake is the sole build system
-4. **wolfSSL** is the sole crypto provider
-5. **musl libc** (or similar) replaces NetBSD libc for userland
-6. **Boot library** trimmed to <20 files
-7. **100% of existing tests pass** after each phase
-8. **Documentation** updated for GergiOS identity
+2. **NetBSD POSIX (BSD) userland** чётко определён как фундаментальный слой (libc, libm, sys-заголовки)
+3. **GergiOS-native компоненты** собираются с CMake; NetBSD compat — с BSD Make (dual-build)
+4. **wolfSSL** — sole crypto provider ✅ **(done)**
+5. **Boot library** очищена от неиспользуемых FS/протоколов
+6. **100% of existing tests pass** after each phase
+7. **Documentation** updated for GergiOS identity
+
+**Ключевое отличие от предыдущей стратегии**: libc/libm НЕ заменяются.
+NetBSD — не внешняя зависимость, а POSIX (BSD) userland, как в macOS.
 
 ---
 
-## 8. Effort Summary
+## 9. Effort Summary
 
-| Phase | Description | Effort | Risk | Priority |
-|-------|-------------|--------|------|----------|
-| **0** | GergiOS branding | 1 week | 🟢 Low | 🔴 High |
-| **1** | pkgsrc migration (tools, libs, games, externals) | 4-8 weeks | 🟢 Low | 🔴 High |
-| **2** | Crypto consolidation | 2-4 weeks | 🟢 Low | 🟡 Medium |
-| **3** | BSD Make → CMake finalization | 2-4 weeks | 🟢 Low | 🔴 High |
-| **4** | libc → musl | 8-16 weeks | 🟡 Medium | 🟡 Medium |
-| **5** | libm → musl/OpenLibm | 2-4 weeks | 🟢 Low | 🟢 Low |
-| **6** | Boot library cleanup | 1-2 weeks | 🟡 Medium | 🟢 Low |
-| **7** | VFS/filesystem audit | 4-8 weeks | 🟡 Medium | 🟢 Low |
+| Phase | Description | Effort | Risk | Priority | Status |
+|-------|-------------|--------|------|----------|--------|
+| **0** | GergiOS branding (boot, uname, motd) | 1 week | 🟢 Low | 🔴 High | ✅ **Done** |
+| **1** | NetBSD ABI/userland консолидация | 4-8 weeks | 🟢 Low | 🟡 Medium | 🟡 План |
+| **2** | Crypto consolidation (wolfSSL + hcrypto) | 3 months | 🟢 Low | 🟡 Medium | ✅ **Done** |
+| **3** | BSD Make → CMake (dual-build) | 3 months | 🟢 Low | 🔴 High | ✅ **Done** |
+| **4** | ~~libc → musl~~ — **Не нужно** | — | — | — | ❌ Отменён |
+| **5** | ~~libm альтернатива~~ — **Не нужно** | — | — | — | ❌ Отменён |
+| **6** | Boot library cleanup | 1-2 weeks | 🟢 Low | 🟢 Low | 🟡 План |
+| **7** | VFS/filesystem cleanup | 4-8 weeks | 🟡 Medium | 🟢 Low | 🟡 План |
 
-**Total estimated effort**: 24-48 weeks (spans Q3 2026 — Q2 2027)
-**Code reduction**: ~70% of NetBSD code removed (saving ~15,000+ files)
+**Total estimated effort**: 8-16 weeks (Q3 2026 — Q4 2026)
+**NetBSD код**: не удаляется. NetBSD = POSIX (BSD) userland, как в macOS.
+libc/libm/sys-заголовки остаются перманентно. Заменяются только криптография (✅) и тулы.
 
 ---
 
-## 9. Related Documents
+## 10. Related Documents
 
 - `planning/03_migration_roadmap.md` — overall roadmap (see Section 2: Architecture Migration)
 - `planning/02_legacy_dependencies.md` — legacy dependency analysis

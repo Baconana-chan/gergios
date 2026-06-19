@@ -29,11 +29,11 @@
 #endif
 
 /* GergiOS release and version numbers. */
-#define OS_NAME "Minix"
-#define OS_RELEASE "3.4.0"	/* 3.m.p */
-#define OS_REV 304000000	/* see NetBSD sys/param.h: 3mm00pp00 */
+#define OS_NAME "GergiOS"
+#define OS_RELEASE "1.0.0"	/* GergiOS version */
+#define OS_REV 100000000	/* GergiOS: 1mm00pp00 */
 #define OS_CONFIG "GENERIC"
-#define OS_VERSION OS_NAME " " OS_RELEASE " (" OS_CONFIG ")"
+#define OS_VERSION OS_NAME " " OS_RELEASE " (" OS_CONFIG ", MINIX 3.4.0)"
 
 /* This file sets configuration parameters for the MINIX kernel, FS, and PM.
  * It is divided up into two main sections.  The first section contains

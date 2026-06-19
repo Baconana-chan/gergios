@@ -1,0 +1,8 @@
+[package]
+name = "uname"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX uname utility — print system information"
+
+[dependencies]
+libc = "0.2"

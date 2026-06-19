@@ -30,6 +30,16 @@ MKSLJIT?=	no
 #MINIX-specific variables
 MKCOVERAGE?=	no
 
+# pkgsrc-заменяемые компоненты: не собираются из исходников
+# (доступны через pkgsrc)
+MKGAMES?=	no
+MKLIBTELNET?=	no
+MKLIBKVM?=	no
+
+# Data files — man pages, locale, i18n: pkgsrc
+MKMAN?=		no
+MKNLS?=		no
+
 # LSC MINIX does not support these features ATM.
 USE_FORT:=	no
 USE_SSP:=	no
@@ -1269,6 +1279,7 @@ _MKVARS.yes+= \
 	MKWATCHDOG MKACPI MKAPIC MKDEBUGREG MKINSTALLBOOT MKPCI
 .endif
 
+#
 .for var in ${_MKVARS.yes}
 ${var}?=	${${var}.${MACHINE_ARCH}:Uyes}
 .endfor

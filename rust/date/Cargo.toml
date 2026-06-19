@@ -1,0 +1,5 @@
+[package]
+name = "date"
+version = "1.0.0"
+edition = "2021"
+description = "Display or set date and time (POSIX) - Rust implementation for GergiOS"

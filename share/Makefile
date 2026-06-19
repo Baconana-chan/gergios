@@ -9,10 +9,19 @@
 
 .if ${MKSHARE} != "no" || \
 	make(clean) || make(cleandir) || make(distclean) || make(obj)
+.if defined(__MINIX)
+# MINIX minimal: только mk/ (BSD Make инфраструктура);
+# man, misc, terminfo, locale, i18n — data files из pkgsrc
+SUBDIR=	mk
+.if ${MKSHARE} != "no"
+SUBDIR+=	legal
+.endif
+.else
 SUBDIR=	legal man misc mk \
 	terminfo
 .if ${MKNLS} != "no"
 SUBDIR+=i18n locale nls
+.endif
 .endif
 .endif
 

@@ -1,0 +1,7 @@
+[package]
+name = "ln"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX ln utility — create hard/soft links"
+
+[dependencies]

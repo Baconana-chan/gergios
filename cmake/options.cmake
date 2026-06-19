@@ -33,6 +33,11 @@ option(MKMAGIC "Build with MAGIC pass" OFF)
 option(MKASR "Build with ASR (Address Space Randomization)" OFF)
 option(MKCOVERAGE "Build with coverage profiling" OFF)
 
+# Components that are BSD-Make-only for now (games, external) are not
+# included in the CMake build. The CMake build focuses on the MINIX
+# microkernel core (kernel, servers, drivers, libraries).
+# For games and external packages, use BSD Make or pkgsrc.
+
 # ============================================================================
 # USE_* variables (default YES, depend on MK*)
 # ============================================================================

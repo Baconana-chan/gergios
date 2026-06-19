@@ -26,6 +26,10 @@ name = "basename"
 version = "1.0.0"
 
 [[package]]
+name = "cat"
+version = "1.0.0"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -73,10 +77,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "head"
+version = "1.0.0"
+
+[[package]]
+name = "hostname"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "id"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "kill"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68ab91017fe16c622486840e4c83c9a37afeff978bd239b5293d61ece587de66"
+
+[[package]]
+name = "ln"
+version = "1.0.0"
 
 [[package]]
 name = "memchr"
@@ -116,12 +149,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkdir"
+version = "1.0.0"
+
+[[package]]
+name = "mv"
+version = "1.0.0"
+
+[[package]]
 name = "net-parse"
 version = "0.1.0"
 
 [[package]]
+name = "printenv"
+version = "1.0.0"
+
+[[package]]
 name = "procfs-path"
 version = "0.1.0"
+
+[[package]]
+name = "pwd"
+version = "1.0.0"
 
 [[package]]
 name = "regex"
@@ -153,6 +202,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "rm"
+version = "1.0.0"
+
+[[package]]
+name = "rmdir"
+version = "1.0.0"
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -176,8 +233,36 @@ name = "sleep"
 version = "1.0.0"
 
 [[package]]
+name = "sync"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "touch"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "true"
 version = "1.0.0"
+
+[[package]]
+name = "tty"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "uname"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "walkdir"
@@ -188,6 +273,10 @@ dependencies = [
  "same-file",
  "winapi-util",
 ]
+
+[[package]]
+name = "wc"
+version = "1.0.0"
 
 [[package]]
 name = "winapi-util"

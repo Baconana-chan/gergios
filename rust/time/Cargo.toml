@@ -1,0 +1,8 @@
+[package]
+name = "time"
+version = "1.0.0"
+edition = "2021"
+description = "Time command execution (POSIX) - Rust implementation for GergiOS"
+
+[dependencies]
+libc = "0.2"

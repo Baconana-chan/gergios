@@ -1,0 +1,5 @@
+[package]
+name = "cmp"
+version = "1.0.0"
+edition = "2021"
+description = "Compare two files byte by byte (POSIX) - Rust implementation for GergiOS"

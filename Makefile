@@ -145,6 +145,13 @@ _SUBDIR+=	.WAIT rescue .WAIT distrib regress
 _SUBDIR+=	.WAIT minix
 .endif # defined(__MINIX)
 
+# Components easily replaceable via pkgsrc — skip building from source
+# when the corresponding MK* flag is "no".
+# Currently gated: MKGAMES (games/)
+.if ${MKGAMES:Uyes} == "no"
+BUILD_games=no
+.endif
+
 .for dir in ${_SUBDIR}
 .if "${dir}" == ".WAIT" \
 	|| (${BUILD_${dir}:Uyes} != "no" && exists(${dir}/Makefile))

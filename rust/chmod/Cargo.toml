@@ -1,0 +1,8 @@
+[package]
+name = "chmod"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX chmod utility — change file modes"
+
+[dependencies]
+libc = "0.2"

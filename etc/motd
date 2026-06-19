@@ -1,9 +1,8 @@
-For post-installation usage tips such as installing binary
-packages, please see:
-https://wiki.minix3.org/doku.php?id=usersguide:postinstallation
+Welcome to GergiOS 1.0!
 
-For more information on how to use MINIX 3, see the wiki:
-https://wiki.minix3.org
+For documentation and support, visit:
+https://gergios.dev
 
-We'd like your feedback: https://minix3.org/community/
+Based on the MINIX 3.4.0 microkernel.
+
 

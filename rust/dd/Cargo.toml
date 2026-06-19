@@ -1,0 +1,5 @@
+[package]
+name = "dd"
+version = "1.0.0"
+edition = "2021"
+description = "Convert and copy a file (POSIX) - Rust implementation for GergiOS"

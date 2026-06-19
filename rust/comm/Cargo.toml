@@ -1,0 +1,7 @@
+[package]
+name = "comm"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX comm utility — compare two sorted files"
+
+[dependencies]

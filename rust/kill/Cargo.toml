@@ -1,0 +1,8 @@
+[package]
+name = "kill"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX kill utility — terminate or signal processes"
+
+[dependencies]
+libc = "0.2"
