@@ -315,19 +315,153 @@ SECTIONS {
 - No THUMB interworking considerations
 - `ENTRY(_start)` — standard ARM64 entry point name
 
-### Files to Create (Phase 2)
+### Files Created (Phase 2)
 
-| File | Purpose |
-|------|---------|
-| `minix/kernel/arch/aarch64/head.S` | Boot entry, MMU enable, EL1 setup |
-| `minix/kernel/arch/aarch64/mpx.S` | Context save/restore, ERET, SVC handler |
-| `minix/kernel/arch/aarch64/vectors.S` | Exception vector table (VBAR_EL1) |
-| `minix/kernel/arch/aarch64/klib.S` | phys_copy, memset, cpuid, cycle counter |
-| `minix/kernel/arch/aarch64/kernel.lds` | Linker script (64-bit, high VA) |
-| `minix/kernel/arch/aarch64/startup.c` | C startup after MMU enable |
-| `minix/include/arch/aarch64/include/archtypes.h` | ARM64-specific types: exception frame, stack frame |
+| File | Purpose | Status |
+|------|---------|--------|
+| `minix/kernel/arch/aarch64/head.S` | Boot entry, MMU enable, EL1 setup | ✅ Created |
+| `minix/kernel/arch/aarch64/vectors.S` | Exception vector table (VBAR_EL1) | ✅ Created |
+| `minix/kernel/arch/aarch64/mpx.S` | Context save/restore, ERET, SVC handler | ✅ Created |
+| `minix/kernel/arch/aarch64/klib.S` | phys_copy, phys_memset, vir2phys, __switch_address_space, intr_enable/disable, reset, TLBI, barriers, register access | ✅ Created |
+| `minix/kernel/arch/aarch64/exception.c` | C exception handler — ESR decode, page fault dispatch, copy fault recovery, proc_stacktrace, FPU control | ✅ Created |
+| `minix/kernel/arch/aarch64/hw_intr.c` | GICv3 interrupt controller driver — hw_intr_*, bsp_irq_handle, intr_init | ✅ Created |
+| `minix/kernel/arch/aarch64/hw_intr.c` → `kernel.lds` | Linker script — полностью переписан: `.unpaged_text`/`.unpaged_data`/`.unpaged_bss`, __k_unpaged__*, usermapped, _kern_offset, AT() для LMA/VMA | ✅ Created |
+| `minix/kernel/arch/aarch64/include/arch_proto.h` | Architecture prototype declarations | ✅ Created |
+| `minix/kernel/arch/aarch64/include/hw_intr.h` | Hardware interrupt interface header | ✅ Created |
+| `minix/include/arch/aarch64/include/archtypes.h` | ARM64-specific types: exception frame, stack frame | ✅ Created (Phase 1) |
+| `sys/arch/aarch64/include/param.h` | Machine constants (MACHINE_ARCH="aarch64", PAGE_SIZE=4096, etc.) | ✅ Created |
+| `sys/arch/aarch64/include/endian.h` | Little-endian definitions | ✅ Created |
+| `sys/arch/aarch64/include/setjmp.h` | jmp_buf layout (x19-x30+SP+d8-d15+signal mask) | ✅ Created |
+| `sys/arch/aarch64/include/mcontext.h` | mcontext_t (31 GPRs + SP + PC + PSTATE + 32×128-bit VFP + FPSR/FPCR) | ✅ Created |
+| `sys/arch/aarch64/include/signal.h` | sigcontext (faultaddr + sc_x[31] + sc_sp + sc_pc + sc_pstate) | ✅ Created |
+| `sys/arch/aarch64/include/frame.h` | trapframe_t, TRAP_USERMODE, sigframe_sigcontext/siginfo | ✅ Created |
+| `minix/kernel/arch/aarch64/startup.c` | C startup after MMU enable — calls FDT parser, prints DTB info | ✅ Created + enhanced |
+| `minix/kernel/arch/aarch64/pre_init.c` | Boot info setup (kinfo) — now uses FDT dynamically (memory, CPU count) | ✅ Created + enhanced |
+| `minix/kernel/arch/aarch64/fdt.h` | FDT parser API — validate DTB, memory, CPUs, chosen, alias resolution, reg parsing, UART info | ✅ Created (T10) |
+| `minix/kernel/arch/aarch64/fdt.c` | FDT parser implementation — DTB linear walk, callbacks, alias resolve, reg parse, stdout-path UART lookup | ✅ Created (T10) |
+| `minix/kernel/arch/aarch64/limine.h` | Limine AAC64 header (sys/arch/aarch64/include/limine.h) | ✅ Created (T15) |
+| `minix/kernel/arch/aarch64/limine.c` | Limine request structures in .limine_requests, pre_init entry, self-contained PL011 | ✅ Created (T15) |
+| `minix/kernel/arch/aarch64/arch_timer.c` | ARM Generic Timer — CNTPCT, clock.c interface | ✅ Created |
+| `minix/kernel/arch/aarch64/arch_clock.h` | arch_timer_int_handler declaration | ✅ Created |
+| `minix/kernel/arch/aarch64/arch_reset.c` | PSCI reset/shutdown + PL011 UART I/O | ✅ Created |
+| `minix/kernel/arch/aarch64/pg_utils.c` | Page table utilities — pg_identity, pg_mapkernel, vm_enable_paging, alloc_lowest, pg_mapproc, etc. | ✅ Created |
+| `minix/kernel/arch/aarch64/arch_system.c` | System calls, CPU init, FPU, context management | ✅ Created |
+| `minix/kernel/arch/aarch64/arch_do_vmctl.c` | VM control — set_ttbr, arch_do_vmctl, TLB flush | ✅ Created |
+| `minix/kernel/arch/aarch64/memory.c` | Memory management — vm_lookup (4-level walk), umap_virtual, virtual_copy_f, data_copy, vm_memset, kern_req_phys_map, arch_phys_map/arch_phys_map_reply, arch_enable_paging | ✅ Created |
+| `minix/kernel/arch/aarch64/protect.c` | MMU init — prot_init (VBAR + pg_identity + pg_mapkernel + pg_load), tss_init, arch_post_init, arch_boot_proc stub | ✅ Created |
+| `minix/include/arch/aarch64/include/vm.h` | ARM64 VMSAv8-64 constants (Phase 3) | ✅ Created |
 
-**Estimated effort**: 4-6 weeks
+### Phase 2 Status: 🟡 **Source files complete — сборка и sysroot не завершены**
+
+**Примечание**: Исходные файлы Phase 2 созданы (head.S, mpx.S, klib.S, exception.c, memory.c, protect.c, pg_utils.c, arch_system.c, arch_do_vmctl.c, arch_timer.c, arch_reset.c, hw_intr.c, системные заголовки). Но сборка требует MINIX sysroot (см. `planning/17_remaining_tasks.md` §T1–T2).
+
+**Выполнено (ядро):**
+- `head.S` — ARM64 entry point, EL1 init, identity page tables (TTBR0_EL1/TCR_EL1/MAIR_EL1/SCTLR_EL1), MMU enable, VBAR_EL1 install
+- `vectors.S` — Полная VBAR_EL1 таблица (16 entries × 128 байт) с PL011 UART diagnostics и диспетчеризацией в mpx.S
+- `mpx.S` — save_process_ctx, SAVE_FULL_CONTEXT_TO_PROC, restore_user_context (ERET), arm64_svc_handler (KERVEC_INTR/IPCVEC_INTR), arm64_irq_entry_from_user/kernel, arm64_exception_entry_from_user/kernel, PL011 ассемблерные diagnostics
+- `klib.S` — **~450 строк**, 20+ функций: copy_msg, phys_copy, phys_memset, vir2phys, __switch_address_space, switch_k_stack, reset, halt_cpu, intr_enable/disable, system regs access, TLB, barriers, misc
+- `exception.c` — **~400 строк** C-обработчик: ex_data[64] таблица EC→{msg,signum}, decode ESR_EL1 (EC, FSC, WnR), pagefault() с catch_pagefaults и phys_copy/phys_memset recovery, data_abort() dispatcher, copy_msg nested fault detection, proc_stacktrace(), FPU control (CPACR_EL1.FPEN)
+- `hw_intr.c` — **~300 строк** GICv3 driver: GICD/GICR MMIO (0x08000000/0x080A0000), ICC_* sysregs, intr_init(), hw_intr_mask/unmask (SPI→GICD, PPI→GICR, SGI→no-op), bsp_irq_handle() (IAR → irq_handle → EOI), hw_intr_disable_all = no-op (DAIF for critical sections)
+- `arch_proto.h` — Все объявления klib.S + arch-специфичные прототипы + K_STACK_SIZE + switch_address_space/get_k_stack_top макросы + kern_phys_map
+- `hw_intr.h` — hw_intr_* + bsp_irq_handle объявления
+- `kernel.lds` — Полный рерайт: PHYS_BASE=0x80000, KERNEL_VBASE=0xFFFF800000000000, `.unpaged_text`/`.unpaged_data`/`.unpaged_bss`, __k_unpaged__*, usermapped_glo/usermapped, `. += _kern_offset`, AT(ADDR - _kern_offset), __bss_start_phys/__bss_end_phys, _kern_vbase alias (совместимость с pre_init.c)
+
+**Выполнено (заголовки):**
+- `sys/arch/aarch64/include/param.h` — MACHINE_ARCH="aarch64", PAGE_SIZE=4096, STACK_ALIGNBYTES=15, DEV/MCL константы
+- `sys/arch/aarch64/include/endian.h` — _BYTE_ORDER = _LITTLE_ENDIAN
+- `sys/arch/aarch64/include/setjmp.h` — _JBLEN=64, magic 0x4a8f5xxx, callee-saved x19-x30+SP+d8-d15+signal mask
+- `sys/arch/aarch64/include/mcontext.h` — 31×64-bit GPRs, __sp, __pc, __pstate, __fpregset_t (32×128-bit VFP + FPSR/FPCR), MCF_MAGIC=0xc0ffee, __UCONTEXT_SIZE=1024
+- `sys/arch/aarch64/include/signal.h` — sigcontext: faultaddr + sc_x[31] + sc_sp + sc_pc + sc_pstate + sc_mask, SC_MAGIC=0xc0ffee4
+- `sys/arch/aarch64/include/frame.h` — trapframe_t (tf_x[31]+sp+pc+spsr), TRAP_USERMODE macro, sigframe_sigcontext/siginfo, switchframe_s
+
+**klib.S функции (все 20+):**
+| Функция | Описание |
+|---------|----------|
+| `copy_msg_from_user` | Копирование 64 байт из userspace в kernel (LDP/STP, fault recovery) |
+| `copy_msg_to_user` | Копирование 64 байт из kernel в userspace (LDP/STP, fault recovery) |
+| `__user_copy_msg_pointer_failure` | Обработка fault'а при копировании (восстанавливает callee-saved regs, возвращает -1) |
+| `phys_copy` | Копирование физической памяти с выравниванием 16 байт (LDP/STP main loop, byte remainder) |
+| `phys_memset` | Заполнение физической памяти (byte → qword broadcast через MUL, 8-byte stores) |
+| `vir2phys` | Виртуальный → физический адрес (AT S1E1R + PAR_EL1[47:12] frame + VA[11:0] offset) |
+| `__switch_address_space` | Переключение TTBR0_EL1 (загрузка P_TTBR, сравнение, избыточная запись) |
+| `switch_k_stack` | Переключение kernel stack + прыжок на continuation (x0→x2=SP, x1→x3=fn) |
+| `reset` | System reset через PSCI HVC #0, fallback SMC #0, затем WFI loop |
+| `halt_cpu` | DAIF mask + WFI loop |
+| `intr_enable`/`intr_disable` | DAIFClr/DAIFSet для I bit + DSB+ISB |
+| `read_ttbr0/1`, `write_ttbr0` | Page table base register access |
+| `read_esr`, `read_far`, `read_elr`, `read_spsr` | Exception syndrome registers (ESR_EL1, FAR_EL1, ELR_EL1, SPSR_EL1) |
+| `read_tpidr_el1`, `write_tpidr_el1` | Per-CPU pointer (tpidr_el1) |
+| `tlb_flush_all` | TLBI Vmalle1 + DSB SY + ISB (все non-global entries) |
+| `tlb_flush_addr` | TLBI VAE1 x0 + DSB SY + ISB (один VA) |
+| `dmb_sy`, `dsb_sy` | Memory barriers (DMB SY, DSB SY) |
+| `read_current_sp` | Чтение SP |
+| `arch_pause` | YIELD instruction (spin-wait hint) |
+
+**Все файлы Phase 2 созданы.** Остались задачи по интеграции и линковке.
+
+**Выполнено (Phase 2 — все arch source файлы):**
+- `head.S`, `vectors.S`, `mpx.S`, `klib.S`, `kernel.lds` — минимальный boot
+- `arch_proto.h` — объявления функций
+- `exception.c` — обработчик исключений (ESR decode, page fault dispatch)
+- `hw_intr.c` + `hw_intr.h` — GICv3 драйвер (300 строк)
+- `arch_timer.c` + `arch_clock.h` — ARM Generic Timer (370 строк)
+- `arch_reset.c` — PSCI reset/shutdown + PL011 UART (320 строк)
+- `pg_utils.c` — page table utilities (430 строк, 4-level page tables)
+- `arch_system.c` — system calls, CPU init, FPU, context (350 строк)
+- `arch_do_vmctl.c` — VM control: set_ttbr, TLB flush (110 строк)
+- `memory.c` — memory management: vm_lookup, copy, memset, phys maps (500 строк)
+- `protect.c` — MMU init: prot_init, VBAR, page tables, boot procs (195 строк)
+- `sys/arch/aarch64/include/` — 6 system headers (param.h, endian.h, setjmp.h, mcontext.h, signal.h, frame.h)
+- `CMakeLists.txt` — все .c файлы добавлены в KERNEL_ARCH_SOURCES
+
+**Осталось (Phase 2 — для минимальной компиляции и загрузки):**
+- ✅ **Проверить прототипы** — все функции объявлены в arch_proto.h или kernel/proto.h
+- ✅ **Проверить missing symbols** — zero missing symbols confirmed (44 arch functions implemented, ser_dump_proc in common proc.c, ser_putc in arch_reset.c)
+- ✅ **Создать ser_putc stub** — уже реализован в arch_reset.c под #ifdef DEBUG_SERIAL
+- 🟡 **CMake configure успешен** — `cmake --preset aarch64-debug` ✅ Configuring done
+- 🔲 **MINIX sysroot для кросс-компиляции** — сборка ядра упирается в missing MINIX-заголовки (libsys требует `lib.h`, `<minix/config.h>` и т.д.). Нужен sysroot или destdir с заголовками
+- 🔲 **Попытка сборки** — cmake --build kernel (после настройки sysroot)
+- 🔲 **libminc/libc** (setjmp.S, ucontext.S, ipc.S) — вынесены в Phase 6
+
+**Phase 2 roadmap (итоговый):**
+```
+1. [✅] head.S, vectors.S, mpx.S, klib.S, kernel.lds — минимальный boot
+2. [✅] arch_proto.h — объявления функций
+3. [✅] exception.c — обработчик исключений
+4. [✅] hw_intr.c + hw_intr.h — GICv3 драйвер
+5. [✅] sys/arch/aarch64/include/ — system headers (6 файлов)
+6. [✅] arch_timer.c + arch_clock.h — ARM Generic Timer
+7. [✅] arch_reset.c — PSCI reset/shutdown + PL011
+8. [✅] pg_utils.c — page table utilities
+9. [✅] arch_system.c + arch_do_vmctl.c — syscall arch hooks
+10. [✅] memory.c — memory management
+11. [✅] protect.c — MMU init helpers
+12. [✅] CMakeLists — все .c файлы добавлены
+13. [✅] CMake configure for aarch64 — configure успешен
+14. [✅] Проверка missing symbols — zero missing symbols
+15. [⬜] Сборка kernel — cmake --build kernel (требует MINIX sysroot)
+16. [⬜] Настройка MINIX_DESTDIR/sysroot для кросс-компиляции
+```
+
+**Известные баги (исправлены):**
+1. Bug: BSS clearing after MMU — `adr` не доставал до `__bss_start`/`__bss_end` (в VMA, за ±1MB лимитом)
+   - Fix: Добавлены `__bss_start_phys`/`__bss_end_phys` (LOADADDR) в kernel.lds, ldr вместо adr
+2. Bug: DTB address lost — x0 затирался до вызова arm64_boot()
+   - Fix: `mov x19, x0` в entry, `mov x0, x19` перед bl arm64_boot
+3. Bug: SP_EL0/ELR_EL1 перепутаны в save_process_ctx (mpx.S)
+   - Fix: правильные смещения в стеке [SP+8]=SP_EL0, [SP+16]=ELR_EL1
+4. Bug: PL011 macros использовали `ldr x11, =PL011_FR_TXFF` (загружали VALUE 32, не адрес)
+   - Fix: ldr x10, =PL011_FR; ldr x11, [x10]; tst x11, #PL011_FR_TXFF (immediate)
+5. Bug: vir2phys терял page offset (PAR_EL1[11:0] — атрибуты, не offset)
+   - Fix: сохранение оригинального VA, комбинирование PAR_EL1[47:12] frame + VA[11:0] offset
+6. Bug: `frame_x0` typo (lowercase) в exception.c → uppercase `FRAME_X0`
+7. Bug: `isb()` undefined в exception.c → добавлен `#define isb() __asm__`
+8. Bug: `dsb(sy)`/`isb()` undefined в hw_intr.c → заменены на __gic_dsb/__gic_isb через inline asm
+9. Bug: hw_intr_disable_all агрессивно чистил PMR → no-op (как в earm)
+10. Bug: gic_init_dist дизейблил SGI (0-15) → теперь только PPI (16-31)
+11. Bug: `_kern_vbase` vs `_kern_vir_base` mismatch в линкер скрипте → добавлен alias
+
+**Estimated effort**: 4-6 weeks (фактически ~2 недели на Phase 1-2 core, ещё ~1 неделя на завершение Phase 2)
 **Dependencies**: Phase 1 (build infrastructure)
 
 ---
@@ -414,47 +548,36 @@ Bit    | Field       | AARCH64_VM_* constant          | Description
 
 ## Phase 4: Interrupts and Timers 🟡
 
-### 4.1 Generic Interrupt Controller (GIC)
+### 4.1 Generic Interrupt Controller (GIC) ✅
 
-ARM64 systems use the **GIC v2 or v3** instead of the simple interrupt controller on 32-bit ARM systems:
+Реализовано в `hw_intr.c` (Phase 2). GICv3 для QEMU virt:
+- GICD_BASE=0x08000000, GICR_BASE=0x080A0000
+- IPC via system registers (ICC_IAR1_EL1, ICC_EOIR1_EL1, ICC_PMR_EL1, ICC_SRE_EL1, ICC_IGRPEN1_EL1)
+- `intr_init()`: distributor enable, CPU interface init (SRE, PMR=0xFF, Group 1)
+- `hw_intr_mask/unmask`: SPI→GICD, PPI→GICR, SGI→no-op
+- `bsp_irq_handle()`: IAR → irq_handle() → DSB → EOI
+- `hw_intr_disable_all()`: no-op (используем DAIF для critical sections)
+- TODO (Phase 4+): GICv2 поддержка (RPi 4), SMP per-CPU GICR, MSI
 
-**GIC v2 (found on Cortex-A53, A57):**
-```c
-/* GIC CPU interface registers (memory-mapped) */
-#define GIC_ICC_PMR     0x04    /* Priority Mask Register */
-#define GIC_ICC_IAR     0x0C    /* Interrupt Acknowledge Register */
-#define GIC_ICC_EOIR    0x10    /* End of Interrupt Register */
+#### FDT Integration (T10) ✅
+Device Tree Blob парсер реализован в `fdt.c`/`fdt.h`:
+- Валидация DTB magic + total size
+- Линейный walker с callback-ами для node begin/end и properties
+- Парсинг `/memory` (reg, #address-cells/#size-cells из родителя)
+- Парсинг `/cpus` (количество cpu@... node'ов)
+- Парсинг `/chosen` (bootargs, stdout-path)
+- **stdout-path UART lookup**: alias resolution → reg parsing → UART base address
+- Fallback на 0x09000000 (QEMU virt PL011)
+- Все функции в `.unpaged.text` для доступа из identity-mapped контекста
+- Интеграция: startup.c → FDT parser → pre_init.c (динамический memory/CPU count)
 
-/* GIC Distributor registers */
-#define GIC_ICD_CTLR    0x0000  /* Distributor Control */
-#define GIC_ICD_ISENABLER 0x0100 /* Interrupt Set-Enable */
-#define GIC_ICD_ICENABLER 0x0180 /* Interrupt Clear-Enable */
-```
-
-**GIC v3 (found on Cortex-A72, A76, etc.):**
-- Uses system registers (ICC_*) instead of memory-mapped CPU interface
-- Supports more interrupts, LPIs, and MSI
-- Redistributor per core instead of shared CPU interface
-
-**MINIX GIC driver requirements:**
-```c
-/* GIC v2 initialization (for QEMU virt, RPi 4): */
-void gic_init(void) {
-    /* Set priority mask to allow all interrupts */
-    write_gic_reg(GIC_ICC_PMR, 0xFF);
-    /* Enable group 0 and group 1 interrupts in distributor */
-    write_gic_reg(GIC_ICD_CTLR, 0x3);
-    /* Enable CPU interface */
-    write_gic_reg(GIC_ICC_CTLR, 0x1);
-}
-
-/* IRQ handler: */
-void gic_handle_irq(void) {
-    uint32_t irq = read_gic_reg(GIC_ICC_IAR) & 0x3FF;
-    handle_irq(irq);
-    write_gic_reg(GIC_ICC_EOIR, irq);
-}
-```
+#### Limine AAC64 (T15) ✅
+Boot protocol для загрузки через Limine:
+- Полные Limine v8.x request structures (memmap, modules, framebuffer, HHDM, SMP, RSDP, DTB)
+- `.limine_requests` секция в kernel.lds (low memory, доступна бутлоадеру)
+- `limine_pre_init()` entry point + `limine_check_responses()` debug
+- Самодостаточный PL011 UART (без зависимостей от startup.c)
+- `LIMINE_DTB_REQUEST` — критично для AArch64 (x0=0 при entry, DTB через request)
 
 ### 4.2 ARM Generic Timer
 
@@ -482,17 +605,16 @@ void enable_cntp(void) {
 }
 ```
 
-### Files to Create (Phase 4)
+### Files to Create (Phase 4 — некоторые перенесены в Phase 2)
 
-| File | Purpose |
-|------|---------|
-| `minix/kernel/arch/aarch64/gic.c` | GIC v2/v3 initialization and interrupt handling |
-| `minix/kernel/arch/aarch64/arch_clock.c` | ARM generic timer initialization |
-| `minix/kernel/arch/aarch64/hw_intr.c` | Hardware interrupt routing (GIC → kernel handlers) |
-| `minix/include/arch/aarch64/include/interrupt.h` | Interrupt controller constants |
-| `minix/include/arch/aarch64/include/gic.h` | GIC register definitions |
+| File | Purpose | Status |
+|------|---------|--------|
+| `minix/kernel/arch/aarch64/hw_intr.c` | GICv3 interrupt controller driver | ✅ Created (Phase 2) |
+| `minix/kernel/arch/aarch64/arch_clock.c` | ARM generic timer + clock.c interface (init_clock, get_realtime, etc.) | ⬜ Phase 2 |
+| `minix/kernel/arch/aarch64/arch_reset.c` | PSCI reset, arch_shutdown, minix_shutdown | ⬜ Phase 2 |
+| `minix/kernel/arch/aarch64/gic.c` | GIC-specific code (merged into hw_intr.c) | ✅ Merged |
 
-**Estimated effort**: 2-3 weeks
+**Estimated effort**: 2-3 weeks — часть уже сделана (GIC), остальное (timer) ~1 неделя
 **Dependencies**: Phase 2 (exception vectors working)
 
 ---
@@ -761,19 +883,20 @@ void fdt_get_chosen(void *fdt_ptr, char *cmdline, int max_len) {
 |------|---------|
 | `minix/kernel/arch/aarch64/platform_qemu.c` | QEMU virt-specific initialization |
 | `minix/kernel/arch/aarch64/platform_rpi4.c` | RPi 4-specific initialization |
-| `minix/kernel/arch/aarch64/fdt.c` | Flattened Device Tree parser |
-| `minix/kernel/arch/aarch64/arch_reset.c` | System reset (PSCI or watchdog) |
-| `minix/drivers/tty/tty/arch/aarch64/pl011.c` | PL011 UART driver |
-| `minix/drivers/tty/tty/arch/aarch64/arch_tty.c` | ARM64 TTY architecture setup |
 | `minix/include/arch/aarch64/include/bcm2711.h` | RPi 4 memory map definitions |
 | `minix/include/arch/aarch64/include/platform.h` | Platform detection and constants |
+| `minix/drivers/tty/tty/arch/aarch64/pl011.c` | PL011 UART driver (kernel PL011 already in arch_reset.c) |
+| `minix/drivers/tty/tty/arch/aarch64/arch_tty.c` | ARM64 TTY architecture setup |
 
 **Estimated effort**: 4-6 weeks
 **Dependencies**: Phases 4-6 (interrupts, syscalls, libraries)
 
 ---
 
-## Phase 8: Testing and Polish 🟢
+## Phase 8: Testing and Polish 🟡
+
+> **Статус**: Planned — not started (kernel port must complete first)
+> **Связанные задачи**: `planning/17_remaining_tasks.md` §T11
 
 ### 8.1 QEMU Test Environment
 

@@ -310,128 +310,48 @@ END(arm64_vector_table)
  *   - Exception from EL1 (kernel) using SP_EL1
  *   - ESR_EL1 contains the exception syndrome
  *   - FAR_EL1 contains the fault address (for data/instruction aborts)
- *   - SP_EL1 points to the kernel stack
  *
- * Phase 2 behavior:
- *   Read ESR_EL1 and FAR_EL1, print via PL011, halt.
+ * Phase 2: Dispatch to mpx.S arm64_exception_entry_from_kernel.
+ * Phase 4+: Full kernel exception handling.
  * ----------------------------------------------------------------------- */
 
-.section .unpaged.text, "ax"
-
 arm64_sync_el1h_handler:
-    /* Save callee-saved registers used by our macros */
-    stp     x19, x20, [sp, #-16]!
-    stp     x21, x22, [sp, #-16]!
-
-    /* Read exception syndrome registers */
-    mrs     x19, ESR_EL1        /* Save ESR_EL1 in x19 */
-    mrs     x20, FAR_EL1        /* Save FAR_EL1 in x20 */
-    mrs     x21, ELR_EL1        /* Save ELR_EL1 in x21 */
-    mrs     x22, SPSR_EL1       /* Save SPSR_EL1 in x22 */
-
-    /* Print diagnostic header */
-    adr     x0, str_exception_kernel
-    pl011_puts x0
-    pl011_newline
-
-    /* Print ESR_EL1 */
-    adr     x0, str_esr
-    pl011_puts x0
-    mov     x0, x19
-    pl011_puthex x0
-    pl011_newline
-
-    /* Print FAR_EL1 */
-    adr     x0, str_far
-    pl011_puts x0
-    mov     x0, x20
-    pl011_puthex x0
-    pl011_newline
-
-    /* Print ELR_EL1 */
-    adr     x0, str_elr
-    pl011_puts x0
-    mov     x0, x21
-    pl011_puthex x0
-    pl011_newline
-
-    /* Print SPSR_EL1 */
-    adr     x0, str_spsr
-    pl011_puts x0
-    mov     x0, x22
-    pl011_puthex x0
-    pl011_newline
-
-    /* Print halt message */
-    adr     x0, str_halt
-    pl011_puts x0
-    pl011_newline
-
-    /* Restore callee-saved registers */
-    ldp     x21, x22, [sp], #16
-    ldp     x19, x20, [sp], #16
-
-    /* Fall through to halt */
-arm64_exception_halt:
-    /* Disable all interrupts and halt */
-    msr     DAIFSet, #0xF
-    wfi
-    b       arm64_exception_halt
+    /* Some registers may be live (kernel was interrupted).
+     * We need to save/restore them around the handler.
+     * mpx.S's arm64_exception_entry_from_kernel handles diagnostics. */
+    b       arm64_exception_entry_from_kernel
 
 /* -----------------------------------------------------------------------
  * arm64_irq_el1h_handler — IRQ handler (in kernel mode)
  *
- * Phase 2: Print diagnostic info and halt.
+ * Phase 2: Dispatch to mpx.S arm64_irq_entry_from_kernel.
  * Phase 4+: Real GIC interrupt handling.
  * ----------------------------------------------------------------------- */
 
 arm64_irq_el1h_handler:
-    stp     x19, x20, [sp, #-16]!
-
-    adr     x0, str_irq_kernel
-    pl011_puts x0
-    pl011_newline
-
-    mrs     x19, ESR_EL1
-    adr     x0, str_esr
-    pl011_puts x0
-    mov     x0, x19
-    pl011_puthex x0
-    pl011_newline
-
-    ldp     x19, x20, [sp], #16
-    b       arm64_exception_halt
+    b       arm64_irq_entry_from_kernel
 
 /* -----------------------------------------------------------------------
- * arm64_sync_el0_handler — SVC handler (system calls from userspace)
+ * arm64_sync_el0_handler — Sync exception from EL0 (user mode)
  *
- * Phase 2: Print diagnostic and halt.
- * Phase 5+: Real syscall dispatching.
+ * This handles ALL synchronous exceptions from userspace:
+ *   - SVC: System call (dispatch to arm64_svc_handler in mpx.S)
+ *   - Page faults, alignment faults, undefined instructions, etc.
+ *     (dispatch to arm64_exception_entry_from_user in mpx.S)
+ *
+ * Phase 2: Check ESR EC for SVC, dispatch accordingly.
+ * Phase 5+: Full syscall dispatching.
  * ----------------------------------------------------------------------- */
 
 arm64_sync_el0_handler:
-    stp     x19, x20, [sp, #-16]!
+    /* Read ESR_EL1 to check exception class */
+    mrs     x0, ESR_EL1
+    and     x0, x0, #(0x3F << 26)    /* Extract EC field [31:26] */
+    cmp     x0, #EC_SVC64
+    b.eq    arm64_svc_handler
 
-    adr     x0, str_syscall
-    pl011_puts x0
-    pl011_newline
-
-    mrs     x19, ESR_EL1
-    adr     x0, str_esr
-    pl011_puts x0
-    mov     x0, x19
-    pl011_puthex x0
-    pl011_newline
-
-    /* Read x8 (syscall number on ARM64) */
-    adr     x0, str_sysno
-    pl011_puts x0
-    mov     x0, x8              /* x8 typically holds syscall number */
-    pl011_puthex x0
-    pl011_newline
-
-    ldp     x19, x20, [sp], #16
-    b       arm64_exception_halt
+    /* Non-SVC exception from user (page fault, etc.) */
+    b       arm64_exception_entry_from_user
 
 /* -----------------------------------------------------------------------
  * Unused vector stubs
@@ -458,8 +378,8 @@ arm64_serror_el1h_handler:
     b       arm64_stub_with_msg
 
 arm64_irq_el0_handler:
-    adr     x0, str_irq_user
-    b       arm64_stub_with_msg
+    /* IRQ from EL0 — dispatch to mpx.S arm64_irq_entry_from_user */
+    b       arm64_irq_entry_from_user
 
 arm64_fiq_el0_handler:
     /* FIQ is uncommon, treat as vector 8 */
@@ -489,7 +409,12 @@ arm64_stub_with_msg:
     pl011_newline
 
     ldp     x19, x20, [sp], #16
-    b       arm64_exception_halt
+
+arm64_exception_halt:
+    /* Disable all exceptions and halt */
+    msr     DAIFSet, #0xF
+1:  wfi
+    b       1b
 
 /* =========================================================================
  * Diagnostic strings (in .unpaged.rodata for identity-map accessibility)
@@ -497,12 +422,6 @@ arm64_stub_with_msg:
 
 .section .unpaged.rodata, "a", %progbits
 
-str_exception_kernel:
-    .asciz  "\r\n=== KERNEL EXCEPTION (EL1h Sync) ==="
-str_irq_kernel:
-    .asciz  "\r\n=== KERNEL IRQ (EL1h IRQ) ==="
-str_syscall:
-    .asciz  "\r\n=== USER SYSCALL (EL0 Sync) ==="
 str_sync_el1t:
     .asciz  "\r\n=== UNEXPECTED: EL1t Sync ==="
 str_irq_el1t:

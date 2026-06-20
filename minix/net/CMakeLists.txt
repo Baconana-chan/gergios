@@ -4,6 +4,6 @@
 # Replicates minix/net/Makefile
 
 if(NOT MKIMAGEONLY)
-    add_subdirectory(lwip)
-    add_subdirectory(uds)
+    add_subdirectory_if_exists(lwip)
+    add_subdirectory_if_exists(uds)
 endif()

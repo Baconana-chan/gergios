@@ -262,11 +262,17 @@ x86_64 migration completed across 6 phases:
 
 **Phase 2: ARM64 Foundation**
 - [ ] Audit ARM-specific code
-- [ ] Create ARM64 architecture directory
-- [ ] Implement ARM64 boot process
-- [ ] Port kernel to ARM64
+- [x] Create ARM64 architecture directory ✅ (planning/08 Phase 1)
+- [x] CMake build infrastructure for aarch64 ✅
+- [x] ARM64 kernel source files (Phase 2: head.S, mpx.S, klib.S, exception.c, memory.c, protect.c, pg_utils.c, arch_system.c, arch_do_vmctl.c, arch_timer.c, arch_reset.c, hw_intr.c) ✅
+- [x] FDT Device Tree parser (fdt.h/fdt.c) — валидация DTB, /memory, /cpus, /chosen, stdout-path UART lookup с alias resolution ✅
+- [x] Limine AAC64 request structures (limine.h/limine.c) — .limine_requests, pre_init entry, self-contained PL011 ✅
+- [ ] Implement ARM64 boot process (нужен sysroot — planning/17 T1–T2)
+- [ ] Port kernel to ARM64 (в процессе, см. planning/08)
 - [ ] Port servers to ARM64
 - [ ] Port drivers to ARM64
+
+**Подробнее**: `planning/08_arm64_migration_plan.md`, `planning/17_remaining_tasks.md` §T1–T11
 
 **Phase 3: Testing and Validation**
 - [ ] Set up x86_64 test infrastructure (QEMU, real hardware)
@@ -283,28 +289,21 @@ x86_64 migration completed across 6 phases:
 - [x] Documentation: announcement, FAQ, troubleshooting, codebase audit, support channels, hard deprecation notice, archive guide
 - [x] Git tag: `archive/i386-last` preserves legacy code
 
-**
-
 For full details, see:
 - `planning/05_i386_deprecation_timeline.md` — full timeline with checkboxes
 - `docs/i386-deprecation-announcement.md` — announcement and status
 - `docs/archive/` — archived i386 documentation
 
-**Phase 5: i386 Removal — PARTIALLY COMPLETE**
-- [x] Remove i386-only directories (`sys/arch/i386/`, i386-specific drivers, `cmake/arch_i386.cmake`)
-- [x] Clean up build system (CMakeLists.txt, BSD Makefiles)
-- [x] Clean up standalone `__i386__` ifdefs (kernel, servers, libs core files)
-- [x] Remove i386-only tests
-- [ ] Separate shared x86 kernel arch code (`minix/kernel/arch/i386/` contains code shared with x86_64 via `__x86_64__` ifdefs)
-- [ ] Create `minix/kernel/arch/x86_64/` with 64-bit native assembly
-- [ ] Create `minix/lib/libsys/arch/x86_64/` with 64-bit I/O wrappers
-- [ ] Update `minix/kernel/CMakeLists.txt` — add proper `MACHINE_ARCH == "x86_64"` case
-- [ ] Fix `cmake/options.cmake` — ACPI/APIC/PCI/Watchdog must be available for x86_64
-- [ ] Restore ramdisk boot drivers for x86_64
+**Phase 5: i386 Removal — 🟡 Deferred (x86_64 cleanup → planning/17)**
 
-**
+**Что сделано**:
+- [x] i386-only директории удалены (`sys/arch/i386/`, i386-драйверы, `cmake/arch_i386.cmake`)
+- [x] Build system очищен (CMakeLists.txt, BSD Makefiles)
+- [x] `__i386__` ifdefs очищены (ядро, серверы, библиотеки)
+- [x] i386-only тесты удалены
 
-**Critical Note**: `minix/kernel/arch/i386/`, `minix/lib/libsys/arch/i386/`, `minix/include/arch/i386/`, and `minix/servers/vm/arch/i386/` were RESTORED from git tag `archive/i386-last` because they contain SHARED x86 architecture code used by both i386 and x86_64 via `__i386__`/`__x86_64__` preprocessor conditionals. A proper `arch/x86_64/` directory must be created with 64-bit assembly files before these i386 arch directories can be fully deleted.
+**Что осталось (перенесено в `planning/17_remaining_tasks.md` §T3–T7)**:
+- Оставшиеся shared arch/i386 директории (`minix/kernel/arch/i386/`, `minix/lib/libsys/arch/i386/`, `minix/include/arch/i386/`, `minix/servers/vm/arch/i386/`) содержат код, общий с x86_64 через `__x86_64__` ifdefs. Эти директории были восстановлены из git tag `archive/i386-last`. Создание чистых `arch/x86_64/` директорий — отдельная задача очистки.
 
 #### Dependencies
 - Build system migration (completed ✅)

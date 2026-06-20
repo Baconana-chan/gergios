@@ -1,0 +1,147 @@
+
+---
+events:
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineSystem.cmake:199 (message)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      The target system is: Minix - 3.4.0 - aarch64
+      The host system is: Windows - 10.0.19045 - AMD64
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCCompiler.cmake:123 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: C:/Program Files/LLVM/bin/clang.exe 
+      Build flags: 
+      Id flags: -c;--target=aarch64-elf 
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CMakeCCompilerId.o"
+      
+      The C compiler identification is Clang, found in:
+        C:/Users/VIC/gergios/build-aarch64/CMakeFiles/3.26.4/CompilerIdC/CMakeCCompilerId.o
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerId.cmake:1115 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineASMCompiler.cmake:127 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      Checking whether the ASM compiler is GNU using "--version" did not match "(GNU assembler)|(GCC)|(Free Software Foundation)":
+      clang version 21.1.7
+      Target: x86_64-pc-windows-msvc
+      Thread model: posix
+      InstalledDir: C:\\Program Files\\LLVM\\bin
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerId.cmake:1102 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineASMCompiler.cmake:127 (CMAKE_DETERMINE_COMPILER_ID_VENDOR)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      Checking whether the ASM compiler is Clang using "--version" matched "(clang version)":
+      clang version 21.1.7
+      Target: x86_64-pc-windows-msvc
+      Thread model: posix
+      InstalledDir: C:\\Program Files\\LLVM\\bin
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerABI.cmake:57 (try_compile)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:13 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "C:/Users/VIC/gergios/build-aarch64/CMakeFiles/CMakeScratch/TryCompile-w9uu92"
+      binary: "C:/Users/VIC/gergios/build-aarch64/CMakeFiles/CMakeScratch/TryCompile-w9uu92"
+    cmakeVariables:
+      CMAKE_C_COMPILER_TARGET: "aarch64-elf"
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: "-static"
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: C:/Users/VIC/gergios/build-aarch64/CMakeFiles/CMakeScratch/TryCompile-w9uu92
+        
+        Run Build Command(s):C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_7bd80 && [1/2] C:\\PROGRA~1\\LLVM\\bin\\clang.exe --target=aarch64-elf   -v -MD -MT CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -MF CMakeFiles\\cmTC_7bd80.dir\\CMakeCCompilerABI.c.obj.d -o CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -c "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCCompilerABI.c"
+        clang version 21.1.7
+        Target: aarch64-unknown-unknown-elf
+        Thread model: posix
+        InstalledDir: C:\\Program Files\\LLVM\\bin
+         (in-process)
+         "C:\\\\Program Files\\\\LLVM\\\\bin\\\\clang.exe" -cc1 -triple aarch64-unknown-unknown-elf -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model static -mframe-pointer=non-leaf -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -nostdsysteminc -enable-tlsdesc -target-cpu generic -target-feature +v8a -target-feature +fp-armv8 -target-feature +neon -target-abi aapcs -debugger-tuning=gdb "-fdebug-compilation-dir=C:\\\\Users\\\\VIC\\\\gergios\\\\build-aarch64\\\\CMakeFiles\\\\CMakeScratch\\\\TryCompile-w9uu92" -v "-fcoverage-compilation-dir=C:\\\\Users\\\\VIC\\\\gergios\\\\build-aarch64\\\\CMakeFiles\\\\CMakeScratch\\\\TryCompile-w9uu92" -resource-dir "C:\\\\Program Files\\\\LLVM\\\\lib\\\\clang\\\\21" -dependency-file "CMakeFiles\\\\cmTC_7bd80.dir\\\\CMakeCCompilerABI.c.obj.d" -MT CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -sys-header-deps -internal-isystem "C:\\\\Program Files\\\\LLVM\\\\lib\\\\clang\\\\21\\\\include" -internal-isystem "C:\\\\Program Files\\\\LLVM\\\\bin\\\\..\\\\lib\\\\clang-runtimes\\\\aarch64-elf\\\\include" -ferror-limit 19 -fno-signed-char -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -faddrsig -o CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -x c "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCCompilerABI.c"
+        clang -cc1 version 21.1.7 based upon LLVM 21.1.7 default target x86_64-pc-windows-msvc
+        ignoring nonexistent directory "C:\\Program Files\\LLVM\\bin\\..\\lib\\clang-runtimes\\aarch64-elf\\include"
+        ignoring duplicate directory "C:\\Program Files\\LLVM\\lib\\clang\\21\\include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         C:\\Program Files\\LLVM\\lib\\clang\\21\\include
+        End of search list.
+        [2/2] cmd.exe /C "cd . && "C:\\Program Files\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_7bd80.a && C:\\PROGRA~1\\LLVM\\bin\\llvm-ar.exe qc libcmTC_7bd80.a  CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj && C:\\PROGRA~1\\LLVM\\bin\\LLVM-R~1.EXE libcmTC_7bd80.a && cd ."
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerABI.cmake:127 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [C:/Program Files/LLVM/lib/clang/21/include]
+        end of search list found
+        collapse include dir [C:/Program Files/LLVM/lib/clang/21/include] ==> [C:/Program Files/LLVM/lib/clang/21/include]
+        implicit include dirs: [C:/Program Files/LLVM/lib/clang/21/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeDetermineCompilerABI.cmake:152 (message)"
+      - "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:13 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld\\.lld\\.exe|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        ignore line: [Change Dir: C:/Users/VIC/gergios/build-aarch64/CMakeFiles/CMakeScratch/TryCompile-w9uu92]
+        ignore line: []
+        ignore line: [Run Build Command(s):C:/ProgramData/chocolatey/bin/ninja.exe -v cmTC_7bd80 && [1/2] C:\\PROGRA~1\\LLVM\\bin\\clang.exe --target=aarch64-elf   -v -MD -MT CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -MF CMakeFiles\\cmTC_7bd80.dir\\CMakeCCompilerABI.c.obj.d -o CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -c "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCCompilerABI.c"]
+        ignore line: [clang version 21.1.7]
+        ignore line: [Target: aarch64-unknown-unknown-elf]
+        ignore line: [Thread model: posix]
+        ignore line: [InstalledDir: C:\\Program Files\\LLVM\\bin]
+        ignore line: [ (in-process)]
+        ignore line: [ "C:\\\\Program Files\\\\LLVM\\\\bin\\\\clang.exe" -cc1 -triple aarch64-unknown-unknown-elf -emit-obj -disable-free -clear-ast-before-backend -disable-llvm-verifier -discard-value-names -main-file-name CMakeCCompilerABI.c -mrelocation-model static -mframe-pointer=non-leaf -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -nostdsysteminc -enable-tlsdesc -target-cpu generic -target-feature +v8a -target-feature +fp-armv8 -target-feature +neon -target-abi aapcs -debugger-tuning=gdb "-fdebug-compilation-dir=C:\\\\Users\\\\VIC\\\\gergios\\\\build-aarch64\\\\CMakeFiles\\\\CMakeScratch\\\\TryCompile-w9uu92" -v "-fcoverage-compilation-dir=C:\\\\Users\\\\VIC\\\\gergios\\\\build-aarch64\\\\CMakeFiles\\\\CMakeScratch\\\\TryCompile-w9uu92" -resource-dir "C:\\\\Program Files\\\\LLVM\\\\lib\\\\clang\\\\21" -dependency-file "CMakeFiles\\\\cmTC_7bd80.dir\\\\CMakeCCompilerABI.c.obj.d" -MT CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -sys-header-deps -internal-isystem "C:\\\\Program Files\\\\LLVM\\\\lib\\\\clang\\\\21\\\\include" -internal-isystem "C:\\\\Program Files\\\\LLVM\\\\bin\\\\..\\\\lib\\\\clang-runtimes\\\\aarch64-elf\\\\include" -ferror-limit 19 -fno-signed-char -fgnuc-version=4.2.1 -fskip-odr-check-in-gmf -faddrsig -o CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj -x c "C:/Program Files/CMake/share/cmake-3.26/Modules/CMakeCCompilerABI.c"]
+        ignore line: [clang -cc1 version 21.1.7 based upon LLVM 21.1.7 default target x86_64-pc-windows-msvc]
+        ignore line: [ignoring nonexistent directory "C:\\Program Files\\LLVM\\bin\\..\\lib\\clang-runtimes\\aarch64-elf\\include"]
+        ignore line: [ignoring duplicate directory "C:\\Program Files\\LLVM\\lib\\clang\\21\\include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ C:\\Program Files\\LLVM\\lib\\clang\\21\\include]
+        ignore line: [End of search list.]
+        ignore line: [[2/2] cmd.exe /C "cd . && "C:\\Program Files\\CMake\\bin\\cmake.exe" -E rm -f libcmTC_7bd80.a && C:\\PROGRA~1\\LLVM\\bin\\llvm-ar.exe qc libcmTC_7bd80.a  CMakeFiles/cmTC_7bd80.dir/CMakeCCompilerABI.c.obj && C:\\PROGRA~1\\LLVM\\bin\\LLVM-R~1.EXE libcmTC_7bd80.a && cd ."]
+        ignore line: []
+        ignore line: []
+        implicit libs: []
+        implicit objs: []
+        implicit dirs: []
+        implicit fwks: []
+      
+      
+...

@@ -319,14 +319,49 @@ boot_stack:
 boot_stack_end:
 
 /* =========================================================================
- * Export symbols for linker script
+ * Note: _kern_phys_base and _kern_size are provided by kernel.lds
+ * as linker symbols, NOT defined here. The linker script calculates
+ * them based on the section layout (PHYS_BASE, KERNEL_VBASE, etc.).
+ *
+ * Do NOT define them in assembly — it would cause duplicate symbols.
  * ========================================================================= */
 
-.section .data
-.global _kern_phys_base
-_kern_phys_base:
-    .quad _start
+/* =========================================================================
+ * Boot-time stack for C code (identity-mapped, in .unpaged.data)
+ *
+ * Defined here rather than in mpx.S so that head.S (which runs first)
+ * has a clean bootstrap stack. mpx.S provides the main kernel stacks
+ * (k_initial_stack, per-CPU stacks) which are accessed via the high
+ * kernel mapping after the transition.
+ *
+ * Stack layout:
+ *   boot_stack:   8192 bytes (8KB)
+ *   boot_stack_end: top of stack (SP is set to point here)
+ * ========================================================================= */
 
-.global _kern_size
-_kern_size:
-    .quad _end - _start
+.section .unpaged.data, "aw"
+.balign 16
+boot_stack:
+    .space 8192                  /* 8KB boot stack */
+boot_stack_end:
+
+/* =========================================================================
+ * Page tables (identity mapping, 3 levels)
+ *
+ * These are placed in .unpaged.data so they're identity-mapped and
+ * accessible before/after MMU enablement.
+ *
+ * Layout:
+ *   pagetable_l1: Level 1 table (512 × 8 = 4096 bytes)
+ *     Entry 0 → pagetable_l2 (covers 0x0000000000 - 0x4000000000)
+ *   pagetable_l2: Level 2 table (512 × 8 = 4096 bytes)
+ *     Entries 0..511: 2MB block entries covering 0 - 1GB
+ * ========================================================================= */
+
+.section .unpaged.data, "aw"
+.balign 4096
+
+pagetable_l1:
+    .space 4096                  /* Level 1: 512 × 8 bytes = 4KB */
+pagetable_l2:
+    .space 4096                  /* Level 2: 512 × 8 bytes = 4KB */

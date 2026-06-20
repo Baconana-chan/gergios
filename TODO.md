@@ -33,7 +33,6 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 - [x] Establish code coverage metrics and reporting
 - [x] Set up static analysis tools (clang-tidy, cppcheck)
 - [x] Create security scanning pipeline (Coverity, OSS-Fuzz)
-Finished - 2026.06.12
 
 ### 1.2 Architecture Planning
 - [x] Document current Minix microkernel architecture
@@ -41,7 +40,6 @@ Finished - 2026.06.12
 - [x] Create migration roadmap for each obsolete component
 - [x] Define target architecture support (x86_64, ARM64)
 - [x] Plan deprecation timeline for i386 support
-Finished - 2026.06.12
 
 ### 1.3 Rust Integration Foundation ✅
 > See `planning/09_c_language_modernization.md` for the full C89→C17+Rust migration plan

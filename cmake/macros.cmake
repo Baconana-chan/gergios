@@ -45,6 +45,16 @@ function(add_minix_executable TARGET)
     # No builtin functions (MINIX has its own minimal libc)
     target_compile_options(${TARGET} PRIVATE -fno-builtin)
 
+    # MINIX include paths (equivalent to /usr/include/ on installed system)
+    # Order matters! sys/ MUST come before sys/arch/${MACHINE_ARCH}/include
+    # so that #include_next from sys/machine/*.h can find arch-specific files.
+    target_include_directories(${TARGET} PRIVATE
+        "${MINIX_SOURCE_DIR}/include"                               # <lib.h>, <assert.h>, <stdio.h>
+        "${MINIX_SOURCE_DIR}/minix/include"                         # <minix/config.h>, <minix/com.h>
+        "${MINIX_SOURCE_DIR}/sys"                                   # <sys/cdefs.h>, <sys/types.h>, <machine/*.h>
+        "${MINIX_SOURCE_DIR}/sys/arch/${MACHINE_ARCH}/include"       # arch-specific: <cdefs.h> via #include_next
+    )
+
     # MINIX system flag
     target_compile_definitions(${TARGET} PRIVATE _MINIX_SYSTEM=1)
 
@@ -108,6 +118,16 @@ function(add_minix_library TARGET)
     target_compile_options(${TARGET} PRIVATE
         -fno-stack-protector
         -fno-builtin
+    )
+
+    # MINIX include paths (equivalent to /usr/include/ on installed system)
+    # Order matters! sys/ MUST come before sys/arch/${MACHINE_ARCH}/include
+    # so that #include_next from sys/machine/*.h can find arch-specific files.
+    target_include_directories(${TARGET} PRIVATE
+        "${MINIX_SOURCE_DIR}/include"                               # <lib.h>, <assert.h>, <stdio.h>
+        "${MINIX_SOURCE_DIR}/minix/include"                         # <minix/config.h>, <minix/com.h>
+        "${MINIX_SOURCE_DIR}/sys"                                   # <sys/cdefs.h>, <sys/types.h>, <machine/*.h>
+        "${MINIX_SOURCE_DIR}/sys/arch/${MACHINE_ARCH}/include"       # arch-specific: <cdefs.h> via #include_next
     )
 
     # Dependencies
@@ -207,6 +227,24 @@ function(generate_kernel_offsets)
     target_sources(${ARG_TARGET} PRIVATE "${OFFSETS_OUTPUT}")
     target_include_directories(${ARG_TARGET} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 endfunction()
+
+
+# ============================================================================
+# add_subdirectory_if_exists
+#
+# Only adds a subdirectory if it contains a CMakeLists.txt file.
+# This allows the build system to gracefully handle components that
+# haven't been migrated to CMake yet.
+#
+# Usage:
+#   add_subdirectory_if_exists(mydir)
+# ============================================================================
+
+macro(add_subdirectory_if_exists dir)
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
+        add_subdirectory(${dir} ${ARGN})
+    endif()
+endmacro()
 
 
 # ============================================================================

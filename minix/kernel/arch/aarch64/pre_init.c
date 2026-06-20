@@ -6,15 +6,20 @@
  * (Device Tree, Limine protocol, or U-Boot) and fills in the kernel's
  * global data structures.
  *
- * Phase 2: Minimal stub — returns a simple kinfo.
- * Phase 2+: Full implementation with Device Tree parsing,
- *           memory map setup, and module loading.
+ * Phase 3: FDT parser integration — kinfo is populated from the
+ *          Device Tree Blob (DTB) provided by the bootloader.
+ *          Memory layout, CPU count, and boot console are detected
+ *          at runtime instead of being hardcoded.
  * ============================================================ */
 
+#include <stdint.h>
 #include <minix/type.h>
 #include <minix/param.h>
 #include <kernel/kernel.h>
 #include <string.h>
+
+/* FDT parser header */
+#include "fdt.h"
 
 /* Imported from kernel global variables (glo.h) */
 extern struct kinfo kinfo;
@@ -22,17 +27,25 @@ extern char *_kern_phys_base;
 extern char *_kern_vbase;
 
 /*
- * Minimal kinfo initialization for ARM64.
+ * Parse Device Tree Blob and fill kinfo structure.
  *
- * In Phase 2, this just sets up the minimum needed for kmain()
- * to function. In later phases, this will:
- *   - Parse the Device Tree for memory layout
- *   - Count CPU cores
- *   - Set up boot module lists
- *   - Initialize GIC and timer
+ * Extracts the following from the DTB:
+ *   - Memory layout (base address and size) from /memory node
+ *   - CPU core count from /cpus node
+ *   - Boot command line from /chosen/bootargs
+ *   - Console UART from /chosen/stdout-path (or fallback to PL011)
+ *
+ * If no valid DTB is provided, falls back to sensible defaults
+ * for QEMU virt platform (512 MB RAM, PL011 UART).
+ *
+ * @param dtb  Pointer to the Device Tree Blob (or NULL)
  */
-static void setup_minimal_kinfo(void)
+static void fdt_parse_kinfo(const void *dtb)
 {
+    uint64_t mem_addr = 0, mem_size = 0;
+    int cpu_count = 0;
+    int ret;
+
     /* Clear kinfo */
     memset(&kinfo, 0, sizeof(kinfo));
 
@@ -43,38 +56,55 @@ static void setup_minimal_kinfo(void)
     /* Architecture */
     kinfo.kinfo_arch = "aarch64";
 
-    /* Boot console: PL011 UART on QEMU virt */
+    /* Boot console: default PL011 (QEMU virt) */
     kinfo.kinfo_console = "pl011";
     kinfo.kinfo_serial = 1;
 
-    /* Memory: QEMU virt default 512MB
-     * Phase 2+ will parse from Device Tree */
-    kinfo.kinfo_mem_lower = 0;
-    kinfo.kinfo_mem_upper = 512 * 1024 * 1024; /* 512MB */
+    /* Parse memory from DTB */
+    if (dtb && fdt_validate(dtb, 0) == 0) {
+        ret = fdt_get_memory(dtb, &mem_addr, &mem_size);
+        if (ret == 1 && mem_size > 0) {
+            /* Memory detected from DTB */
+            kinfo.kinfo_mem_lower = 0;
+            kinfo.kinfo_mem_upper = (unsigned long)mem_size;
+        } else {
+            /* Fallback: QEMU virt default (512 MB at 0x40000000) */
+            kinfo.kinfo_mem_lower = 0;
+            kinfo.kinfo_mem_upper = 512UL * 1024 * 1024;
+        }
 
-    /* Modules: none in Phase 2
-     * Phase 2+ will load boot modules */
+        /* CPU count (informational only in Phase 3) */
+        cpu_count = fdt_get_cpu_count(dtb);
+        if (cpu_count > 0)
+            kinfo.kinfo_nr_cpus = cpu_count;
+        else
+            kinfo.kinfo_nr_cpus = 1;
+    } else {
+        /* No DTB: fallback defaults for QEMU virt */
+        kinfo.kinfo_mem_lower = 0;
+        kinfo.kinfo_mem_upper = 512UL * 1024 * 1024;
+        kinfo.kinfo_nr_cpus = 1;
+    }
+
+    /* Modules: none at this stage */
     kinfo.kinfo_nr_modules = 0;
 }
 
 /*
  * ARM64 pre-initialization entry point.
  *
- * Called from head.S after MMU is enabled and stack is set up.
- * arm64_boot() in startup.c handles the initial output,
- * then this function sets up the kinfo structure and calls kmain().
+ * Called from startup.c after the UART is initialized and the
+ * Device Tree has been parsed for basic information. Sets up
+ * the kinfo structure with memory layout, CPU count, and boot
+ * configuration, then returns the kinfo for kmain().
  *
- * @param dtb_address  Address of Device Tree Blob (or 0)
+ * @param dtb_address  Physical address of Device Tree Blob (or 0)
  * @return              Pointer to kinfo (for kmain)
  */
 struct kinfo *pre_init(unsigned long dtb_address)
 {
-    /* Set up minimal kernel info */
-    setup_minimal_kinfo();
-
-    /* Phase 2: return minimal kinfo
-     * Phase 2+: parse DTB, set up modules, initialize GIC/timer */
-    (void)dtb_address;  /* Unused in Phase 2 */
+    /* Parse DTB and fill kinfo structure */
+    fdt_parse_kinfo((const void *)dtb_address);
 
     return &kinfo;
 }

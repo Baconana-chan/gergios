@@ -79,9 +79,43 @@ if(MINIX_TOOLCHAIN)
 else()
     # Native build (running on MINIX): use system tools
     # CMAKE_C_COMPILER and CMAKE_ASM_COMPILER are auto-detected
-    # Post-process object names to match MINIX toolchain conventions
-    set(CMAKE_AR "ar" CACHE FILEPATH "Path to ar")
-    set(CMAKE_RANLIB "ranlib" CACHE FILEPATH "Path to ranlib")
+    # For cross-compilation on non-MINIX hosts, set the target triple.
+    # Using CMAKE_C_COMPILER_TARGET is the proper CMake way (avoids
+    # duplication issues with CMAKE_C_FLAGS).
+    if(MACHINE_ARCH STREQUAL "aarch64")
+        set(CMAKE_C_COMPILER_TARGET "aarch64-elf")
+        set(CMAKE_ASM_COMPILER_TARGET "aarch64-elf")
+    elseif(MACHINE_ARCH STREQUAL "earm")
+        set(CMAKE_C_COMPILER_TARGET "armv7a-unknown-none-eabi")
+        set(CMAKE_ASM_COMPILER_TARGET "armv7a-unknown-none-eabi")
+    endif()
+    # Use LLVM's lld for cross-linking (supports all targets via -fuse-ld)
+    # Clang ignores CMAKE_LINKER and searches for prefixed linker names.
+    # -fuse-ld=lld tells Clang to use lld which supports any target triple.
+    find_program(LLD_LINKER ld.lld)
+    if(LLD_LINKER)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=lld")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fuse-ld=lld")
+        # CMake compiler test doesn't use CMAKE_EXE_LINKER_FLAGS.
+        # Set try_compile target type to STATIC_LIBRARY to skip the
+        # linker test (compilation-only check still validates the compiler).
+        set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
+    else()
+        message(WARNING "ld.lld not found! Cross-linker for aarch64 may not work.")
+    endif()
+    # Find LLVM archiver tools (ar/ranlib not available on non-MINIX hosts)
+    find_program(LLVM_AR llvm-ar)
+    find_program(LLVM_RANLIB llvm-ranlib)
+    if(LLVM_AR)
+        set(CMAKE_AR "${LLVM_AR}" CACHE FILEPATH "Path to archiver")
+    else()
+        set(CMAKE_AR "ar" CACHE FILEPATH "Path to ar")
+    endif()
+    if(LLVM_RANLIB)
+        set(CMAKE_RANLIB "${LLVM_RANLIB}" CACHE FILEPATH "Path to ranlib")
+    else()
+        set(CMAKE_RANLIB "ranlib" CACHE FILEPATH "Path to ranlib")
+    endif()
 endif()
 
 # Always use static linking for MINIX

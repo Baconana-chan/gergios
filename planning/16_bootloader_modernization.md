@@ -294,15 +294,16 @@ mod12_init → /sbin/init
 - [x] Создать `releasetools/arm64_hdimage.sh` — ESP + BOOTAA64.EFI + limine.conf + MFS
 - [x] Обновить `etc/limine.conf` — ARM64 entries с dtb_path
 - [x] Документировать: `docs/arm64-boot-guide.md`
-- [ ] **ARM64 kernel port** — см. `planning/08_arm64_migration_plan.md` (8 phases, 12+ месяцев)
+- [x] **ARM64 kernel: Limine AAC64 request structures + FDT parser** — `sys/machine/limine.h`, `sys/arch/aarch64/include/limine.h`, `arch/aarch64/limine.c` (request structures, `.limine_requests`, `limine_pre_init()`, самодостаточный PL011), `fdt.h`/`fdt.c` (FDT parser, stdout-path UART lookup, alias resolution)
+- [ ] **ARM64 kernel port (полная загрузка)** — см. `planning/08_arm64_migration_plan.md`
 - [ ] Протестировать: QEMU virt + UEFI + Limine AAC64 (после завершения kernel port)
 - [ ] Secure Boot на ARM64 (подпись BOOTAA64.EFI)
 - [ ] Физическое железо: RPi 4/5
 
 **Зависимости**: Phase 2 (UEFI ESP) + ARM64 kernel port (planning/08)
-**Статус**: 🟡 Boot infrastructure готова — kernel port не завершён
+**Статус**: 🟡 Boot infrastructure + kernel-side Limine/FDT готовы — полный kernel port не завершён
 
-**Изменённые/созданные файлы (Phase 4):**
+**Изменённые/созданные файлы (Phase 4 — boot infrastructure):**
 | Файл | Тип | Описание |
 |------|-----|----------|
 | `releasetools/image.functions` | ✏️ | `check_limine_aac64()`, `find_qemu_firmware_aarch64()` |
@@ -310,6 +311,18 @@ mod12_init → /sbin/init
 | `etc/limine.conf` | ✏️ | ARM64 boot entries (QEMU virt, Safe Mode) |
 | `docs/arm64-boot-guide.md` | 🆕 | Полный guide: QEMU virt + UEFI + Limine AAC64 |
 | `planning/16_bootloader_modernization.md` | ✏️ | Phase 4 статус
+
+**Изменённые/созданные файлы (Phase 4 — kernel-side, T15/T10):**
+| Файл | Тип | Описание |
+|------|-----|----------|
+| `sys/machine/limine.h` | 🆕 | `#include_next <limine.h>` stub for AArch64 |
+| `sys/arch/aarch64/include/limine.h` | 🆕 | Полные Limine v8.x protocol definitions (memmap, modules, framebuffer, HHDM, SMP, RSDP, DTB) |
+| `minix/kernel/arch/aarch64/limine.c` | 🆕 | Request structures в `.limine_requests`, `limine_pre_init()`, `limine_check_responses()`, самодостаточный PL011 |
+| `minix/kernel/arch/aarch64/fdt.h` | 🆕 | FDT parser API — validate, memory, CPUs, chosen, alias resolve, reg parse, UART info |
+| `minix/kernel/arch/aarch64/fdt.c` | 🆕 | FDT parser — DTB walk, callbacks, stdout-path UART lookup, alias resolution, `.unpaged.text` section |
+| `minix/kernel/arch/aarch64/startup.c` | ✏️ | Интегрирован FDT parser — выводит DTB info, передаёт dtb_address в pre_init |
+| `minix/kernel/arch/aarch64/pre_init.c` | ✏️ | Memory/CPU count из FDT динамически, вместо хардкода 512MB |
+| `minix/kernel/CMakeLists.txt` | ✏️ | Добавлены fdt.c и limine.c в сборку |
 
 ### 4.6 Phase 5: Отказ от GRUB (1-2 недели)
 

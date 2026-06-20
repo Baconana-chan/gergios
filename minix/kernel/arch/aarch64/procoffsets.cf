@@ -1,13 +1,73 @@
-# procoffsets.cf — ARM64 Assembly Offset Definitions (Phase 1 Stub)
+
+include "kernel/kernel.h"
+include "kernel/proc.h"
+
 #
-# This file defines offset symbols used by assembly code in head.S and mpx.S.
-# Phase 1: empty stub — Phase 2 will define actual ARM64 offsets when the
-# kernel entry code is implemented.
+# ARM64 struct stackframe_s member offsets
 #
-# ARM64 offset requirements (Phase 2+):
-#   - PROC_REG_OFFSETS (x0–x30 save area offsets in stackframe)
-#   - SAVED_ELR_OFFSET, SAVED_SPSR_OFFSET
-#   - USER_SP_OFFSET
-#   - PROC_NAME_OFFSET, PROC_ENDPOINT_OFFSET
+# struct stackframe_s {
+#     uint64_t gpr[31];     // offsets 0..240 (x0..x30)
+#     uint64_t sp_el0;      // offset 248 (User SP)
+#     uint64_t elr_el1;     // offset 256 (Exception return PC)
+#     uint64_t spsr_el1;    // offset 264 (Saved PSTATE)
+# };
 #
-# See arch/x86_64/procoffsets.cf for reference format.
+# struct proc {
+#     struct stackframe_s p_reg;  // First field, so offsets == stackframe_s offsets
+#     ...
+# };
+#
+# Generic register naming (index-based):
+member REG0  p_reg.gpr[0]
+member REG1  p_reg.gpr[1]
+member REG2  p_reg.gpr[2]
+member REG3  p_reg.gpr[3]
+member REG4  p_reg.gpr[4]
+member REG5  p_reg.gpr[5]
+member REG6  p_reg.gpr[6]
+member REG7  p_reg.gpr[7]
+member REG8  p_reg.gpr[8]
+member REG9  p_reg.gpr[9]
+member REG10 p_reg.gpr[10]
+member REG11 p_reg.gpr[11]
+member REG12 p_reg.gpr[12]
+member REG13 p_reg.gpr[13]
+member REG14 p_reg.gpr[14]
+member REG15 p_reg.gpr[15]
+member REG16 p_reg.gpr[16]
+member REG17 p_reg.gpr[17]
+member REG18 p_reg.gpr[18]
+member REG19 p_reg.gpr[19]
+member REG20 p_reg.gpr[20]
+member REG21 p_reg.gpr[21]
+member REG22 p_reg.gpr[22]
+member REG23 p_reg.gpr[23]
+member REG24 p_reg.gpr[24]
+member REG25 p_reg.gpr[25]
+member REG26 p_reg.gpr[26]
+member REG27 p_reg.gpr[27]
+member REG28 p_reg.gpr[28]
+member REG29 p_reg.gpr[29]
+member REG30 p_reg.gpr[30]
+
+# Named aliases (x86-style compatibility):
+# x0 = AXREG, x1 = BXREG, x2 = CXREG, x3 = DXREG
+# x4 = SIREG, x5 = DIREG, x29 = FPREG, x30 = LRREG
+member AXREG  p_reg.gpr[0]
+member BXREG  p_reg.gpr[1]
+member CXREG  p_reg.gpr[2]
+member DXREG  p_reg.gpr[3]
+member SIREG  p_reg.gpr[4]
+member DIREG  p_reg.gpr[5]
+member BPREG  p_reg.gpr[29]
+member FPREG  p_reg.gpr[29]
+member LRREG  p_reg.gpr[30]
+
+# Saved exception state (after GPRs):
+member SPREG  p_reg.sp_el0    /* User stack pointer */
+member PCREG  p_reg.elr_el1   /* Exception return address */
+member PSREG  p_reg.spsr_el1  /* Saved processor state */
+
+# Segment frame (for TTBR0_EL1):
+member P_TTBR p_seg.ttbr0_el1
+

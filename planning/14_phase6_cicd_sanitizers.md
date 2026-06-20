@@ -1,9 +1,10 @@
 # Phase 6: CI/CD & Sanitizer Integration
 
 > **Phase**: 6
-> **Status**: Planning
+> **Status**: ✅ **Completed** (Phase 6a–6d all complete)
 > **Depends on**: Phases 1-5 (all complete)
 > **Related**: `planning/09` (C17+Rust), `planning/13` (PM/VFS evaluation)
+> **Связанные задачи**: Все подфазы (6a–6d) завершены — задач не осталось
 
 ---
 

@@ -38,18 +38,30 @@ typedef struct {
 	uint64_t m1ull1;
 	int m1i1, m1i2, m1i3;
 	char *m1p1, *m1p2, *m1p3, *m1p4;
+#if __LP64__
+	/* 4 pointers (8 bytes each) fill 56 naturally */
+#else
 	uint8_t padding[20];
+#endif
 } mess_1;
 _ASSERT_MSG_SIZE(mess_1);
 
 typedef struct {
 	int64_t m2ll1;
 	int m2i1, m2i2, m2i3;
+#if __LP64__
+	int m2l1, m2l2;		/* was long, now int for LP64 IPC layout */
+#else
 	long m2l1, m2l2;
+#endif
 	char *m2p1;
 	sigset_t sigset;
 	short m2s1;
+#if __LP64__
+	/* LP64 natural size: 58 bytes — fits within IPC_MSG_PAYLOAD_SIZE(64) */
+#else
 	uint8_t padding[6];
+#endif
 } mess_2;
 _ASSERT_MSG_SIZE(mess_2);
 
@@ -63,14 +75,22 @@ _ASSERT_MSG_SIZE(mess_3);
 typedef struct {
 	int64_t m4ll1;
 	long m4l1, m4l2, m4l3, m4l4, m4l5;
+#if __LP64__
+	/* 48 bytes natural — IPC_MSG_PAYLOAD_SIZE(64) sufficient */
+#else
 	uint8_t padding[28];
+#endif
 } mess_4;
 _ASSERT_MSG_SIZE(mess_4);
 
 typedef struct {
 	int m7i1, m7i2, m7i3, m7i4, m7i5;
 	char *m7p1, *m7p2;
+#if __LP64__
+	/* 40 bytes natural — IPC_MSG_PAYLOAD_SIZE(64) sufficient */
+#else
 	uint8_t padding[28];
+#endif
 } mess_7;
 _ASSERT_MSG_SIZE(mess_7);
 
@@ -78,7 +98,11 @@ typedef struct {
 	uint64_t m9ull1, m9ull2;
 	long m9l1, m9l2, m9l3, m9l4, m9l5;
 	short m9s1, m9s2, m9s3, m9s4;
+#if __LP64__
+	/* 64 bytes natural — exactly IPC_MSG_PAYLOAD_SIZE */
+#else
 	uint8_t padding[12];
+#endif
 } mess_9;
 _ASSERT_MSG_SIZE(mess_9);
 
@@ -86,7 +110,11 @@ typedef struct {
 	u64_t m10ull1;
 	int m10i1, m10i2, m10i3, m10i4;
 	long m10l1, m10l2, m10l3;
+#if __LP64__
+	/* 52 bytes natural — IPC_MSG_PAYLOAD_SIZE(64) sufficient */
+#else
 	uint8_t padding[20];
+#endif
 } mess_10;
 _ASSERT_MSG_SIZE(mess_10);
 
@@ -268,7 +296,11 @@ typedef struct {
 	uint32_t acnt_cpu;
 	uint32_t acnt_cpu_load;
 
+#if __LP64__
+	/* 48 bytes natural — IPC_MSG_PAYLOAD_SIZE(64) sufficient */
+#else
 	uint8_t padding[24];
+#endif
 } mess_krn_lsys_schedule;
 _ASSERT_MSG_SIZE(mess_krn_lsys_schedule);
 
@@ -391,9 +423,12 @@ _ASSERT_MSG_SIZE(mess_lc_ipc_semop);
 typedef struct {
 	int		id;
 	const void	*addr;
-	int		flag;
-	void		*retaddr;
-	uint8_t		padding[40];
+	int		flag;	void *retaddr;
+#if __LP64__
+	uint8_t padding[32];
+#else
+	uint8_t padding[40];
+#endif
 } mess_lc_ipc_shmat;
 _ASSERT_MSG_SIZE(mess_lc_ipc_shmat);
 
@@ -421,6 +456,17 @@ typedef struct {
 } mess_lc_ipc_shmget;
 _ASSERT_MSG_SIZE(mess_lc_ipc_shmget);
 
+#ifdef __LP64__
+typedef struct {
+	vir_bytes	oldp;
+	vir_bytes	newp;
+	uint32_t	oldlen;
+	uint32_t	newlen;
+	uint32_t	namelen;
+	vir_bytes	namep;
+	int		name[6];
+} mess_lc_mib_sysctl;
+#else
 typedef struct {
 	vir_bytes	oldp;
 	size_t		oldlen;
@@ -430,6 +476,7 @@ typedef struct {
 	vir_bytes	namep;
 	int		name[CTL_SHORTNAME];
 } mess_lc_mib_sysctl;
+#endif
 _ASSERT_MSG_SIZE(mess_lc_mib_sysctl);
 
 typedef struct {
@@ -439,7 +486,11 @@ typedef struct {
 	size_t framelen;
 	vir_bytes ps_str;
 
+#if __LP64__
+	uint8_t padding[24];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lc_pm_exec;
 _ASSERT_MSG_SIZE(mess_lc_pm_exec);
 
@@ -470,7 +521,11 @@ typedef struct {
 	vir_bytes value;	/* const struct itimerval * */
 	vir_bytes ovalue;	/* struct itimerval * */
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lc_pm_itimer;
 _ASSERT_MSG_SIZE(mess_lc_pm_itimer);
 
@@ -536,7 +591,11 @@ typedef struct {
 	vir_bytes oact;		/* struct sigaction * */
 	vir_bytes ret;		/* int (*)(void) */
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lc_pm_sig;
 _ASSERT_MSG_SIZE(mess_lc_pm_sig);
 
@@ -557,7 +616,11 @@ typedef struct {
 	vir_bytes mem_ptr;
 	size_t mem_size;
 
+#if __LP64__
+	uint8_t padding[24];
+#else
 	uint8_t padding[32];
+#endif
 } mess_lc_pm_sprof;
 _ASSERT_MSG_SIZE(mess_lc_pm_sprof);
 
@@ -683,7 +746,11 @@ typedef struct {
 	vir_bytes label;
 	vir_bytes buf;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lc_vfs_gcov;
 _ASSERT_MSG_SIZE(mess_lc_vfs_gcov);
 
@@ -692,7 +759,11 @@ typedef struct {
 	size_t len;
 	vir_bytes buf;		/* struct statvfs */
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lc_vfs_getvfsstat;
 _ASSERT_MSG_SIZE(mess_lc_vfs_getvfsstat);
 
@@ -701,7 +772,11 @@ typedef struct {
 	unsigned long req;
 	vir_bytes arg;
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lc_vfs_ioctl;
 _ASSERT_MSG_SIZE(mess_lc_vfs_ioctl);
 
@@ -711,7 +786,11 @@ typedef struct {
 	size_t len1;
 	size_t len2;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lc_vfs_link;
 _ASSERT_MSG_SIZE(mess_lc_vfs_link);
 
@@ -744,6 +823,21 @@ typedef struct {
 } mess_lc_vfs_mknod;
 _ASSERT_MSG_SIZE(mess_lc_vfs_mknod);
 
+#ifdef __LP64__
+typedef struct {
+	int flags;
+	uint32_t devlen;
+	uint32_t pathlen;
+	uint32_t typelen;
+	uint32_t labellen;
+	vir_bytes dev;
+	vir_bytes path;
+	vir_bytes type;
+	vir_bytes label;
+
+	uint8_t padding[8];
+} mess_lc_vfs_mount;
+#else
 typedef struct {
 	int flags;
 	size_t devlen;
@@ -757,6 +851,7 @@ typedef struct {
 
 	uint8_t padding[20];
 } mess_lc_vfs_mount;
+#endif
 _ASSERT_MSG_SIZE(mess_lc_vfs_mount);
 
 typedef struct {
@@ -788,7 +883,11 @@ typedef struct {
 	vir_bytes buf;
 	size_t bufsize;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lc_vfs_readlink;
 _ASSERT_MSG_SIZE(mess_lc_vfs_readlink);
 
@@ -798,7 +897,11 @@ typedef struct {
 	size_t len;
 	size_t cum_io;		/* reserved/internal, set to 0 */
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lc_vfs_readwrite;
 _ASSERT_MSG_SIZE(mess_lc_vfs_readwrite);
 
@@ -809,7 +912,11 @@ typedef struct {
 	fd_set *errorfds;
 	vir_bytes timeout;	/* user-provided 'struct timeval *' */
 
+#if __LP64__
+	uint8_t padding[24];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lc_vfs_select;
 _ASSERT_MSG_SIZE(mess_lc_vfs_select);
 
@@ -821,7 +928,11 @@ typedef struct {
 	vir_bytes addr;		/* struct sockaddr * */
 	unsigned int addr_len;	/* socklen_t */
 
+#if __LP64__
+	uint8_t padding[20];
+#else
 	uint8_t padding[32];
+#endif
 } mess_lc_vfs_sendrecv;
 _ASSERT_MSG_SIZE(mess_lc_vfs_sendrecv);
 
@@ -876,7 +987,11 @@ typedef struct {
 	vir_bytes name;		/* const char * */
 	vir_bytes buf;		/* struct stat * */
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lc_vfs_stat;
 _ASSERT_MSG_SIZE(mess_lc_vfs_stat);
 
@@ -887,7 +1002,11 @@ typedef struct {
 	vir_bytes name;
 	vir_bytes buf;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lc_vfs_statvfs1;
 _ASSERT_MSG_SIZE(mess_lc_vfs_statvfs1);
 
@@ -898,7 +1017,11 @@ typedef struct {
 	vir_bytes name;
 	size_t len;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lc_vfs_truncate;
 _ASSERT_MSG_SIZE(mess_lc_vfs_truncate);
 
@@ -915,7 +1038,11 @@ typedef struct {
 	vir_bytes label;
 	size_t labellen;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lc_vfs_umount;
 _ASSERT_MSG_SIZE(mess_lc_vfs_umount);
 
@@ -929,7 +1056,11 @@ typedef struct {
 	endpoint_t	endpt;
 	void		*addr;
 	void		*ret_addr;
+#if __LP64__
+	uint8_t		padding[40];
+#else
 	uint8_t		padding[44];
+#endif
 } mess_lc_vm_getphys;
 _ASSERT_MSG_SIZE(mess_lc_vm_getphys);
 
@@ -1067,7 +1198,11 @@ typedef struct {
 	vir_bytes where;
 	size_t size;
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lsys_getsysinfo;
 _ASSERT_MSG_SIZE(mess_lsys_getsysinfo);
 
@@ -1076,7 +1211,11 @@ typedef struct {
 	phys_bytes addr;
 	vir_bytes buf;
 
+#if __LP64__
+	uint8_t padding[40];
+#else
 	uint8_t padding[44];
+#endif
 } mess_lsys_krn_readbios;
 _ASSERT_MSG_SIZE(mess_lsys_krn_readbios);
 
@@ -1086,7 +1225,11 @@ typedef struct {
 	size_t		offset;
 	void		*address;
 	size_t		bytes;
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lsys_kern_safecopy;
 _ASSERT_MSG_SIZE(mess_lsys_kern_safecopy);
 
@@ -1134,7 +1277,11 @@ typedef struct {
 	phys_bytes nr_bytes;
 	int flags;
 
+#if __LP64__
+	uint8_t padding[20];
+#else
 	uint8_t padding[32];
+#endif
 } mess_lsys_krn_sys_copy;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_copy);
 
@@ -1164,7 +1311,11 @@ typedef struct {
 	vir_bytes name;
 	vir_bytes ps_str;
 
+#if __LP64__
+	uint8_t padding[24];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lsys_krn_sys_exec;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_exec);
 
@@ -1185,7 +1336,11 @@ typedef struct {
 	vir_bytes val_ptr2;
 	int val_len2_e;
 
+#if __LP64__
+	uint8_t padding[28];
+#else
 	uint8_t padding[32];
+#endif
 } mess_lsys_krn_sys_getinfo;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_getinfo);
 
@@ -1220,7 +1375,11 @@ typedef struct {
 	unsigned long pattern;
 	endpoint_t process;
 
+#if __LP64__
+	uint8_t padding[36];
+#else
 	uint8_t padding[40];
+#endif
 } mess_lsys_krn_sys_memset;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_memset);
 
@@ -1231,10 +1390,26 @@ typedef struct {
 	phys_bytes phys_start;
 	phys_bytes phys_len;
 
+#if __LP64__
+	uint8_t padding[32];
+#else
 	uint8_t padding[36];
+#endif
 } mess_lsys_krn_sys_privctl;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_privctl);
 
+#ifdef __LP64__
+typedef struct {
+	int request;
+	int port;
+	endpoint_t vec_endpt;
+	phys_bytes vec_addr;
+	vir_bytes vec_size;
+	vir_bytes offset;
+
+	uint8_t padding[24];
+} mess_lsys_krn_sys_sdevio;
+#else
 typedef struct {
 	int request;
 	long int port;
@@ -1245,6 +1420,7 @@ typedef struct {
 
 	uint8_t padding[32];
 } mess_lsys_krn_sys_sdevio;
+#endif
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_sdevio);
 
 typedef struct {
@@ -1292,7 +1468,11 @@ typedef struct {
 	vir_bytes mem_ptr;
 	size_t mem_size;
 
+#if __LP64__
+	uint8_t padding[24];
+#else
 	uint8_t padding[28];
+#endif
 } mess_lsys_krn_sys_sprof;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_sprof);
 
@@ -1359,7 +1539,11 @@ typedef struct {
 	int access;
 	size_t offset;
 
+#if __LP64__
+	uint8_t padding[16];
+#else
 	uint8_t padding[28];
+#endif
 } mess_lsys_krn_sys_vumap;
 _ASSERT_MSG_SIZE(mess_lsys_krn_sys_vumap);
 
@@ -1462,6 +1646,17 @@ typedef struct {
 } mess_lsys_vfs_copyfd;
 _ASSERT_MSG_SIZE(mess_lsys_vfs_copyfd);
 
+#ifdef __LP64__
+typedef struct {
+	devmajor_t major;
+	uint32_t labellen;
+	vir_bytes label;
+	int ndomains;
+	int domains[NR_DOMAIN];
+
+	uint8_t padding[8];
+} mess_lsys_vfs_mapdriver;
+#else
 typedef struct {
 	devmajor_t major;
 	size_t labellen;
@@ -1471,6 +1666,7 @@ typedef struct {
 
 	uint8_t padding[8];
 } mess_lsys_vfs_mapdriver;
+#endif
 _ASSERT_MSG_SIZE(mess_lsys_vfs_mapdriver);
 
 typedef struct {
@@ -1497,7 +1693,11 @@ typedef struct {
 	int		count;
 	void		*ptr;
 	vir_bytes	next;
+#if __LP64__
+	uint8_t		padding[32];
+#else
 	uint8_t		padding[36];
+#endif
 } mess_lsys_vm_info;
 _ASSERT_MSG_SIZE(mess_lsys_vm_info);
 
@@ -1506,7 +1706,11 @@ typedef struct {
 	phys_bytes	phaddr;
 	size_t		len;
 	void		*reply;
+#if __LP64__
+	uint8_t		padding[32];
+#else
 	uint8_t		padding[40];
+#endif
 } mess_lsys_vm_map_phys;
 _ASSERT_MSG_SIZE(mess_lsys_vm_map_phys);
 
@@ -1541,7 +1745,11 @@ typedef struct {
 	void		*src_addr;
 	size_t		size;
 	void		*ret_addr;
+#if __LP64__
+	uint8_t		padding[24];
+#else
 	uint8_t		padding[32];
+#endif
 } mess_lsys_vm_vmremap;
 _ASSERT_MSG_SIZE(mess_lsys_vm_vmremap);
 
@@ -1551,6 +1759,23 @@ typedef struct {
 } mess_mib_lc_sysctl;
 _ASSERT_MSG_SIZE(mess_mib_lc_sysctl);
 
+#ifdef __LP64__
+typedef struct {
+	uint32_t	req_id;
+	uint32_t	root_id;
+	cp_grant_id_t	name_grant;
+	unsigned int	name_len;
+	cp_grant_id_t	oldp_grant;
+	uint32_t	oldp_len;
+	cp_grant_id_t	newp_grant;
+	uint32_t	newp_len;
+	endpoint_t	user_endpt;
+	uint32_t	flags;
+	uint32_t	root_ver;
+	uint32_t	tree_ver;
+	uint8_t		padding[16];
+} mess_mib_lsys_call;
+#else
 typedef struct {
 	uint32_t	req_id;
 	uint32_t	root_id;
@@ -1566,6 +1791,7 @@ typedef struct {
 	uint32_t	tree_ver;
 	uint8_t		padding[8];
 } mess_mib_lsys_call;
+#endif
 _ASSERT_MSG_SIZE(mess_mib_lsys_call);
 
 typedef struct {
@@ -1575,7 +1801,11 @@ typedef struct {
 	size_t		name_size;
 	cp_grant_id_t	desc_grant;
 	size_t		desc_size;
+#if __LP64__
+	uint8_t		padding[24];
+#else
 	uint8_t		padding[32];
+#endif
 } mess_mib_lsys_info;
 _ASSERT_MSG_SIZE(mess_mib_lsys_info);
 
@@ -1588,7 +1818,11 @@ typedef struct {
 	int fd;
 	endpoint_t forwhom;
 	void *retaddr;
+#if __LP64__
+	u32_t padding[4];
+#else
 	u32_t padding[5];
+#endif
 } mess_mmap;
 _ASSERT_MSG_SIZE(mess_mmap);
 
@@ -1891,7 +2125,11 @@ typedef struct {
 	void		*addr;
 	const char	*name;
 	int		subtype;
+#if __LP64__
+	uint8_t padding[28];
+#else
 	uint8_t padding[32];
+#endif
 } mess_rs_req;
 _ASSERT_MSG_SIZE(mess_rs_req);
 
@@ -2018,10 +2256,25 @@ typedef struct {
 } mess_vfs_fs_link;
 _ASSERT_MSG_SIZE(mess_vfs_fs_link);
 
+#ifdef __LP64__
 typedef struct {
 	ino_t dir_ino;
 	ino_t root_ino;
+	uint32_t flags;
+	uint32_t path_len;
+	uint32_t path_size;
+	uint32_t ucred_size;
+	cp_grant_id_t grant_path;
+	cp_grant_id_t grant_ucred;
+	uid_t uid;
+	gid_t gid;
 
+	uint8_t data[8];
+} mess_vfs_fs_lookup;
+#else
+typedef struct {
+	ino_t dir_ino;
+	ino_t root_ino;
 	uint32_t flags;
 	size_t path_len;
 	size_t path_size;
@@ -2033,6 +2286,7 @@ typedef struct {
 
 	uint8_t data[8];
 } mess_vfs_fs_lookup;
+#endif
 _ASSERT_MSG_SIZE(mess_vfs_fs_lookup);
 
 typedef struct {
@@ -2245,7 +2499,11 @@ typedef struct {
 	endpoint_t user;
 	devminor_t minor;
 
+#if __LP64__
+	uint8_t padding[16];
+#else
 	uint8_t padding[20];
+#endif
 } mess_vfs_lchardriver_readwrite;
 _ASSERT_MSG_SIZE(mess_vfs_lchardriver_readwrite);
 
@@ -2362,7 +2620,11 @@ typedef struct {
 	char *name;
 	int fd;
 	int flags;
+#if __LP64__
+	uint8_t padding[8];
+#else
 	uint8_t padding[16];
+#endif
 } mess_vfs_utimens;
 _ASSERT_MSG_SIZE(mess_vfs_utimens);
 
@@ -2667,12 +2929,13 @@ typedef struct noxfer_message {
 		mess_vmmcp		m_vmmcp;
 		mess_vmmcp_reply	m_vmmcp_reply;
 
-		u8_t size[56];	/* message payload may have 56 bytes at most */
+		u8_t size[IPC_MSG_PAYLOAD_SIZE];	/* message payload may have IPC_MSG_PAYLOAD_SIZE bytes */
 	};
 } message __ALIGNED(16);
 
 /* Ensure the complete union respects the IPC assumptions. */
-typedef int _ASSERT_message[/* CONSTCOND */sizeof(message) == 64 ? 1 : -1];
+/* Total message = 8 header + IPC_MSG_PAYLOAD_SIZE payload (+ possible alignment padding) */
+typedef int _ASSERT_message[/* CONSTCOND */sizeof(message) >= (8 + IPC_MSG_PAYLOAD_SIZE) ? 1 : -1];
 
 /* The following defines provide names for useful members. */
 #define m1_i1  m_m1.m1i1

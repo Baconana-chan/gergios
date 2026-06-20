@@ -69,7 +69,7 @@ This document defines the target architecture support for Minix modernization, f
 ### Primary Architectures
 
 #### x86_64 (AMD64)
-- **Status**: ✅ Full implementation complete (Phases 1–6)
+- **Status**: ✅ Full **kernel** implementation complete (Phases 1–6)
 - **Priority**: Critical — COMPLETED
 - **Rationale**: 
   - Modern standard for desktop and server systems
@@ -79,6 +79,7 @@ This document defines the target architecture support for Minix modernization, f
   - Better security features (SMEP, SMAP, etc.)
 - **Existing Infrastructure**: ✅ Build infra, kernel bootstrap, memory mgmt, syscalls, libraries, drivers
 - **Implementation Strategy**: Leverage existing x86_64 code, completed all missing parts
+- **Оставшаяся очистка**: см. `planning/17_remaining_tasks.md` §T3–T7 (x86_64 cleanup: separate shared i386 arch code, CMakeLists, ramdisk drivers)
 
 #### ARM64 (AArch64)
 - **Status**: Minimal infrastructure exists, needs major development

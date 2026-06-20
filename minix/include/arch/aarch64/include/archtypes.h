@@ -33,6 +33,9 @@
 
 #include <stdint.h>
 
+/* Register type — used by kernel structures (priv.h, proc.h) */
+typedef u64_t reg_t;
+
 /* =========================================================================
  * Stack frame — register save area for context switching
  *
@@ -80,7 +83,7 @@ struct stackframe_s {
  * page tables. Each process has its own TTBR0_EL1 value.
  * ========================================================================= */
 
-struct segframe_s {
+typedef struct segframe {
     /* Page table base register for user space */
     uint64_t ttbr0_el1;
 
@@ -89,7 +92,7 @@ struct segframe_s {
 
     /* Translation Control Register (per-process ASID) */
     uint64_t tcr_el1;
-};
+} segframe_t;
 
 /* =========================================================================
  * Exception frame — layout of values pushed by CPU on exception entry

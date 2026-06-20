@@ -12,6 +12,14 @@ if(MACHINE_ARCH STREQUAL "earm")
     )
 endif()
 
+if(MACHINE_ARCH STREQUAL "aarch64")
+    set(LIBSYS_ARCH_SOURCES
+        arch/aarch64/frclock_util.c
+        arch/aarch64/spin.c
+        arch/aarch64/tsc_util.c
+    )
+endif()
+
 set(LIBSYS_COMMON_SOURCES
     alloc_util.c
     assert.c

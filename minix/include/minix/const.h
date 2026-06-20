@@ -31,7 +31,7 @@
 #endif
 
 #ifndef _MINIX_MAGIC
-#define __ALIGNED(X) _Alignas(X)
+#define __ALIGNED(X) __attribute__((aligned(X)))
 #else
 #define __ALIGNED(X)
 #endif
@@ -80,7 +80,8 @@
 #define HAVE_SCATTERED_IO  1	/* scattered I/O is now standard */
 
 /* Memory is allocated in clicks. */
-#if defined(__i386__) || defined(__arm__)
+#if defined(__i386__) || defined(__arm__) || \
+    defined(__aarch64__) || defined(__x86_64__)
 #define CLICK_SIZE      4096	/* unit in which memory is allocated */
 #define CLICK_SHIFT       12	/* log2 of CLICK_SIZE */
 #else

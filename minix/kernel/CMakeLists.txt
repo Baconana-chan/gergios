@@ -99,12 +99,25 @@ elseif(MACHINE_ARCH STREQUAL "x86_64")
         arch/x86_64/limine.c
     )
 elseif(MACHINE_ARCH STREQUAL "aarch64")
-    # Phase 2: Kernel Bootstrap
+    # Phase 2: Kernel Bootstrap + Context Switching + Exception Handling
     set(KERNEL_ARCH_SOURCES
         arch/aarch64/head.S          # ARM64 entry, EL1 init, MMU
         arch/aarch64/vectors.S       # VBAR_EL1 exception vector table
+        arch/aarch64/mpx.S           # Context save/restore, syscall dispatch
+        arch/aarch64/klib.S          # Architecture library functions
+        arch/aarch64/exception.c     # C exception handler, ESR decode, page fault
+        arch/aarch64/hw_intr.c       # GICv3 interrupt controller driver
+        arch/aarch64/arch_timer.c    # ARM Generic Timer driver
+        arch/aarch64/arch_reset.c    # PSCI reset, PL011 UART, shutdown
+        arch/aarch64/pg_utils.c      # Page table utilities
+        arch/aarch64/arch_system.c   # System calls, CPU init, FPU, context
+        arch/aarch64/arch_do_vmctl.c # VM control (TTBR, TLB flush)
         arch/aarch64/startup.c       # C startup: PL011 UART, hello
         arch/aarch64/pre_init.c      # Boot info setup
+        arch/aarch64/fdt.c            # Device Tree Blob parser
+        arch/aarch64/limine.c         # Limine AAC64 boot protocol
+        arch/aarch64/memory.c        # VM: page table walk, copy, memset, phys maps
+        arch/aarch64/protect.c       # MMU init, VBAR, page tables, boot procs
     )
 endif()
 
@@ -186,12 +199,13 @@ elseif(MACHINE_ARCH STREQUAL "aarch64")
     set(UNPAGED_ARCH_OBJECTS
         head.o
         vectors.o
+        mpx.o
+        klib.o
         pre_init.o
         startup.o
     )
     # ARM64 has hardware integer division (UDIV/SDIV), so no
     # software division routines needed for the unpaged section.
-    # Phase 2+ will add klib.o, utility.o, etc.
     set(UNPAGED_MINLIB_OBJECTS)
     set(UNPAGED_SYS_OBJECTS)
     set(UNPAGED_MINIC_OBJECTS)
@@ -310,7 +324,7 @@ add_custom_command(
     OUTPUT "${EXTRACTED_MTYPE_H}"
     DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/extract-mtype.sh"
-        "${MINIX_SOURCE_DIR}/include/minix/com.h"
+        "${MINIX_SOURCE_DIR}/minix/include/minix/com.h"
     COMMAND
         ${CMAKE_CURRENT_SOURCE_DIR}/extract-mtype.sh
         > "${EXTRACTED_MTYPE_H}"

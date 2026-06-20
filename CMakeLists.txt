@@ -137,6 +137,9 @@ endfunction()
 # Include MINIX-specific CMake modules
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Load MINIX custom macros (add_minix_executable, add_minix_library, etc.)
+include(macros)
+
 # C standard: GergiOS uses C17 (ISO/IEC 9899:2018), migrating from C99/GNU99.
 # GNU extensions are enabled because the kernel and some drivers use
 # __asm__, __attribute__, and other GCC/Clang extensions extensively.
@@ -216,6 +219,7 @@ include(arch_${MACHINE_ARCH})
 add_compile_definitions(
     $<$<CONFIG:Debug>:_DEBUG>
     __MINIX__
+    __minix
     _MINIX_SYSTEM=1
 )
 
@@ -232,11 +236,28 @@ add_compile_options(
 # Root source directory is the project root
 set(MINIX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
-# Core libraries
-add_subdirectory(crypto/external/gpl2/wolfssl)
+# Core libraries (skip wolfSSL for aarch64 — dist not fully migrated)
+if(NOT MACHINE_ARCH STREQUAL "aarch64")
+    add_subdirectory(crypto/external/gpl2/wolfssl)
+endif()
 
 # System libraries (libsys, libminc, libtimers, libbdev, etc.)
-add_subdirectory(minix/lib)
+# Skip minc for aarch64 — libc arch sources not yet migrated
+if(MACHINE_ARCH STREQUAL "aarch64")
+    add_subdirectory(minix/lib/libsys)
+    add_subdirectory(minix/lib/libmthread)
+    add_subdirectory_if_exists(minix/lib/libbdev)
+    add_subdirectory_if_exists(minix/lib/libblockdriver)
+    add_subdirectory_if_exists(minix/lib/libchardriver)
+    add_subdirectory_if_exists(minix/lib/libddekit)
+    add_subdirectory_if_exists(minix/lib/libexec)
+    add_subdirectory_if_exists(minix/lib/libfsdriver)
+    add_subdirectory_if_exists(minix/lib/liblwip)
+    add_subdirectory_if_exists(minix/lib/libtimers)
+    add_subdirectory_if_exists(minix/lib/libvtreefs)
+else()
+    add_subdirectory(minix/lib)
+endif()
 
 # Kernel (prototype)
 add_subdirectory(minix/kernel)
@@ -247,11 +268,15 @@ add_subdirectory(minix/servers)
 # Drivers (core + optional, storage must be last)
 add_subdirectory(minix/drivers)
 
-# Filesystem servers
-add_subdirectory(minix/fs)
+# Filesystem servers (skip for aarch64 — not yet migrated)
+if(NOT MACHINE_ARCH STREQUAL "aarch64")
+    add_subdirectory(minix/fs)
+endif()
 
-# Network services
-add_subdirectory(minix/net)
+# Network services (skip for aarch64 — CMake prototype incomplete)
+if(NOT MACHINE_ARCH STREQUAL "aarch64")
+    add_subdirectory(minix/net)
+endif()
 
 # Rust userland utilities (Phase 3)
 if(CARGO_EXECUTABLE)
@@ -266,16 +291,19 @@ if(CARGO_EXECUTABLE)
     add_rust_utility(yes)
 endif()
 
-# Userland commands
-add_subdirectory(minix/commands)
-add_subdirectory(minix/usr.bin)
-add_subdirectory(minix/usr.sbin)
+# Userland commands (skip for aarch64 until CMake migration is complete)
+if(NOT MACHINE_ARCH STREQUAL "aarch64")
+    add_subdirectory(minix/commands)
+    add_subdirectory(minix/usr.bin)
+    add_subdirectory(minix/usr.sbin)
+endif()
 
 # Enable testing (must be before add_subdirectory for tests)
 enable_testing()
 
 # Rust component tests (Phase 3 + Phase 4)
-if(CARGO_EXECUTABLE)
+# Skip for aarch64 cross-compilation
+if(CARGO_EXECUTABLE AND NOT MACHINE_ARCH STREQUAL "aarch64")
     add_rust_test(basename)
     add_rust_test(dirname)
     add_rust_test(echo)
