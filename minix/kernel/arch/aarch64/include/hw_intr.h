@@ -27,6 +27,12 @@ void hw_intr_not_used(int irq);
 void hw_intr_disable_all(void);
 
 /* -----------------------------------------------------------------
+ * Generic interrupt dispatcher (declared in kernel/interrupt.c)
+ * ----------------------------------------------------------------- */
+
+void irq_handle(int irq);
+
+/* -----------------------------------------------------------------
  * BSP interrupt handler (called from mpx.S assembly)
  *
  * bsp_irq_handle() reads the GIC IAR to determine the interrupt

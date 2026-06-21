@@ -355,8 +355,7 @@ ENTRY(vir2phys)
 	 * the original VA's page offset. */
 	mov	x1, x0			/* x1 = original virtual address */
 
-	/* Execute AT instruction for the given virtual address */
-	ats1e1r	x1			/* Translate VA using current page tables */
+	/* Execute AT instruction for the given virtual address */	at s1e1r, x1			/* Translate VA using current page tables */
 
 	/* Synchronization barrier */
 	isb
@@ -477,12 +476,17 @@ ENTRY(reset)
 	 * x0 = function ID
 	 *
 	 * We use HVC #0 (Hypervisor Call) which works on QEMU virt.
-	 * On systems with EL3 firmware, SMC #0 may be needed. */
-	mov	x0, #0x84000009		/* PSCI SYSTEM_RESET */
+	 * On systems with EL3 firmware, SMC #0 may be needed.
+	 *
+	 * ARM64 MOV can only take 16-bit immediates, so we use
+	 * MOVZ/MOVK to load the 32-bit PSCI function ID. */
+	movz	x0, #0x9
+	movk	x0, #0x8400, lsl #16	/* x0 = 0x84000009 (PSCI SYSTEM_RESET) */
 	hvc	#0
 
 	/* If PSCI reset failed, try SMC */
-	mov	x0, #0x84000009
+	movz	x0, #0x9
+	movk	x0, #0x8400, lsl #16	/* x0 = 0x84000009 */
 	smc	#0
 
 	/* If all else fails, halt */

@@ -31,6 +31,11 @@
 #include <machine/asm.h>
 #include <machine/vm.h>
 
+/* All code in head.S runs before/kernel MMU transition — must be identity-mapped.
+ * Override _TEXT_SECTION so ENTRY() uses .unpaged.text instead of .text. */
+#undef _TEXT_SECTION
+#define _TEXT_SECTION .section .unpaged.text, "ax"
+
 /* =========================================================================
  * Constants
  * ========================================================================= */
@@ -211,7 +216,10 @@ ENTRY(_start)
     mov     x2, #512            /* 512 entries */
 
 3:  /* Fill level 2 entry */
-    orr     x3, x1, #PTE_BLOCK_FLAGS
+    /* PTE_BLOCK_FLAGS = 0x701 = (1<<0)|(1<<10)|(3<<8)|(0<<6)|(0<<2)
+     * Use movz to build the value (not a valid ARM64 bitmask immediate for orr). */
+    movz    x3, #0x701
+    orr     x3, x1, x3
     str     x3, [x0], #8
     add     x1, x1, #0x200000   /* Next 2MB block */
     subs    x2, x2, #1
@@ -297,28 +305,6 @@ hang:
     b       hang
 
 /* =========================================================================
- * Page tables (identity mapping, 3 levels)
- * ========================================================================= */
-
-.section .unpaged.data, "aw"
-.balign 4096
-
-pagetable_l1:
-    .space 4096                  /* Level 1: 512 × 8 bytes = 4KB */
-pagetable_l2:
-    .space 4096                  /* Level 2: 512 × 8 bytes = 4KB */
-
-/* =========================================================================
- * Boot stack
- * ========================================================================= */
-
-.section .unpaged.data, "aw"
-.balign 16
-boot_stack:
-    .space 8192                  /* 8KB boot stack */
-boot_stack_end:
-
-/* =========================================================================
  * Note: _kern_phys_base and _kern_size are provided by kernel.lds
  * as linker symbols, NOT defined here. The linker script calculates
  * them based on the section layout (PHYS_BASE, KERNEL_VBASE, etc.).
@@ -338,30 +324,3 @@ boot_stack_end:
  *   boot_stack:   8192 bytes (8KB)
  *   boot_stack_end: top of stack (SP is set to point here)
  * ========================================================================= */
-
-.section .unpaged.data, "aw"
-.balign 16
-boot_stack:
-    .space 8192                  /* 8KB boot stack */
-boot_stack_end:
-
-/* =========================================================================
- * Page tables (identity mapping, 3 levels)
- *
- * These are placed in .unpaged.data so they're identity-mapped and
- * accessible before/after MMU enablement.
- *
- * Layout:
- *   pagetable_l1: Level 1 table (512 × 8 = 4096 bytes)
- *     Entry 0 → pagetable_l2 (covers 0x0000000000 - 0x4000000000)
- *   pagetable_l2: Level 2 table (512 × 8 = 4096 bytes)
- *     Entries 0..511: 2MB block entries covering 0 - 1GB
- * ========================================================================= */
-
-.section .unpaged.data, "aw"
-.balign 4096
-
-pagetable_l1:
-    .space 4096                  /* Level 1: 512 × 8 bytes = 4KB */
-pagetable_l2:
-    .space 4096                  /* Level 2: 512 × 8 bytes = 4KB */

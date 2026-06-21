@@ -38,7 +38,7 @@ phys_bytes vir2phys(void *vir_addr);
 
 /* Message copy with fault recovery */
 int copy_msg_from_user(message *user_mbuf, message *dst);
-void copy_msg_to_user(message *src, message *user_mbuf);
+int copy_msg_to_user(message *src, message *user_mbuf);
 void __user_copy_msg_pointer_failure(void);
 
 /* Markers for fault recovery in message copy */
@@ -79,6 +79,12 @@ void tlb_flush_addr(uint64_t addr);
 /* Memory barriers */
 void dmb_sy(void);
 void dsb_sy(void);
+
+/* Instruction synchronization barrier (used in pg_utils.c, arch_system.c, etc.) */
+#define isb() __asm__ __volatile__("isb" : : : "memory")
+
+/* Compiler barrier — prevents reordering across the barrier */
+#define barrier() __asm__ __volatile__("dmb sy" : : : "memory")
 
 /* Misc */
 uint64_t read_current_sp(void);

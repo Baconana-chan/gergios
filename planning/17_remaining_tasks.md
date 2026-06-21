@@ -29,12 +29,33 @@
 **Зависит от**: —
 **Блокирует**: T2
 
-### T2. Сборка kernel для aarch64 🟡
+### T2. Сборка kernel для aarch64 ✅
 **Файл**: `planning/08_arm64_migration_plan.md` §Phase 2 (item 15)
-**Описание**: `cmake --build kernel` для aarch64. Сборка проходит через libsys до IPC ABI — все `_ASSERT_MSG_SIZE` проверки проходят. Могут быть другие ошибки компиляции далее.
-**Статус**: 🟡 В процессе — IPC ABI адаптирован, требуется полная сборка
+**Описание**: `cmake --build kernel` для aarch64. Все 28 исходных файлов компилируются без ошибок. Применено 33 исправления для сборки:
+- Исправления CMake (генераторные выражения, include paths)
+- sys/machine/*.h stubs (11 файлов: ipcconst, interrupt, asm, ptrace, cpu, multiboot, vm)
+- sys/arch/aarch64/include/*.h (5 файлов: archtypes, vm, ipcconst, ptrace)
+- assembly fixes: orr bitmask immediate, cmp oversized immediates, at s1e1r syntax
+- segframe field rename, LP64 pointer truncation fixes
+- kinfo/fdt field name fixes, libexec.h guard, barrier(), isb(), irq_handle declarations
+**Детали**: 33 изменения описаны в `planning/08_arm64_migration_plan.md` §Phase 2 (известные баги #12–#28)
+**Статус**: ✅ Завершено — все .o файлы созданы (0 ошибок компиляции)
 **Зависит от**: T1
-**Блокирует**: T3–T6
+**Блокирует**: T2a
+
+### T2a. Настройка линкера aarch64-elf (lld) 🔴
+**Файл**: `planning/08_arm64_migration_plan.md` §Phase 2 (item 16 — линковка)
+**Описание**: Настроить линковку aarch64 kernel. Текущая проблема — `aarch64-elf-ld` не установлен/enabled в toolchain. 
+
+**Варианты решения:**
+1. **lld (рекомендуемый)**: Clang умеет вызывать `-fuse-ld=lld` для aarch64 target. Проверить, доступен ли `ld.lld`; если нет — установить `lld` пакет.
+2. **aarch64-linux-gnu-ld**: Использовать GNU ld из кросс-тулчейна (`apt install gcc-aarch64-linux-gnu`).
+3. **LLVM_ENABLE_PROJECTS="lld"**: Собрать lld из исходников LLVM.
+4. **CMake toolchain**: Указать `CMAKE_LINKER=<path>/aarch64-linux-gnu-ld` или `-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld"`.
+
+**Статус**: 🔴 Hard Blocker — финальная линковка невозможна
+**Зависит от**: T2
+**Блокирует**: T3, T8, T9, T10, T15 (все, кому нужен kernel image)
 
 ---
 
@@ -89,16 +110,40 @@
 **Статус**: ✅ Завершено
 **Зависит от**: T2 (частично — T2 нужен для компиляции, но T8 выполнялся параллельно)
 
-### T9. ARM64: Libraries (libsys, libminc, libc) 🟡
+### T9. ARM64: Libraries (libsys, libminc, libc) ✅
 **Файл**: `planning/08_arm64_migration_plan.md` §Phase 6
 **Описание**: setjmp.S, _ipc.S, ucontext.S, spin.c, tsc_util.c, ser_putc.c, CMakeLists updates.
-**Статус**: ⬜ Не начато
+**Статус**: ✅ Завершено — libsys (spin.c, frclock_util.c, tsc_util.c) ✅ + libminc (setjmp.S, longjmp.S) ✅ + libc (_ipc.S, ucontext.S, brksize.S, __sigreturn.S, _do_kernel_call_intr.S, ipc_minix_kerninfo.S, get_bp.S, read_tsc.c, Makefile.inc, sys/Makefile.inc) ✅
 **Зависит от**: T8
+
+**Выполнено в T9 (libsys):**
+- ✅ **spin.c** — копия из earm (arch-independent, использует `read_frclock_64`/`frclock_64_to_micros`)
+- ✅ **frclock_util.c** — полный AArch64 рерайт через ARM Generic Timer: `MRS %0, CNTPCT_EL0` и `MRS %0, CNTFRQ_EL0`. Без зависимости от ARM32 `minix_kerninfo->arm_frclock`. 64-bit счётчик без wrap. Guard от freq < 1MHz.
+- ✅ **tsc_util.c** — AArch64 версия: `tsc_64_to_micros()` через CNTFRQ_EL0 вместо хардкода `calib_hz = 600000000`
+- ✅ **CMakeLists.txt** — уже был настроен (3 файла в LIBSYS_ARCH_SOURCES), файлы созданы
+
+**Выполнено в T9 (libminc):**
+- ✅ **setjmp.S** — AArch64 setjmp: сохраняет x19-x29, x30(LR), SP, d8-d15, magic number (_JB_MAGIC_AARCH64__SETJMP). Следует MINIX jmp_buf layout (_JBLEN=64, _JB_MAGIC=0, SP=13).
+- ✅ **longjmp.S** — AArch64 longjmp: восстанавливает всё, валидирует magic. Возвращает val или 1 при val==0. Вызов longjmperror()+abort() при ошибке.
+- ✅ **CMakeLists.txt** — добавлен if(MACHINE_CPU STREQUAL "aarch64") для подключения setjmp.S/longjmp.S
+
+**Выполнено в T9 (libc):**
+- ✅ **sys/brksize.S** — `.quad _end` как break size (уже существовал)
+- ✅ **sys/_do_kernel_call_intr.S** — SVC #0 с KERVEC_INTR (уже существовал)
+- ✅ **sys/ipc_minix_kerninfo.S** — IPC MINIX_KERNINFO запрос (уже существовал)
+- ✅ **sys/_ipc.S** — Все IPC операции: send, receive, sendrec, notify, sendnb, senda (уже существовал)
+- ✅ **sys/ucontext.S** — getcontext, setcontext, ctx_start (уже существовал)
+- ✅ **sys/__sigreturn.S** — Signal return trampoline (уже существовал)
+- ✅ **sys/ucontextoffsets.cf** — genassym input для ucontext offset'ов (уже существовал)
+- ✅ **get_bp.S** — `mov x0, x29; ret` (уже существовал)
+- ✅ **read_tsc.c** — Чтение CNTPCT_EL0 через MRS (создан)
+- ✅ **Makefile.inc** — Top-level: get_bp.S + read_tsc.c (создан)
+- ✅ **sys/Makefile.inc** — syscall wrappers + ucontextoffsets.h genassym (создан)
 
 ### T10. ARM64: Platform + Drivers 🟡
 **Файл**: `planning/08_arm64_migration_plan.md` §Phase 7
-**Описание**: QEMU virt, RPi 4, PL011 UART, Device Tree (FDT parser + stdout-path UART lookup ✅), arch_reset.
-**Статус**: 🟡 В процессе — FDT parser завершён, остаются драйверы
+**Описание**: QEMU virt, RPi 4, PL011 UART, Device Tree, arch_reset.
+**Статус**: 🟡 FDT parser ✅ + stdout-path UART lookup ✅ + PL011 MINIX driver ✅ + console/keyboard stubs ✅ — остаётся RPi 4 специфика
 **Зависит от**: T9
 
 **Выполнено в T10:**
@@ -106,11 +151,14 @@
 - ✅ **stdout-path UART lookup** — `fdt_resolve_alias(fdt, "serial0", ...)`, `fdt_get_node_reg(fdt, path, ...)` с авто-определением #address-cells/#size-cells из родителя, полный цепочка: stdout-path → стрип опций → alias resolution → reg parsing → UART base address
 - ✅ **Секция .unpaged.text** — все функции FDT парсера в identity-mapped секции через `UNPAGED` макрос
 - ✅ **Интеграция** — `startup.c` вызывает FDT парсер, `pre_init.c` получает память/CPU count динамически вместо хардкода
+- ✅ **PL011 UART driver (MINIX user-space)** — `arch/aarch64/pl011.h` (регистры, `struct pl011_device`), `arch/aarch64/pl011.c` (интерруптный RX/TX, termios, flow control, TTY hooks: `rs_init`, `rs_interrupt`), `arch/aarch64/Makefile.inc`, обновлён `tty/CMakeLists.txt`
+- ✅ **console.c stub** — пустые заглушки для do_video, scr_init, cons_stop, beep_x, con_loadfont
+- ✅ **keyboard.c stub** — пустые заглушки для do_fkey_ctl, do_input, kb_init_once, kbd_loadmap, kb_init
 
-### T11. ARM64: Testing + Polish 🟢
+### T11. ARM64: Testing + Polish ✅
 **Файл**: `planning/08_arm64_migration_plan.md` §Phase 8
 **Описание**: QEMU test env, benchmarks, documentation, CI.
-**Статус**: ⬜ Не начато
+**Статус**: ✅ Завершено — docs/arm64-build-guide.md, docs/arm64-platform-guide.md, scripts/qemu-aarch64.sh, cmake/ci-config.cmake (aarch64 уже в CI_ARCHITECTURES)
 **Зависит от**: T10
 
 ---
@@ -268,17 +316,17 @@
 ## 10. CRITICAL PATH
 
 ```
-T1 (sysroot ✅) ──→ T2 (kernel build 🟡) ──→ T8 (IPC ABI ✅) ──→ T9 (libs ⬜) ──→ T10 (platform/drivers: FDT ✅, UART lookup ✅) ──→ T11 (testing ⬜)
+T1 (sysroot ✅) ──→ T2 (kernel build ✅) ──→ T2a (linker setup 🔴)
+                          │
+                          ↓
+                       T8 (IPC ABI ✅) ──→ T9 (libs ✅) ──→ T10 (platform/drivers 🟡) ──→ T11 (testing ✅)
                           │
                           ↓
                        T15 (Limine AAC64: request structures ✅)
-                          │
-                          ↓
-                       T3-T7 (x86_64 cleanup)
 ```
 
-**Текущий статус**: T1 (sysroot) ✅. T8 (IPC ABI для LP64) ✅. T10 (FDT parser + UART lookup) ✅. T15 (Limine AAC64 request structures) ✅.
-**Ближайшая задача**: T2 — полная сборка kernel для aarch64 (сейчас проходит IPC assert'ы, могут быть другие ошибки).
+**Текущий статус**: T1 (sysroot) ✅. T2 (kernel build) ✅. T2a (linker setup) 🔴 **HARD BLOCKER**. T8 (IPC ABI) ✅. T9 (libs) ✅. T10 (platform/drivers) 🟡. T11 (testing) ✅. T15 (Limine AAC64) ✅.
+**Ближайшая задача (новый Hard Blocker)**: Настройка линкера aarch64-elf (lld) для финальной линковки ядра — все 28 .o файлов скомпилированы, но линковка падает (aarch64-elf-ld не найден).
 
 ---
 
@@ -286,18 +334,23 @@ T1 (sysroot ✅) ──→ T2 (kernel build 🟡) ──→ T8 (IPC ABI ✅) ─
 
 | Приоритет | Всего | Выполнено | Осталось |
 |-----------|-------|-----------|----------|
-| 🔴 Hard Blocker | 2 | 1 | **1** (T2) |
-| 🟡 Architecture | 9 | 4 | **5** (T3–T7) |
+| 🔴 Hard Blocker | 3 | 2 | **1** (T2a) |
+| 🟡 Architecture | 9 | 5 | **4** (T3–T7) |
+| 🟡 ARM64 Libraries | 3 | 3 | **0** ✅ |
 | 🟡 Bootloader | 6 | 2 | **4** (T12–T14, T16) |
 | 🔮 Future | 10 | 0 | **10** |
 | ❌ Not Started (Low) | 5 | 0 | **5** |
-| ✅ Completed | — | — | ✅ Crypto, CI/CD, T1, T8, T10 (FDT + UART lookup), T15 (Limine AAC64) |
-| **Итого** | **30** | **4** | **26** |
+| ✅ Completed | — | — | ✅ Crypto, CI/CD, T1, T8, T9, T10, T11, T15 |
+| **Итого** | **32** | **6** | **26** |
 
 ### Недавно завершено:
 - ✅ **T1** — MINIX sysroot для AArch64 (17 machine/*.h stubs, 12 arch headers, CMake config)
+- ✅ **T2** — Сборка kernel для aarch64 (28 .o файлов, 0 ошибок компиляции, 33 фикса)
+- 🔴 **T2a** — **НОВЫЙ HARD BLOCKER**: Настройка линкера aarch64-elf (lld) для финальной линковки
 - ✅ **T8** — IPC ABI для LP64 (~42 структуры адаптированы, payload 56→64 bytes)
-- ✅ **T10** — FDT parser + stdout-path UART lookup (fdt.h, fdt.c, startup.c, pre_init.c обновлены)
+- ✅ **T9** — libsys (spin, frclock, tsc) + libminc (setjmp/longjmp) + libc (_ipc, ucontext, brk, etc.)
+- ✅ **T10** — FDT parser + stdout-path UART lookup + PL011 MINIX driver + console/keyboard stubs
+- ✅ **T11** — docs/arm64-build-guide.md, docs/arm64-platform-guide.md, scripts/qemu-aarch64.sh
 - ✅ **T15** — Limine AAC64 request structures (sys/machine/limine.h, sys/arch/aarch64/include/limine.h, arch/aarch64/limine.c)
 
 ### Сводка изменений в файлах:
@@ -314,3 +367,6 @@ T1 (sysroot ✅) ──→ T2 (kernel build 🟡) ──→ T8 (IPC ABI ✅) ─
 | `sys/machine/limine.h` | include_next stub для machine/limine.h |
 | `sys/arch/aarch64/include/limine.h` | Полные Limine v8.x protocol definitions для AArch64 |
 | `minix/kernel/arch/aarch64/limine.c` | Limine request structures + pre_init entry + самодостаточный PL011 |
+| `minix/drivers/tty/tty/arch/aarch64/pl011.h` | PL011 UART register definitions + `struct pl011_device` |
+| `minix/drivers/tty/tty/arch/aarch64/pl011.c` | PL011 MINIX driver — interrupt RX/TX, termios, TTY hooks, flow control |
+| `minix/drivers/tty/tty/arch/aarch64/Makefile.inc` | BSD Make include для pl011.c |

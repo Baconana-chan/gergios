@@ -194,6 +194,20 @@ extern int catch_pagefaults;
 #define FRAME_SPSR(frame)	((reg_t)(frame)[0])
 #define FRAME_SP_EL0(frame)	((reg_t)(frame)[1])
 
+/*
+ * Access x0 from the saved frame.
+ * After SAVE_GPRS (15 pairs + x30 = 31 regs = 0..240 bytes),
+ * then SAVE_EXTRA_STATE (SP_EL0, ELR_EL1, SPSR_EL1 = 241..272),
+ * x0 is at the highest offset: frame[33].
+ *
+ * frame[0]=SPSR, frame[1]=SP_EL0, frame[2]=ELR_EL1,
+ * frame[3]=x30, ..., frame[33]=x0.
+ */
+#define FRAME_X0(frame)		(frame)[33]
+
+/* Memory barrier: instruction synchronization barrier for ARM64 */
+#define isb() __asm__ __volatile__("isb" : : : "memory")
+
 /* =========================================================================
  * pagefault — Handle page faults from user or kernel mode
  *
@@ -289,20 +303,6 @@ static void pagefault(struct proc *pr,
 		panic("WARNING: pagefault: mini_send returned %d\n", err);
 	}
 }
-
-/*
- * Access x0 from the saved frame.
- * After SAVE_GPRS (15 pairs + x30 = 31 regs = 0..240 bytes),
- * then SAVE_EXTRA_STATE (SP_EL0, ELR_EL1, SPSR_EL1 = 241..272),
- * x0 is at the highest offset: frame[33].
- *
- * frame[0]=SPSR, frame[1]=SP_EL0, frame[2]=ELR_EL1,
- * frame[3]=x30, ..., frame[33]=x0.
- */
-#define FRAME_X0(frame)		(frame)[33]
-
-/* Memory barrier: instruction synchronization barrier for ARM64 */
-#define isb() __asm__ __volatile__("isb" : : : "memory")
 
 /* =========================================================================
  * data_abort — Handle data abort exception

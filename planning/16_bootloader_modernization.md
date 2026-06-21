@@ -323,6 +323,10 @@ mod12_init → /sbin/init
 | `minix/kernel/arch/aarch64/startup.c` | ✏️ | Интегрирован FDT parser — выводит DTB info, передаёт dtb_address в pre_init |
 | `minix/kernel/arch/aarch64/pre_init.c` | ✏️ | Memory/CPU count из FDT динамически, вместо хардкода 512MB |
 | `minix/kernel/CMakeLists.txt` | ✏️ | Добавлены fdt.c и limine.c в сборку |
+| `minix/drivers/tty/tty/arch/aarch64/pl011.h` | 🆕 | PL011 UART register definitions + `struct pl011_device` (T10) |
+| `minix/drivers/tty/tty/arch/aarch64/pl011.c` | 🆕 | PL011 MINIX driver — interrupt-driven RX/TX, termios, TTY hooks (`rs_init`, `rs_interrupt`), RTS/CTS flow control (T10) |
+| `minix/drivers/tty/tty/arch/aarch64/Makefile.inc` | 🆕 | BSD Make include для pl011.c (T10) |
+| `minix/drivers/tty/tty/CMakeLists.txt` | ✏️ | Добавлен `aarch64` case с `arch/aarch64/pl011.c` (T10) |
 
 ### 4.6 Phase 5: Отказ от GRUB (1-2 недели)
 

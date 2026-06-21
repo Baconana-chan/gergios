@@ -29,6 +29,7 @@
 #include <minix/u64.h>
 
 #include "arch_proto.h"
+#include "direct_utils.h"
 #include "hw_intr.h"
 #include "kernel/proc.h"
 #include "kernel/debug.h"
@@ -171,22 +172,6 @@ void pl011_init(void)
 
 	/* Mask all interrupts (we use polling for emergency output) */
 	pl011_write(PL011_IMSC, 0);
-}
-
-/* =========================================================================
- * direct_print — Print a string directly to UART (emergency output)
- *
- * Used during shutdown and panic situations when normal printf()
- * may not be available (e.g., interrupts disabled, no VM, etc.).
- *
- * Static: for now only used internally by arch_shutdown() and poweroff().
- * If needed externally (e.g., by exception.c panic handler), make
- * non-static and add a declaration in a shared header.
- * ========================================================================= */
-
-static void direct_print(const char *s)
-{
-	pl011_puts(s);
 }
 
 /* =========================================================================

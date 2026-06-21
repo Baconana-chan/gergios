@@ -1,6 +1,13 @@
-/* Some utility functions around the free running clock on ARM64. Uses the
- * ARM Generic Timer (CNTPCT_EL0) for the free running counter, or falls
- * back to kernel-provided clock info.
+/* Utility functions around the ARM Generic Timer (free-running counter).
+ *
+ * On AArch64, the free-running clock is the Physical Count Register
+ * (CNTPCT_EL0), which is a 64-bit monotonic counter driven by the
+ * system counter. The counter frequency is reported by CNTFRQ_EL0.
+ *
+ * Unlike ARM32 (earm), AArch64 has a true 64-bit counter, so no
+ * wrapping logic is needed for the 64-bit variants.
+ *
+ * Reference: ARM DDI 0487, Chapter D10 — System counter and timer
  */
 
 #include <minix/minlib.h>
@@ -13,91 +20,135 @@
 #define MICROHZ         1000000ULL	/* number of micros per second */
 #define MICROSPERTICK(h)	(MICROHZ/(h)) /* number of micros per HZ tick */
 
-static u64_t Hz;
+/*
+ * Read the ARM Generic Timer counter frequency (CNTFRQ_EL0).
+ * This is the frequency of the system counter, which determines
+ * the number of ticks per second.
+ */
+static inline u64_t
+read_cntfrq(void)
+{
+	u64_t val;
+	__asm__ __volatile__("mrs %0, CNTFRQ_EL0" : "=r"(val));
+	return val;
+}
 
+/*
+ * Read the ARM Generic Timer physical count (CNTPCT_EL0).
+ * This is a 64-bit counter that increments at the frequency
+ * reported by CNTFRQ_EL0.
+ */
+static inline u64_t
+read_cntpct(void)
+{
+	u64_t val;
+	__asm__ __volatile__("mrs %0, CNTPCT_EL0" : "=r"(val));
+	return val;
+}
+
+/*
+ * micro_delay — Busy-wait for the given number of microseconds.
+ *
+ * Uses a combination of tickdelay (voluntary sleep) and busy-waiting
+ * on CNTPCT_EL0 for the remainder.
+ */
 int
 micro_delay(u32_t micros)
 {
-	struct minix_kerninfo *minix_kerninfo;
 	u64_t start, delta, delta_end;
+	u64_t freq_hz;
 
-	Hz = sys_hz();
-	minix_kerninfo = get_minix_kerninfo();
-
-	/* Start of delay. */
-	read_frclock_64(&start);
-	if (minix_kerninfo->arm_frclock) {
-		assert(minix_kerninfo->arm_frclock->hz);
-		delta_end = (minix_kerninfo->arm_frclock->hz * micros) / MICROHZ;
-	} else {
-		/* Without a FR clock, use tickdelay for the full duration */
-		tickdelay(micros * Hz / MICROHZ);
-		return 0;
-	}
+	freq_hz = read_cntfrq();
+	if (freq_hz < MICROHZ)
+		freq_hz = MICROHZ;
+	start = read_cntpct();
+	delta_end = (freq_hz * micros) / MICROHZ;
 
 	/* If we have to wait for at least one HZ tick, use the regular
-	 * tickdelay first. */
-	if (micros >= MICROSPERTICK(Hz))
-		tickdelay(micros * Hz / MICROHZ);
+	 * tickdelay first. Round downwards to compensate for overhead.
+	 */
+	if (micros >= MICROSPERTICK(sys_hz()))
+		tickdelay(micros * sys_hz() / MICROHZ);
 
-	/* Busywait for the remaining time */
+	/* Busy-wait for the (remaining) delay. */
 	do {
-		read_frclock_64(&delta);
-	} while (delta_frclock_64(start, delta) < delta_end);
+		delta = read_cntpct();
+	} while ((delta - start) < delta_end);
 
 	return 0;
 }
 
-u32_t frclock_64_to_micros(u64_t tsc)
-{
-	struct minix_kerninfo *minix_kerninfo = get_minix_kerninfo();
-
-	if (minix_kerninfo->arm_frclock && minix_kerninfo->arm_frclock->hz)
-		return (u32_t)(tsc / (minix_kerninfo->arm_frclock->hz / MICROHZ));
-
-	/* Fallback: assume 1 GHz clock (rough approximation) */
-	return (u32_t)(tsc / 1000);
-}
-
+/*
+ * read_frclock — Read the low 32 bits of the free-running counter.
+ *
+ * Provided for API compatibility with ARM32 (earm). New code should
+ * use read_frclock_64() instead.
+ */
 void
 read_frclock(u32_t *frclk)
 {
-	struct minix_kerninfo *minix_kerninfo = get_minix_kerninfo();
+	u64_t val;
 
 	assert(frclk);
-
-	if (minix_kerninfo->arm_frclock && minix_kerninfo->arm_frclock->tcrr) {
-		*frclk = *(volatile u32_t *)((u8_t *)
-		    minix_kerninfo->arm_frclock->tcrr);
-	} else {
-		/* No FR clock available, return 0 */
-		*frclk = 0;
-	}
+	val = read_cntpct();
+	*frclk = (u32_t)(val & 0xFFFFFFFFULL);
 }
 
+/*
+ * delta_frclock — Compute difference between two 32-bit counter values.
+ *
+ * Handles 32-bit wrap-around (once). Provided for API compatibility.
+ * New code should use delta_frclock_64() instead.
+ */
 u32_t
 delta_frclock(u32_t base, u32_t cur)
 {
 	u32_t delta;
 
-	if (cur < base) {
-		/* Wrapped around */
+	if (cur < base)
 		delta = (UINT_MAX - base) + cur;
-	} else {
+	else
 		delta = cur - base;
-	}
 
 	return delta;
 }
 
+/*
+ * read_frclock_64 — Read the full 64-bit free-running counter.
+ *
+ * On AArch64, this reads CNTPCT_EL0 directly. The counter is
+ * guaranteed to be monotonic and 64-bit.
+ */
 void
 read_frclock_64(u64_t *frclk)
 {
-	read_frclock((u32_t *)frclk);
+	assert(frclk);
+	*frclk = read_cntpct();
 }
 
+/*
+ * delta_frclock_64 — Compute difference between two 64-bit counter values.
+ *
+ * No wrap-around needed for 64-bit counters in practice.
+ */
 u64_t
 delta_frclock_64(u64_t base, u64_t cur)
 {
-	return (u64_t)delta_frclock((u32_t)base, (u32_t)cur);
+	return cur - base;
+}
+
+/*
+ * frclock_64_to_micros — Convert free-running clock ticks to microseconds.
+ *
+ * Uses CNTFRQ_EL0 to get the counter frequency.
+ */
+u32_t
+frclock_64_to_micros(u64_t tsc)
+{
+	u64_t freq_hz;
+
+	freq_hz = read_cntfrq();
+	if (freq_hz < MICROHZ)
+		freq_hz = MICROHZ;
+	return (u32_t)(tsc / (freq_hz / MICROHZ));
 }

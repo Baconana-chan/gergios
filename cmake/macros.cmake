@@ -58,8 +58,12 @@ function(add_minix_executable TARGET)
     # MINIX system flag
     target_compile_definitions(${TARGET} PRIVATE _MINIX_SYSTEM=1)
 
-    # Assembly flag
-    target_compile_options(${TARGET} PRIVATE -D__ASSEMBLY__)
+    # Assembly flag — only for assembly files, not C files!
+    # Clang already defines __ASSEMBLY__ for .S files, but to be safe
+    # we use COMPILE_LANGUAGE generator expression.
+    target_compile_options(${TARGET} PRIVATE
+        "$<$<COMPILE_LANGUAGE:ASM>:-D__ASSEMBLY__>"
+    )
 
     # Link with MINIX-specific libraries
     if(NOT ARG_NO_DEFAULT_LIBS)

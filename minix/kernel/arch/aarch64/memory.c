@@ -541,7 +541,7 @@ int virtual_copy_f(
 		if (proc_e == NONE) {
 			p = NULL;
 		} else {
-			if (!isokendpt_d(proc_e, &proc_nr)) {
+			if (!isokendpt_d(proc_e, &proc_nr, 0)) {
 				printf("virtual_copy: no reasonable endpoint\n");
 				return ESRCH;
 			}
@@ -830,7 +830,7 @@ int arch_phys_map_reply(const int index, const vir_bytes addr)
 		assert(addr > (u32_t)&usermapped_start);
 		usermapped_offset = addr - (u32_t)&usermapped_start;
 
-#define FIXEDPTR(ptr)  (void *)((u32_t)(ptr) + usermapped_offset)
+#define FIXEDPTR(ptr)  (void *)((vir_bytes)(ptr) + usermapped_offset)
 #define FIXPTR(ptr)    ptr = FIXEDPTR(ptr)
 #define ASSIGN(minixstruct) \
 		minix_kerninfo.minixstruct = FIXEDPTR(&minixstruct)

@@ -7,6 +7,15 @@
 if(MACHINE_ARCH STREQUAL "earm")
     set(TTY_ARCH_SOURCES
         arch/earm/arch_tty.c   # example — adjust to actual files
+        arch/earm/console.c
+        arch/earm/keyboard.c
+        arch/earm/rs232.c
+    )
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    set(TTY_ARCH_SOURCES
+        arch/aarch64/pl011.c
+        arch/aarch64/console.c
+        arch/aarch64/keyboard.c
     )
 else()
     set(TTY_ARCH_SOURCES "")

@@ -49,45 +49,48 @@ static void fdt_parse_kinfo(const void *dtb)
     /* Clear kinfo */
     memset(&kinfo, 0, sizeof(kinfo));
 
-    /* Kernel base addresses */
-    kinfo.kinfo_reloc = (vir_bytes)&_kern_phys_base;
-    kinfo.kinfo_virt_base = (vir_bytes)&_kern_vbase;
-
-    /* Architecture */
-    kinfo.kinfo_arch = "aarch64";
-
     /* Boot console: default PL011 (QEMU virt) */
-    kinfo.kinfo_console = "pl011";
-    kinfo.kinfo_serial = 1;
+    kinfo.do_serial_debug = 1;
+    kinfo.serial_debug_baud = 115200;
 
     /* Parse memory from DTB */
     if (dtb && fdt_validate(dtb, 0) == 0) {
         ret = fdt_get_memory(dtb, &mem_addr, &mem_size);
         if (ret == 1 && mem_size > 0) {
-            /* Memory detected from DTB */
-            kinfo.kinfo_mem_lower = 0;
-            kinfo.kinfo_mem_upper = (unsigned long)mem_size;
+            /* Memory detected from DTB — store in memmap */
+            kinfo.memmap[0].mm_base_addr = mem_addr;
+            kinfo.memmap[0].mm_length = mem_size;
+            kinfo.memmap[0].type = MULTIBOOT_MEMORY_AVAILABLE;
+            kinfo.mem_high_phys = mem_addr + mem_size;
+            kinfo.mmap_size = 1;
         } else {
             /* Fallback: QEMU virt default (512 MB at 0x40000000) */
-            kinfo.kinfo_mem_lower = 0;
-            kinfo.kinfo_mem_upper = 512UL * 1024 * 1024;
+            kinfo.memmap[0].mm_base_addr = 0x40000000ULL;
+            kinfo.memmap[0].mm_length = 512UL * 1024 * 1024;
+            kinfo.memmap[0].type = MULTIBOOT_MEMORY_AVAILABLE;
+            kinfo.mem_high_phys = 0x40000000ULL + 512UL * 1024 * 1024;
+            kinfo.mmap_size = 1;
         }
 
-        /* CPU count (informational only in Phase 3) */
+        /* CPU count (informational only) */
         cpu_count = fdt_get_cpu_count(dtb);
         if (cpu_count > 0)
-            kinfo.kinfo_nr_cpus = cpu_count;
+            kinfo.nr_procs = cpu_count + NR_TASKS;
         else
-            kinfo.kinfo_nr_cpus = 1;
+            kinfo.nr_procs = NR_TASKS + 1;
     } else {
         /* No DTB: fallback defaults for QEMU virt */
-        kinfo.kinfo_mem_lower = 0;
-        kinfo.kinfo_mem_upper = 512UL * 1024 * 1024;
-        kinfo.kinfo_nr_cpus = 1;
+        kinfo.memmap[0].mm_base_addr = 0x40000000ULL;
+        kinfo.memmap[0].mm_length = 512UL * 1024 * 1024;
+        kinfo.memmap[0].type = MULTIBOOT_MEMORY_AVAILABLE;
+        kinfo.mem_high_phys = 0x40000000ULL + 512UL * 1024 * 1024;
+        kinfo.mmap_size = 1;
+        kinfo.nr_procs = NR_TASKS + 1;
     }
 
     /* Modules: none at this stage */
-    kinfo.kinfo_nr_modules = 0;
+    kinfo.mods_with_kernel = 0;
+    kinfo.kern_mod = 0;
 }
 
 /*

@@ -38,7 +38,9 @@
 #include "arch_proto.h"
 
 #include <sys/exec.h>
-#include <libexec.h>
+#if 0
+# include <libexec.h>  /* ELF loader — Phase 3+ */
+#endif
 
 /* =========================================================================
  * Memory barrier helper

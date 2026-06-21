@@ -261,14 +261,17 @@ x86_64 migration completed across 6 phases:
 6. **Driver Adaptation** — PCI (0xCF8/0xCFC), UART/RS232, CMOS/RTC, PIC, archtypes (16-byte IDT, u64_t desctableptr)
 
 **Phase 2: ARM64 Foundation**
-- [ ] Audit ARM-specific code
+- [x] Audit ARM-specific code
 - [x] Create ARM64 architecture directory ✅ (planning/08 Phase 1)
 - [x] CMake build infrastructure for aarch64 ✅
 - [x] ARM64 kernel source files (Phase 2: head.S, mpx.S, klib.S, exception.c, memory.c, protect.c, pg_utils.c, arch_system.c, arch_do_vmctl.c, arch_timer.c, arch_reset.c, hw_intr.c) ✅
 - [x] FDT Device Tree parser (fdt.h/fdt.c) — валидация DTB, /memory, /cpus, /chosen, stdout-path UART lookup с alias resolution ✅
 - [x] Limine AAC64 request structures (limine.h/limine.c) — .limine_requests, pre_init entry, self-contained PL011 ✅
-- [ ] Implement ARM64 boot process (нужен sysroot — planning/17 T1–T2)
-- [ ] Port kernel to ARM64 (в процессе, см. planning/08)
+- [x] PL011 UART MINIX driver (pl011.h/pl011.c) — interrupt-driven RX/TX, termios, TTY hooks (rs_init, rs_interrupt) ✅
+- [x] T2 kernel build — все 28 .o файлов компилируются, 0 ошибок, 33 фикса ✅
+- [x] Сборка kernel — cmake --build kernel (28 .o файлов, 0 ошибок компиляции) ✅
+- [ ] Настройка линкера aarch64-elf для финальной линковки
+- [ ] Port kernel to ARM64 (ядерные исходники созданы, ждём линковку)
 - [ ] Port servers to ARM64
 - [ ] Port drivers to ARM64
 

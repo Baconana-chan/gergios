@@ -41,10 +41,34 @@
 
 #include <minix/syslib.h>
 
+/*
+ * Kernel stub for __sigemptyset14.
+ *
+ * The NetBSD <signal.h> header uses __RENAME(__sigemptyset14) on sigemptyset(),
+ * which causes the compiler to emit a reference to __sigemptyset14 instead of
+ * sigemptyset. Since the kernel is compiled with -nostdlib, we provide this
+ * stub directly.
+ */
+int __sigemptyset14(sigset_t *set)
+{
+	*set = (sigset_t){0};
+	return 0;
+}
+
 /* Compile-time assertions for critical kernel structure sizes */
 _Static_assert(sizeof(struct proc) <= 4096, "struct proc exceeds page size (4096 bytes)");
+/* LP64 (AArch64, x86_64) has larger struct priv due to 8-byte pointers/longs.
+ * 32-bit ARM earm uses 256-byte limit. */
+#if __LP64__
+_Static_assert(sizeof(struct priv) <= 2048, "struct priv exceeds 2048 bytes");
+#else
 _Static_assert(sizeof(struct priv) <= 256, "struct priv exceeds 256 bytes");
-_Static_assert(sizeof(message) == 56, "message must be 56 bytes (7x uint64_t + header)");
+#endif
+
+/* Message size: 56 on 32-bit, 64 on LP64 (IPC_MSG_PAYLOAD_SIZE).
+ * We use IPC_MSG_PAYLOAD_SIZE for the check to support both. */
+_Static_assert(sizeof(message) == 8 + IPC_MSG_PAYLOAD_SIZE,
+    "message must be 8 header + IPC_MSG_PAYLOAD_SIZE bytes");
 
 /* Scheduling and message passing functions */
 static void idle(void);

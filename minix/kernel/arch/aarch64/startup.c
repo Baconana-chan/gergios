@@ -11,9 +11,14 @@
  * ============================================================ */
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* FDT parser header */
 #include "fdt.h"
+
+/* Kernel headers for kmain() and kinfo */
+#include "kernel/kernel.h"
+#include "kernel/proto.h"
 
 /* Forward declaration of pre_init (defined in pre_init.c)
  * pre_init sets up the kinfo structure from the DTB and returns
@@ -255,39 +260,36 @@ void arm64_boot(unsigned long dtb_address)
     }
 
     /* =================================================================
-     * Call pre_init with parsed boot info
+     * Call pre_init with parsed boot info, then transition to kmain()
      *
-     * pre_init() will fill the kinfo structure using the DTB-parsed
-     * memory map, CPU count, and boot arguments.
+     * pre_init() fills the kinfo structure from the DTB. Then we
+     * call kmain() which initializes GICv3, the timer, process table,
+     * VM, and all system services. kmain() never returns.
+     *
+     * Phase 4: GICv3 + timer interrupt handling via full kernel init.
+     *
+     * TTBR1 still points to the identity page table from head.S,
+     * which covers physical 0-2GB. The kernel's .text section is
+     * physically within this range, so __k_unpaged_kmain() at its
+     * high VMA (0xFFFF8000...) is accessible via TTBR1.
      * ================================================================= */
     pl011_puts("\r\n[BOOT] Calling pre_init()...\r\n");
     pl011_puts("\r\n");
 
-    /* Phase 3: call pre_init with DTB address and parsed boot info.
-     * pre_init() returns the kinfo struct that kmain() expects.
-     *
-     * For now, we pass the DTB address. pre_init() will parse
-     * what it needs and set up the kinfo structure.
-     *
-     * Phase 3+: pre_init() will set up page tables, enable paging,
-     *           and return the kinfo for kmain().
-     */
     {
         struct kinfo *cbi;
+        extern void __k_unpaged_kmain(kinfo_t *);
 
-        /* Call pre_init with DTB address.
-         * pre_init now uses FDT parser internally for memory info. */
         cbi = pre_init(dtb_address);
 
-        (void)cbi;  /* Phase 3: will pass to kmain() in Phase 4 */
-    }
+        pl011_puts("[BOOT] Bootstrap complete. Calling kmain()...\r\n");
+        pl011_puts("\r\n");
 
-    /* Phase 3: halt here until kmain() integration is complete.
-     * Phase 4+: call kmain(cbi) with the boot info. */
-    pl011_puts("[BOOT] Bootstrap complete. Halting.\r\n");
-    pl011_puts("\r\n");
+        __k_unpaged_kmain(cbi);
 
-    while (1) {
-        __asm__ __volatile__("wfi");
+        /* NOTREACHED */
+        while (1) {
+            __asm__ __volatile__("wfi");
+        }
     }
 }

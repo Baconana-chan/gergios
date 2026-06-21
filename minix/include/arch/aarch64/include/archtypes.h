@@ -77,6 +77,27 @@ struct stackframe_s {
 #define FRAME_SIZE          (34 * 8)
 
 /* =========================================================================
+ * CPU info — architecture identification
+ * ========================================================================= */
+
+struct cpu_info {
+	u64_t	arch;
+	u64_t	implementer;
+	u64_t	part;
+	u64_t	variant;
+	u64_t	freq;		/* in MHz */
+	u64_t	revision;
+};
+
+/* Register aliases for stackframe_s gpr array access.
+ * Kernel code accesses registers as p_reg.retreg (x0), the
+ * IPC status register (x1) via ipcconst.h macros, and p_reg.pc
+ * for the program counter (elr_el1 on AArch64). */
+#define retreg  gpr[0]    /* x0 — return value / syscall result */
+#define pc      elr_el1   /* program counter (ELR_EL1) */
+#define sp      sp_el0    /* user stack pointer (SP_EL0) */
+
+/* =========================================================================
  * Segment frame — memory context
  *
  * ARM64 uses TTBR0_EL1 for user page tables and TTBR1_EL1 for kernel
@@ -85,10 +106,10 @@ struct stackframe_s {
 
 typedef struct segframe {
     /* Page table base register for user space */
-    uint64_t ttbr0_el1;
+    uint64_t p_ttbr;           /* TTBR0_EL1 physical address */
 
-    /* Address Space ID (for TLB efficiency) */
-    uint64_t asid;             /* Optional, Phase 6+ */
+    /* Virtual address of page table (for kernel access) */
+    uint64_t *p_ttbr_v;        /* Virtual address of L0 table */
 
     /* Translation Control Register (per-process ASID) */
     uint64_t tcr_el1;
@@ -172,5 +193,7 @@ struct exception_frame {
 #define EC_SERROR             0x2F     /* SError */
 #define EC_BREAKPOINT_EL0     0x30     /* Breakpoint EL0 */
 #define EC_BREAKPOINT_EL1     0x31     /* Breakpoint EL1 */
+
+typedef u64_t atomic_t;	/* aligned 64-bit access is atomic on AArch64 */
 
 #endif /* _AARCH64_ARCHTYPES_H */

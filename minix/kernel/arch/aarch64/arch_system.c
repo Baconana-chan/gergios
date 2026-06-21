@@ -24,7 +24,7 @@
 #include "arch_proto.h"
 #include "kernel/proc.h"
 #include "kernel/debug.h"
-#include "glo.h"
+#include "kernel/glo.h"
 
 /* =========================================================================
  * Constants
@@ -107,15 +107,6 @@ void arch_init(void)
 }
 
 /* =========================================================================
- * arch_post_init — Post-initialization hook
- * ========================================================================= */
-
-void arch_post_init(void)
-{
-	/* No post-init actions needed on ARM64. */
-}
-
-/* =========================================================================
  * fpu_init — Initialize FPU/SIMD for current CPU
  *
  * ARMv8-A always has FPU and NEON SIMD. This function enables
@@ -129,53 +120,6 @@ void fpu_init(void)
 	__asm__ volatile("mrs %0, cpacr_el1" : "=r"(cpacr));
 	cpacr &= ~CPACR_EL1_FPEN_MASK;
 	cpacr |= CPACR_EL1_FPEN_NONE;   /* No FP/SIMD traps at any EL */
-	__asm__ volatile("msr cpacr_el1, %0" : : "r"(cpacr));
-	isb();
-}
-
-/* =========================================================================
- * is_fpu — Check if FPU is present
- *
- * On ARMv8-A, FPU/SIMD is always present.
- * Returns 1 (true).
- * ========================================================================= */
-
-int is_fpu(void)
-{
-	return 1;
-}
-
-/* =========================================================================
- * enable_fpu_exception — Enable FPU exception handling
- *
- * Sets CPACR_EL1.FPEN to trap on FPU access from EL0.
- * The trap is handled by exception.c to manage lazy FPU context switching.
- * ========================================================================= */
-
-void enable_fpu_exception(void)
-{
-	uint64_t cpacr;
-
-	__asm__ volatile("mrs %0, cpacr_el1" : "=r"(cpacr));
-	cpacr &= ~CPACR_EL1_FPEN_MASK;
-	cpacr |= CPACR_EL1_FPEN_TRAP_EL0;   /* Trap EL0, allow EL1 */
-	__asm__ volatile("msr cpacr_el1, %0" : : "r"(cpacr));
-	isb();
-}
-
-/* =========================================================================
- * disable_fpu_exception — Disable FPU exception handling
- *
- * Restores full FPU access for both EL0 and EL1.
- * ========================================================================= */
-
-void disable_fpu_exception(void)
-{
-	uint64_t cpacr;
-
-	__asm__ volatile("mrs %0, cpacr_el1" : "=r"(cpacr));
-	cpacr &= ~CPACR_EL1_FPEN_MASK;
-	cpacr |= CPACR_EL1_FPEN_NONE;       /* No traps at any EL */
 	__asm__ volatile("msr cpacr_el1, %0" : : "r"(cpacr));
 	isb();
 }
@@ -211,16 +155,6 @@ int restore_fpu(struct proc *pr)
 	(void)pr;
 	/* TODO (Phase 5+): Restore FP/SIMD registers from proc->p_fpu_state. */
 	return 0;
-}
-
-/* =========================================================================
- * release_fpu — Release FPU ownership for a process
- * ========================================================================= */
-
-void release_fpu(struct proc *p)
-{
-	(void)p;
-	/* TODO (Phase 5+): Mark FPU as released for this process. */
 }
 
 /* =========================================================================
@@ -421,6 +355,32 @@ void arch_ack_profile_clock(void)
 }
 
 /* =========================================================================
+ * get_randomness — Accumulate randomness from interrupt sources
+ *
+ * Called from do_irqctl.c when an IRQ hook fires.
+ * ARM64: uses generic timer (CNTPCT_EL0) as entropy source.
+ * Pattern matches x86_64 version (read_tsc → CNTPCT_EL0).
+ * ========================================================================= */
+
+void get_randomness(struct k_randomness *rand, int source)
+{
+	int r_next;
+	uint64_t tsc;
+
+	source %= RANDOM_SOURCES;
+	if (rand->bin[source].r_size >= RANDOM_ELEMENTS)
+		return;
+	r_next = rand->bin[source].r_next;
+
+	__asm__ volatile("mrs %0, cntpct_el0" : "=r"(tsc));
+	rand->bin[source].r_buf[r_next] = tsc;
+
+	if (rand->bin[source].r_size < RANDOM_ELEMENTS)
+		rand->bin[source].r_size++;
+	rand->bin[source].r_next = (r_next + 1) % RANDOM_ELEMENTS;
+}
+
+/* =========================================================================
  * arch_get_params — Get kernel boot parameters (stub)
  * ========================================================================= */
 
@@ -432,39 +392,3 @@ int arch_get_params(char *parm, int max)
 	return 0;
 }
 
-/* =========================================================================
- * arch_boot_proc — Set up initial register state for a boot process
- *
- * Called during system initialization for each boot process.
- * Sets initial PC, SP, and a marker register.
- * ========================================================================= */
-
-void arch_boot_proc(struct boot_image *ip, struct proc *p)
-{
-	/* Set initial program counter to entry point */
-	p->p_reg.elr_el1 = ip->pc;
-
-	/* Set initial stack pointer (user SP_EL0) */
-	p->p_reg.sp_el0 = ip->sp;
-
-	/* Set initial argument (a.k.a. retreg = x0) */
-	p->p_reg.gpr[0] = ip->initial_ps_str;
-
-	/* Clear frame pointer */
-	p->p_reg.gpr[29] = 0;
-}
-
-/* =========================================================================
- * tss_init — Initialize Task State Segment (no-op on ARM64)
- *
- * ARM64 does not have a TSS. This function is a no-op stub for
- * compatibility with the MINIX kernel interface.
- * ========================================================================= */
-
-int tss_init(unsigned cpu, void *kernel_stack)
-{
-	(void)cpu;
-	(void)kernel_stack;
-	/* ARM64 uses SP_EL1 for kernel stack — no TSS needed. */
-	return 0;
-}

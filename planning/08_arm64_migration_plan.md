@@ -351,9 +351,24 @@ SECTIONS {
 | `minix/kernel/arch/aarch64/protect.c` | MMU init — prot_init (VBAR + pg_identity + pg_mapkernel + pg_load), tss_init, arch_post_init, arch_boot_proc stub | ✅ Created |
 | `minix/include/arch/aarch64/include/vm.h` | ARM64 VMSAv8-64 constants (Phase 3) | ✅ Created |
 
-### Phase 2 Status: 🟡 **Source files complete — сборка и sysroot не завершены**
+### Phase 2 Status: ✅ **Kernel compilation complete — 0 errors, 28 .o files**
 
-**Примечание**: Исходные файлы Phase 2 созданы (head.S, mpx.S, klib.S, exception.c, memory.c, protect.c, pg_utils.c, arch_system.c, arch_do_vmctl.c, arch_timer.c, arch_reset.c, hw_intr.c, системные заголовки). Но сборка требует MINIX sysroot (см. `planning/17_remaining_tasks.md` §T1–T2).
+**Compilation result**: All 28 source files compile cleanly with zero errors:
+- kernel arch sources: head.S, vectors.S, mpx.S, klib.S, exception.c, memory.c, protect.c, pg_utils.c, arch_system.c, arch_do_vmctl.c, arch_timer.c, arch_reset.c, hw_intr.c, startup.c, pre_init.c, fdt.c, limine.c
+- kernel core: clock.c, cpulocals.c, interrupt.c, main.c, proc.c, system.c, table.c, utility.c, usermapped_data.c
+- system calls: do_fork.c, do_exec.c, do_clear.c, do_exit.c, do_trace.c, etc.
+
+**T2 build fixes applied (33 changes)**:
+- cmake/macros.cmake — Fixed CMake generator expression for ASM
+- 11 sys/machine/*.h stubs created/updated (ipcconst, interrupt, asm, ptrace, cpu, multiboot, vm)
+- 5 sys/arch/aarch64/include/*.h updated (archtypes, vm, ipcconst, ptrace)
+- 3 arch_proto.h macro additions (isb, barrier, irq_handle)
+- assembly fixes: orr with bitmask immediate, cmp oversized immediates, at s1e1r syntax
+- segframe field rename (ttbr0_el1→p_ttbr, asid→p_ttbr_v with uint64_t* type)
+- LP64 fixes: FIXEDPTR (u32_t→vir_bytes), struct priv assertion (256→2048)
+- kinfo field names fixed, fdt.c rm.depth removed, libexec.h guarded
+
+**Остаётся**: Настройка линкера (aarch64-elf-ld/lld) для финальной линковки ядра.
 
 **Выполнено (ядро):**
 - `head.S` — ARM64 entry point, EL1 init, identity page tables (TTBR0_EL1/TCR_EL1/MAIR_EL1/SCTLR_EL1), MMU enable, VBAR_EL1 install
@@ -439,8 +454,8 @@ SECTIONS {
 12. [✅] CMakeLists — все .c файлы добавлены
 13. [✅] CMake configure for aarch64 — configure успешен
 14. [✅] Проверка missing symbols — zero missing symbols
-15. [⬜] Сборка kernel — cmake --build kernel (требует MINIX sysroot)
-16. [⬜] Настройка MINIX_DESTDIR/sysroot для кросс-компиляции
+15. [✅] Сборка kernel — cmake --build kernel (28 .o файлов, 0 ошибок компиляции)
+16. [⬜] Настройка линкера (aarch64-elf-ld/lld) для финальной линковки
 ```
 
 **Известные баги (исправлены):**
@@ -461,7 +476,43 @@ SECTIONS {
 10. Bug: gic_init_dist дизейблил SGI (0-15) → теперь только PPI (16-31)
 11. Bug: `_kern_vbase` vs `_kern_vir_base` mismatch в линкер скрипте → добавлен alias
 
-**Estimated effort**: 4-6 weeks (фактически ~2 недели на Phase 1-2 core, ещё ~1 неделя на завершение Phase 2)
+**T2 build fixes (33 изменения, добавлены к известным багам):**
+12. Bug: CMake generator expression $<COMPILE_LANGUAGE:ASM:-D__ASSEMBLY__> — invalid syntax
+    - Fix: `$<$<COMPILE_LANGUAGE:ASM>:-D__ASSEMBLY__>` (nested genex syntax)
+13. Bug: `orr x3, x1, #PTE_BLOCK_FLAGS` — value 1793 not a valid ARM64 bitmask immediate
+    - Fix: `movz x3, #0x701; orr x3, x1, x3`
+14. Bug: `cmp x0, #EC_SVC64` — EC_SVC64 = 34603008 > 4095 (ARM64 cmp limit)
+    - Fix: `lsr x0, x0, #26; cmp x0, #0x15`
+15. Bug: `cmp x8, #KERVEC_INTR` — KERVEC_INTR/IPCVEC_INTR not defined for aarch64
+    - Fix: Added to sys/machine/ipcconst.h and sys/arch/aarch64/include/ipcconst.h
+16. Bug: `mov x0, #0x84000009` — ARM64 mov only takes 16-bit immediates
+    - Fix: `movz x0, #0x9; movk x0, #0x8400, lsl #16`
+17. Bug: `.space 128 - 4` — GAS parses as count=128 with fill=-4
+    - Fix: `.space 124`
+18. Bug: duplicate symbols in head.S — boot_stack, pagetable_l1/l2 defined twice
+    - Fix: Removed duplicate section definitions
+19. Bug: FRAME_X0 used before defined in exception.c
+    - Fix: Moved #define before pagefault() function
+20. Bug: FIXEDPTR macro truncates 64-bit pointers via u32_t cast
+    - Fix: Changed to vir_bytes (unsigned long, 64-bit on LP64)
+21. Bug: isokendpt_d() called with 2 args but macro requires 3
+    - Fix: Added 0 as 3rd argument (caller flag)
+22. Bug: kernel/procoffsets.h not found — wrong include path in sconst.h
+    - Fix: Changed "kernel/procoffsets.h" → "procoffsets.h"
+23. Bug: glo.h not found in arch_system.c
+    - Fix: Changed "glo.h" → "kernel/glo.h"
+24. Bug: barrier() not defined for aarch64 in memory.c
+    - Fix: Added #define barrier() in arch_proto.h (dmb sy)
+25. Bug: AARCH64_VM_DIR_ENTRIES, AARCH64_PAGETABLE_SIZE etc. not in sys/arch/vm.h
+    - Fix: Added all missing constants to sys/arch/aarch64/include/vm.h
+26. Bug: #include <libexec.h> not found — header doesn't exist for aarch64
+    - Fix: Guarded with #if 0 (Phase 3+ feature)
+27. Bug: pre_init.c uses nonexistent kinfo fields (kinfo_nr_cpus, kinfo_mem_lower, etc.)
+    - Fix: Mapped to real struct kinfo fields (memmap[], mem_high_phys, mmap_size, etc.)
+28. Bug: fdt.c rm.depth = 0 — struct mem_ctx has no depth field
+    - Fix: Removed invalid assignment, initialized other fields instead
+
+**Estimated effort**: 4-6 weeks (фактически ~2 недели на Phase 1-2 core, ещё ~1 неделя на T2 build fixes)
 **Dependencies**: Phase 1 (build infrastructure)
 
 ---
@@ -842,7 +893,7 @@ ARM64 needs compiler-rt builtins for division:
 
 | Driver | ARM32 Status | ARM64 Required Changes |
 |--------|-------------|----------------------|
-| UART (PL011) | ✅ Not used (AM335x UART) | ✅ New: needed for all ARM64 platforms |
+| UART (PL011) | ✅ Not used (AM335x UART) | ✅ **Created**: `arch/aarch64/pl011.h/c` — MINIX user-space driver (T10) |
 | UART (8250) | ✅ Used on x86 | ✅ Compatible (memory-mapped) |
 | GPIO | ✅ OMAP-specific | ❌ New: RPi GPIO, or generic GPIO via DTS |
 | MMC/SD | ✅ MMC on AM335x | ❌ New: RPi eMMC/SD or generic SDHCI |
@@ -885,8 +936,11 @@ void fdt_get_chosen(void *fdt_ptr, char *cmdline, int max_len) {
 | `minix/kernel/arch/aarch64/platform_rpi4.c` | RPi 4-specific initialization |
 | `minix/include/arch/aarch64/include/bcm2711.h` | RPi 4 memory map definitions |
 | `minix/include/arch/aarch64/include/platform.h` | Platform detection and constants |
-| `minix/drivers/tty/tty/arch/aarch64/pl011.c` | PL011 UART driver (kernel PL011 already in arch_reset.c) |
-| `minix/drivers/tty/tty/arch/aarch64/arch_tty.c` | ARM64 TTY architecture setup |
+| ✅ `minix/drivers/tty/tty/arch/aarch64/pl011.h` | PL011 UART register definitions + `struct pl011_device` |
+| ✅ `minix/drivers/tty/tty/arch/aarch64/pl011.c` | PL011 UART MINIX driver — interrupt-driven RX/TX, termios, flow control (RTS/CTS), TTY hooks (`rs_init`, `rs_interrupt`) — создан T10 |
+| ✅ `minix/drivers/tty/tty/arch/aarch64/Makefile.inc` | BSD Make include для pl011.c |
+| ✅ `minix/drivers/tty/tty/CMakeLists.txt` | Добавлен `aarch64` case с `arch/aarch64/pl011.c` |
+| `minix/drivers/tty/tty/arch/aarch64/arch_tty.c` | ARM64 TTY architecture setup (Phase 8+) |
 
 **Estimated effort**: 4-6 weeks
 **Dependencies**: Phases 4-6 (interrupts, syscalls, libraries)

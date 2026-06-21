@@ -99,8 +99,13 @@ SECTIONS
 
     /* Unpaged BSS: zero-initialized data for boot phase */
     .unpaged_bss  ALIGN(4096) : {
+        boot_stack_end = .;
         *(.unpaged.bss)
         *(.unpaged.bss.*)
+        pagetable_l1 = .;
+        . += 4096;   /* Reserve 1 page (4KB) for L1 page table */
+        pagetable_l2 = .;
+        . += 4096;   /* Reserve 1 page (4KB) for L2 page table */
     }
     __k_unpaged__kern_unpaged_end = .;
 

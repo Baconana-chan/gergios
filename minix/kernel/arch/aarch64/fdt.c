@@ -346,7 +346,8 @@ fdt_get_memory(const void *fdt, uint64_t *reg_addr, uint64_t *reg_size)
     {
         struct mem_ctx rm;
         rm.addr_cells = 2; rm.size_cells = 2;
-        rm.depth = 0;
+        rm.found = 0; rm.in_memory = 0; rm.in_root = 1;
+        rm.reg_addr = 0; rm.reg_size = 0;
         fdt_walk(fdt, NULL, NULL, root_on_prop, &rm);
         mc.addr_cells = rm.addr_cells;
         mc.size_cells = rm.size_cells;

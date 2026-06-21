@@ -168,6 +168,11 @@ target_compile_definitions(sys PRIVATE
 
 target_compile_options(sys PRIVATE -fno-builtin)
 
+# Include path for local sysutil.h wrapper
+target_include_directories(sys PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Per-file include paths
 set_source_files_properties(sched_start.c sef_st.c PROPERTIES
     INCLUDE_DIRECTORIES "${MINIX_SOURCE_DIR}/minix"

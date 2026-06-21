@@ -40,6 +40,11 @@
 #include <machine/asm.h>
 #include <machine/vm.h>
 
+/* Exception vectors and handlers must be identity-mapped (unpaged).
+ * Override _TEXT_SECTION so ENTRY() uses .unpaged.text instead of .text. */
+#undef _TEXT_SECTION
+#define _TEXT_SECTION .section .unpaged.text, "ax"
+
 /* =========================================================================
  * Constants
  * ========================================================================= */
@@ -92,7 +97,7 @@ ENTRY(arm64_vector_table)
      * This should never happen in normal operation (kernel uses SP_EL1).
      * ---------------------------------------------------------- */
     b       arm64_sync_el1t_handler
-    .space  128 - 4            /* Pad to 128 bytes */
+    .space  124            /* Pad to 128 bytes */
 
     /* ----------------------------------------------------------
      * 0x080: EL1t IRQ — Interrupt using SP_EL0
@@ -344,10 +349,14 @@ arm64_irq_el1h_handler:
  * ----------------------------------------------------------------------- */
 
 arm64_sync_el0_handler:
-    /* Read ESR_EL1 to check exception class */
+    /* Read ESR_EL1 to check exception class.
+     * EC field is in bits[31:26]. We shift right by 26 to
+     * compare with small immediate (ARM64 cmp only takes
+     * 12-bit unsigned immediates, and EC values like
+     * 0x15 << 26 = 34603008 are too large). */
     mrs     x0, ESR_EL1
-    and     x0, x0, #(0x3F << 26)    /* Extract EC field [31:26] */
-    cmp     x0, #EC_SVC64
+    lsr     x0, x0, #26             /* Shift EC to low bits [5:0] */
+    cmp     x0, #0x15               /* EC_SVC64 = 0x15 */
     b.eq    arm64_svc_handler
 
     /* Non-SVC exception from user (page fault, etc.) */

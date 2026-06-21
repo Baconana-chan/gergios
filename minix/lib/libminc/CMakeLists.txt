@@ -24,6 +24,14 @@ set(LIBMINC_OWN_SOURCES
     strtol.c
 )
 
+# AArch64-specific assembly sources
+if(MACHINE_CPU STREQUAL "aarch64")
+    list(APPEND LIBMINC_OWN_SOURCES
+        arch/aarch64/setjmp.S
+        arch/aarch64/longjmp.S
+    )
+endif()
+
 # Sources from libsa (StandAlone library)
 set(LIBMINC_LIBSA_SOURCES
     ${LIBSADIR}/errno.c

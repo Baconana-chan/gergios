@@ -25,7 +25,7 @@
 #define _AARCH64_SCONST_H
 
 #include "kernel/const.h"
-#include "kernel/procoffsets.h"
+#include "procoffsets.h"
 
 /* =========================================================================
  * Stack frame offsets (for use in assembly)

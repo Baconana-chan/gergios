@@ -25,6 +25,11 @@
 #include <machine/asm.h>
 #include <machine/vm.h>
 
+/* Context switching code must be identity-mapped (unpaged).
+ * Override _TEXT_SECTION so ENTRY() uses .unpaged.text instead of .text. */
+#undef _TEXT_SECTION
+#define _TEXT_SECTION .section .unpaged.text, "ax"
+
 #include "kernel/kernel.h"
 #include "kernel/const.h"
 #include "kernel/proc.h"
@@ -176,8 +181,6 @@
  * section) because it deals with kernel stacks and process switching
  * before the high kernel mapping is fully active for all processes.
  * ========================================================================= */
-
-.section .unpaged.text, "ax"
 
 /* =========================================================================
  * restore_user_context — Restore process context and return to user mode
@@ -553,30 +556,35 @@ ENTRY(arm64_exception_entry_from_kernel)
     mrs     x22, SPSR_EL1
 
     /* Print diagnostic via PL011 UART */
-    adr     x0, str_kernel_panic
+    adrp    x0, str_kernel_panic
+    add     x0, x0, :lo12:str_kernel_panic
     bl      pl011_puts_asm
     bl      pl011_newline_asm
 
-    adr     x0, str_esr
+    adrp    x0, str_esr
+    add     x0, x0, :lo12:str_esr
     bl      pl011_puts_asm
     mov     x0, x19
     bl      pl011_puthex_asm
     bl      pl011_newline_asm
 
-    adr     x0, str_far
+    adrp    x0, str_far
+    add     x0, x0, :lo12:str_far
     bl      pl011_puts_asm
     mov     x0, x20
     bl      pl011_puthex_asm
     bl      pl011_newline_asm
 
-    adr     x0, str_elr
+    adrp    x0, str_elr
+    add     x0, x0, :lo12:str_elr
     bl      pl011_puts_asm
     mov     x0, x21
     bl      pl011_puthex_asm
     bl      pl011_newline_asm
 
     /* Phase 2: Halt on kernel exception */
-    adr     x0, str_halt
+    adrp    x0, str_halt
+    add     x0, x0, :lo12:str_halt
     bl      pl011_puts_asm
     bl      pl011_newline_asm
 
