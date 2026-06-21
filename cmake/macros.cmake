@@ -78,7 +78,16 @@ function(add_minix_executable TARGET)
 
     # User-specified libraries
     if(ARG_LIBS)
-        target_link_libraries(${TARGET} PRIVATE ${ARG_LIBS})
+        foreach(LIB ${ARG_LIBS})
+            if(${LIB} STREQUAL ${TARGET})
+                # Library name matches target name: use -l prefix to avoid
+                # CMake resolving it as a self-reference to the current target.
+                # This happens when e.g. LIBS fetch for target fetch (libfetch).
+                target_link_libraries(${TARGET} PRIVATE -l${LIB})
+            else()
+                target_link_libraries(${TARGET} PRIVATE ${LIB})
+            endif()
+        endforeach()
     endif()
 
     # Install destination

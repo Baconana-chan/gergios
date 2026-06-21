@@ -101,7 +101,12 @@ _add_simple_command(cdprobe)
 _add_simple_command(cleantmp)
 _add_command(compress LIBS z)
 _add_simple_command(crontab)
-_add_simple_command(devmand)
+# devmand has main.c not devmand.c — use explicit add_minix_executable
+add_minix_executable(devmand
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/devmand/main.c
+    LIBS asyn terminfo
+    BINDIR /usr/bin
+)
 _add_simple_command(devsize)
 _add_simple_command(dhrystone)
 _add_simple_command(eject)
@@ -122,12 +127,12 @@ _add_simple_command(progressbar)
 _add_simple_command(rawspeed)
 _add_simple_command(readclock)
 _add_simple_command(remsync)
-_add_simple_command(rotate)
+_add_script(rotate SOURCE rotate.sh)
 _add_simple_command(slip)
-_add_simple_command(spell)
-_add_simple_command(srccrc)
+_add_script(spell SOURCE spell.sh)
+_add_script(srccrc SOURCE srccrc.sh)
 _add_simple_command(svrctl)
-_add_simple_command(swifi)
+# FIXME: swifi builds from systest.c with -lelf — needs explicit add_minix_executable
 _add_simple_command(synctree)
 _add_simple_command(sysenv)
 _add_simple_command(term)
@@ -135,9 +140,9 @@ _add_simple_command(tget)
 _add_simple_command(truncate)
 _add_simple_command(umount)
 _add_simple_command(update)
-_add_simple_command(version)
+_add_script(version SOURCE version.sh)
 _add_simple_command(vol)
-_add_simple_command(zmodem)
+# FIXME: zmodem builds rz and sz as separate programs — needs two add_minix_executable calls
 _add_simple_command(atnormalize)
 _add_simple_command(dosread)
 _add_simple_command(fdisk)
@@ -149,27 +154,27 @@ _add_simple_command(recwave)
 
 # Simple commands with .c and multiple sources
 _add_command(backup SOURCES backup.c)
-_add_command(crc SOURCES crc.c crc_fun.c)
+_add_command(crc SOURCES crc.c)
 _add_command(cron SOURCES cron.c tab.c misc.c)
-_add_command(DESCRIBE SOURCES DESCRIBE.c)
+_add_script(DESCRIBE SOURCE DESCRIBE.sh)
 _add_command(gcov-pull SOURCES gcov-pull.c)
 _add_command(lpd SOURCES lpd.c)
 _add_script(lspci SOURCE lspci.sh)
-_add_command(netconf SOURCES netconf.c)
-_add_command(pkgin_all SOURCES pkgin_all.c)
-_add_command(pkgin_cd SOURCES pkgin_cd.c)
-_add_command(pkgin_sets SOURCES pkgin_sets.c)
+_add_script(netconf SOURCE netconf.sh)
+_add_script(pkgin_all SOURCE pkgin_all.sh)
+_add_script(pkgin_cd SOURCE pkgin_cd.sh)
+_add_script(pkgin_sets SOURCE pkgin_sets.sh)
 _add_command(profile SOURCES profile.c)
 _add_command(ramdisk SOURCES ramdisk.c)
 _add_command(termcap SOURCES termcap.c)
-_add_command(worldstone SOURCES worldstone.c)
+_add_script(worldstone SOURCE worldstone.sh)
 _add_command(autopart SOURCES autopart.c)
 _add_command(repartition SOURCES repartition.c)
 _add_command(screendump SOURCES screendump.c)
 
 # Commands with special libraries or flags
 _add_command(fsck.mfs
-    SOURCES fsck.mfs.c
+    SOURCES fsck.c
     LIBS sys
 )
 
@@ -206,16 +211,14 @@ endif()
 _add_script(setup SOURCE setup.sh BINDIR /bin)
 _add_script(MAKEDEV SOURCE MAKEDEV.sh)
 
-# updateboot — special
-_add_command(updateboot SOURCES updateboot.c)
+_add_script(updateboot SOURCE updateboot.sh BINDIR /usr/sbin)
 
 # update_asr — for ASR support
 if(USE_ASR)
     _add_command(update_asr SOURCES update_asr.c)
 endif()
 
-# update_bootcfg
-_add_command(update_bootcfg SOURCES update_bootcfg.c)
+_add_script(update_bootcfg SOURCE update_bootcfg.sh BINDIR /usr/sbin)
 
 # sprofalyze/spofdiff
 _add_command(sprofalyze SOURCES sprofalyze.c)
