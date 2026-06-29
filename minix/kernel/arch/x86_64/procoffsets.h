@@ -53,9 +53,25 @@
 #define SSREG    152     /* SS (user stack segment, from CPL change) */
 
 /* Process field offsets (beyond p_reg / stackframe_s)
- * P_KERN_TRAP_STYLE = offsetof(struct proc, p_seg.p_kern_trap_style)
- *   sizeof(stackframe_s) = 160
- *   p_cr3  (8) + p_cr3_v (8) + fpu_state (8) + p_kern_trap_style (4) = 28
- *   but padded to 32 (multiple of 8)
- *   P_KERN_TRAP_STYLE = 160 + 24 = 184 */
+ * struct segframe layout (offset from start of p_seg):
+ *   p_cr3           0  (reg_t, 8 bytes)
+ *   p_cr3_v         8  (u64_t*, 8 bytes)
+ *   fpu_state      16  (char*, 8 bytes)
+ *   p_kern_trap_style  24  (int, 4 bytes, padded to 8)
+ *   total:          32
+ *
+ * sizeof(stackframe_s) = 160 (20 regs x 8 bytes)
+ * P_CR3 = 160 + 0 = 160
+ * P_KERN_TRAP_STYLE = 160 + 24 = 184 */
+#define P_CR3			160
 #define P_KERN_TRAP_STYLE	184
+
+/* Segment selector constants (from archconst.h) — numeric values for
+ * assembly files that may not have C preprocessor access.
+ *   KERN_CS_INDEX = 1, KERN_DS_INDEX = 2
+ *   USER_CS_INDEX = 3, USER_DS_INDEX = 4, LDT_INDEX = 5
+ *   SEG_SELECTOR(i) = (i) * 8
+ */
+#define KERN_CS_SELECTOR	8
+#define KERN_DS_SELECTOR	16
+#define LDT_SELECTOR		40

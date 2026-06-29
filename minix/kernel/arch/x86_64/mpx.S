@@ -21,7 +21,7 @@
 #include "kernel/kernel.h"
 #include <minix/config.h>
 #include <minix/const.h>
-#include <minix/ipcconst.h>
+#include <ipcconst.h>
 #include <minix/com.h>
 #include <machine/asm.h>
 #include <machine/interrupt.h>
@@ -241,6 +241,20 @@ ENTRY(hwint15)
  * We save the return RIP/RFLAGS to the process structure, then dispatch
  * to the appropriate handler.
  */
+
+/*
+ * ipc_entry_syscall_cpu0 — Per-CPU SYSCALL entry point for CPU 0.
+ *
+ * On UP (uniprocessor) systems, this is an alias for ipc_entry_syscall.
+ * The address is loaded into the LSTAR MSR to set up the SYSCALL
+ * instruction target for the kernel on CPU 0.
+ *
+ * On SMP systems, ipc_entry_syscall_cpuN entries would point to
+ * per-CPU entry points that load per-CPU kernel stacks. For now,
+ * all CPUs share the same entry point.
+ */
+ENTRY(ipc_entry_syscall_cpu0)
+	jmp	ipc_entry_syscall
 
 ENTRY(ipc_entry_syscall)
 	/* SYSCALL entry point for IPC.

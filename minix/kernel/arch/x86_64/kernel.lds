@@ -1,5 +1,5 @@
 OUTPUT_ARCH("i386:x86-64")
-ENTRY(__k_unpaged_MINIX)
+ENTRY(MINIX)
 
 /* x86_64 kernel layout:
  *   Physical base: 0x00100000 (1MB — within identity-mapped 0-4MB range)
@@ -28,22 +28,42 @@ SECTIONS
 {
 	. = _kern_phys_base;
 	__k_unpaged__kern_unpaged_start = .;
+	/* Alias for C code (MINIX strips __k_unpaged_ prefix at link time). */
+	_kern_unpaged_start = __k_unpaged__kern_unpaged_start;
 
-	.unpaged_text : { unpaged_*.o(.text) }
-	.unpaged_data ALIGN(4096) : { unpaged_*.o(.data .rodata*) }
-	.unpaged_bss  ALIGN(4096)  : { unpaged_*.o(.bss COMMON) }
+	/* Unpaged sections: code that runs before paging is enabled.
+	 * head.S and klib.S use explicit .section .unpaged.text,
+	 * .unpaged.data, .unpaged.bss directives for early boot code
+	 * that must run at low physical addresses.
+	 * C files (pre_init.c, limine.c, etc.) are NOT placed here —
+	 * they use regular .text and go to the high VMA. Head.S calls
+	 * them via absolute indirect jumps (movabs+call). */
+	.unpaged_text : {
+		*(.unpaged.text)
+		*(.unpaged.text.*)
+	}
+	.unpaged_data ALIGN(4096) : {
+		*(.unpaged.data)
+		*(.unpaged.rodata)
+		*(.unpaged.rodata.*)
+	}
+	.unpaged_bss  ALIGN(4096)  : {
+		*(.unpaged.bss)
+		*(.unpaged.COMMON)
+	}
 	__k_unpaged__kern_unpaged_end = .;
+	_kern_unpaged_end = __k_unpaged__kern_unpaged_end;
 
 	/* Limine boot protocol requests section.
 	 * This section contains the request structures that the Limine
 	 * bootloader scans to find which services the kernel needs.
 	 * Must be accessible at boot time (in unpaged part).
-	 * If limine.o is not unpaged, keep it here in low memory.
 	 */
 	.limine_requests ALIGN(64) : { *(.limine_requests) }
 	__k_unpaged__limine_requests_start = .;
 	__k_unpaged__limine_requests_end = .;
 
+	/* Jump to high virtual address for the paged kernel */
 	. += _kern_offset;
 
 	. = ALIGN(4096); usermapped_start = .;
@@ -51,14 +71,30 @@ SECTIONS
 	. = ALIGN(4096); usermapped_nonglo_start = .;
 	.usermapped : AT(ADDR(.usermapped) - _kern_offset) { *(.usermapped) }
 	. = ALIGN(4096); usermapped_end = .;
-	.text             : AT(ADDR(.text) - _kern_offset) { *(.text*) }
-	.data ALIGN(4096) : AT(ADDR(.data) - _kern_offset) { *(.data .rodata* ) }
+	.text             : AT(ADDR(.text) - _kern_offset) {
+		*(.text*)
+		*(.ltext*)
+	}
+	.data ALIGN(4096) : AT(ADDR(.data) - _kern_offset) {
+		*(.data .rodata*)
+		*(.ldata* .lrodata*)
+	}
 	. = ALIGN(4096);
-	.bss ALIGN(4096)  : AT(ADDR(.bss) - _kern_offset) { *(.bss* COMMON)
+	.bss ALIGN(4096)  : AT(ADDR(.bss) - _kern_offset) {
+		*(.bss* COMMON)
+		*(.lbss*)
 		__k_unpaged__kern_size = . - _kern_vir_base;
 		_kern_size = __k_unpaged__kern_size;
 	}
 	_kern_end = _kern_phys_base + _kern_size;
 	__k_unpaged__kern_end = _kern_end;
+	_kern_end = __k_unpaged__kern_end;
 	_end = .;
+
+	/* PROVIDE aliases for symbols that C/assembly code references
+	 * without the __k_unpaged_ prefix. These are defined by the
+	 * build system in the original BSD Make (which auto-generated
+	 * aliases), but must be explicit with ld.lld. */
+	PROVIDE(k_initial_stktop = __k_unpaged_k_initial_stktop);
+	PROVIDE(kmain = __k_unpaged_kmain);
 }

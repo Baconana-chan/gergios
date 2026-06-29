@@ -1,4 +1,19 @@
 /* sections */
+/*
+ * All functions in this file are placed in .unpaged.text
+ * because they may be called before paging is enabled.
+ * The linker script places this section at the low physical
+ * address in the .unpaged_text output section.
+ *
+ * NOTE: We MUST override _TEXT_SECTION before including <machine/asm.h>
+ * because the ENTRY() macro (defined in asm.h) expands to:
+ *   _TEXT_SECTION; .align 16,0x90; .globl name; .type name, @function; name:
+ *
+ * The default _TEXT_SECTION is ".text" — but we need our code to go
+ * into .unpaged.text instead, so it's placed at the LOW VMA (before
+ * paging is enabled) by the linker script's .unpaged_text output section.
+ */
+#define _TEXT_SECTION .section .unpaged.text, "ax"
 
 #include <minix/config.h>
 #include <minix/const.h>
@@ -332,10 +347,10 @@ ENTRY(x86_triplefault)
 	lidtq	idt_zero
 	int	$3
 
-.data
+.section .unpaged.data, "aw"
 idt_zero:
 .quad	0, 0
-.text
+.section .unpaged.text
 
 /*===========================================================================*/
 /*				halt_cpu				     */
@@ -567,7 +582,16 @@ ENTRY(fnstcw)
 /*===========================================================================*/
 /*				invlpg					     */
 /*===========================================================================*/
+/*
+ * PUBLIC void x86_invlpg(phys_bytes linaddr);
+ * PUBLIC void i386_invlpg(phys_bytes linaddr);  -- alias for compatibility
+ * Invalidate a single TLB entry for the given linear address.
+ */
 ENTRY(x86_invlpg)
+	invlpg	(%rdi)
+	ret
+
+ENTRY(i386_invlpg)
 	invlpg	(%rdi)
 	ret
 
@@ -679,6 +703,23 @@ ENTRY(refresh_tlb)
 	ret
 
 /*===========================================================================*/
+/*			intr_enable / intr_disable			     */
+/*===========================================================================*/
+/*
+ * PUBLIC void intr_enable(void);
+ * PUBLIC void intr_disable(void);
+ * Enable/disable interrupts (sti/cli). Aliases for compatibility
+ * with code that uses these names (e.g. arch_clock.c).
+ */
+ENTRY(intr_enable)
+	sti
+	ret
+
+ENTRY(intr_disable)
+	cli
+	ret
+
+/*===========================================================================*/
 /*			mfence / arch_pause				     */
 /*===========================================================================*/
 ENTRY(mfence)
@@ -715,6 +756,10 @@ ENTRY(interrupts_disable)
  * PUBLIC void cpuid(u32_t leaf, u32_t *eax, u32_t *ebx, u32_t *ecx, u32_t *edx)
  * Execute CPUID instruction.
  */
+/*
+ * PUBLIC void cpuid(u32_t leaf, u32_t *eax, u32_t *ebx, u32_t *ecx, u32_t *edx)
+ * Execute CPUID instruction with explicit leaf.
+ */
 ENTRY(cpuid)
 	pushq	%rbx			/* must be preserved */
 	/* Save ecx_ptr (4th arg, RCX) before CPUID clobbers it */
@@ -725,6 +770,23 @@ ENTRY(cpuid)
 	movl	%ebx, (%rdx)		/* *ebx_ptr (3rd arg) */
 	movl	%ecx, (%r9)		/* *ecx_ptr (saved from RCX) */
 	movl	%edx, (%r8)		/* *edx_ptr (5th arg) */
+	popq	%rbx
+	ret
+
+/*
+ * PUBLIC int _cpuid(u32_t *eax, u32_t *ebx, u32_t *ecx, u32_t *edx);
+ * Simplified CPUID wrapper (leaf 1) used by kernel arch_system.c.
+ * Arguments: RDI=eax_ptr, RSI=ebx_ptr, RDX=ecx_ptr, RCX=edx_ptr
+ */
+ENTRY(_cpuid)
+	pushq	%rbx
+	movq	%rcx, %r8		/* save edx_ptr */
+	movl	$1, %eax		/* leaf 1: processor info */
+	cpuid
+	movl	%eax, (%rdi)		/* *eax_ptr */
+	movl	%ebx, (%rsi)		/* *ebx_ptr */
+	movl	%ecx, (%rdx)		/* *ecx_ptr */
+	movl	%edx, (%r8)		/* *edx_ptr */
 	popq	%rbx
 	ret
 
@@ -746,7 +808,72 @@ ENTRY(switch_k_stack)
 
 0:	jmp	0b		/* NOT REACHED */
 
-.data
+/*===========================================================================*/
+/*				inb / outb					     */
+/*===========================================================================*/
+/*
+ * PUBLIC u8_t inb(Port_t port);
+ * Read a byte from the specified I/O port.
+ * x86_64: the inb instruction works identically to i386.
+ */
+ENTRY(inb)
+	xorl	%eax, %eax
+	movl	%edi, %edx	/* port (1st arg) */
+	inb	%dx, %al	/* read byte */
+	ret
+
+/*
+ * PUBLIC u16_t inw(Port_t port);
+ * Read a word (16-bit) from the specified I/O port.
+ */
+ENTRY(inw)
+	xorl	%eax, %eax
+	movl	%edi, %edx	/* port (1st arg) */
+	inw	%dx, %ax	/* read word */
+	ret
+
+/*
+ * PUBLIC u32_t inl(Port_t port);
+ * Read a long (32-bit) from the specified I/O port.
+ */
+ENTRY(inl)
+	xorl	%eax, %eax
+	movl	%edi, %edx	/* port (1st arg) */
+	inl	%dx, %eax	/* read long */
+	ret
+
+/*
+ * PUBLIC void outb(Port_t port, u8_t value);
+ * Write a byte to the specified I/O port.
+ * x86_64: the outb instruction works identically to i386.
+ */
+ENTRY(outb)
+	movl	%edi, %edx	/* port (1st arg) */
+	movl	%esi, %eax	/* value (2nd arg) */
+	outb	%al, %dx	/* write byte */
+	ret
+
+/*
+ * PUBLIC void outw(Port_t port, u16_t value);
+ * Write a word (16-bit) to the specified I/O port.
+ */
+ENTRY(outw)
+	movl	%edi, %edx	/* port (1st arg) */
+	movl	%esi, %eax	/* value (2nd arg) */
+	outw	%ax, %dx	/* write word */
+	ret
+
+/*
+ * PUBLIC void outl(Port_t port, u32_t value);
+ * Write a long (32-bit) to the specified I/O port.
+ */
+ENTRY(outl)
+	movl	%edi, %edx	/* port (1st arg) */
+	movl	%esi, %eax	/* value (2nd arg) */
+	outl	%eax, %dx	/* write long */
+	ret
+
+.section .unpaged.data, "aw"
 idt_ptr:
 	.short 0x3ff
 	.long 0x0

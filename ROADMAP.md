@@ -1,7 +1,7 @@
 # GergiOS Roadmap
 
 > **Version**: 1.0.0 "Nix" (MINIX 3.4.0)
-> **Updated**: 2026-06-19
+> **Updated**: 2026-06-29
 
 ---
 
@@ -63,9 +63,10 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 
 #### C Language & Rust (planning/03 §3)
 - [x] C89 → C17 (gnu17, register keyword removed, _Noreturn, _Static_assert)
-- [x] Rust workspace: 15 crates (9 utilities + 6 libraries)
+- [x] Rust workspace: **132+ утилит** (весь usr.bin/ портирован)
 - [x] grep в Rust (Quick Search + regex + gzip + mmap)
 - [x] CI/CD + ASan/MSan/TSan + fuzzing + benchmarks + code coverage
+- [x] 6.4.3–6.4.6: 59 утилит (colrm, cal, mcookie, banner, lock, genassym и др.)
 
 #### Architecture (planning/03 §2)
 - [x] x86_64 migration: boot, memory, syscalls, signals, drivers (6 phases)
@@ -79,21 +80,28 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 - [x] MKGAMES=no (игры через pkgsrc)
 - [x] MKLIBTELNET=no (telnet deprecated)
 - [x] MKLIBKVM=no (не используется MINIX)
+- [x] **18 MK* флагов** (less, tmux, top, nvi, bzip2, file, flex, byacc, LLVM и др.)
+- [x] **~255MB удалено** из дерева (LLVM, BIND, ISC DHCP, blacklistd)
 
 ---
 
 ### 🟡 Планируется для 1.0
 
 #### x86_64: Финальная очистка
-- [ ] **x86_64 shared code separation** — создать `arch/x86_64/` с 64-битным ассемблером,
-      отделить от `arch/i386/` (который содержит общий x86 код для обеих архитектур)
-- [ ] **cmake/options.cmake** — ACPI/APIC/PCI/Watchdog доступны для x86_64
-- [ ] **Ramdisk boot drivers** — восстановить для x86_64
+- [x] **x86_64 shared code separation** — создан `arch/x86_64/` с 13 файлами (T3 ✅)
+- [x] **cmake/options.cmake** — ACPI/APIC/PCI/Watchdog для x86_64 (T6 ✅)
+- [x] **x86_64 kernel** — собран 0 ошибок (T5.6 ✅)
+- [x] **aarch64 kernel** — собран 0 ошибок (T2a ✅)
+- [x] **pre-existing errors** — 4 ошибки исправлены (T5.5 ✅)
+- [ ] **Ramdisk boot drivers** — восстановить для x86_64 (T7 🟡)
 
 #### Файловая система (planning/03 §4)
-- [ ] **Research & design** — изучить ext4, спроектировать интеграцию с MINIX VFS
-- [ ] **ext4 driver — foundation** — базовый read/write, структуры, суперблок
-- [ ] **VFS/filesystem audit** — очистка `sys/ufs/`, `sys/fs/` от неиспользуемого кода
+- [x] **VFS/filesystem audit** — очистка `sys/ufs/`, `sys/fs/` от неиспользуемого кода (T20 ✅)
+- [x] **Удалены:** `lfs/`, `chfs/`, `ufs/`, `v7fs/` (~11K строк)
+- [x] **Research & design** — ext4 архитектура спроектирована (`planning/19`)
+- [ ] **ext4 driver — Phase 1 (read-only)** — Rust ext4-core + C FFI bridge
+- [ ] **ext4 driver — Phase 2 (write)** — block alloc, extent split/merge
+- [ ] **ext4 driver — Phase 3 (journal)** — jbd2 recovery
 
 #### Графический стек / GUI (planning/03 §9 + planning/11)
 - [ ] **Framebuffer driver** — современные видеорежимы
@@ -120,13 +128,13 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 - [ ] **Network stack evaluation** — lwIP vs FreeBSD stack
 
 #### Boot library
-- [ ] **Cleanup** — удалить неиспользуемые FS/протоколы из `sys/lib/libsa/`
-      (cd9660, dosfs, ext2fs, ffsv1/2, lfsv1/2, bootp, rarp, nfs)
+- [x] **Cleanup** — удалены неиспользуемые FS/протоколы из `sys/lib/libsa/` (T17/T19 ✅)
+      (cd9660, dosfs, ext2fs, ffsv1/2, lfsv1/2, nfs, ufs, ustarfs, nullfs)
 
 #### pkgsrc & Userland
-- [ ] **Аудит `external/bsd/`** — tmux, less, nvi → MK* флаги
+- [x] **Аудит `external/bsd/`** — 18 MK* флагов, ~255MB удалено (LLVM, BIND, DHCP)
+- [x] **Rust utilities** — **132+ утилиты** портированы (весь usr.bin/ + build-time)
 - [ ] **`lib/libwrap/`** — MK* флаг (tcp_wrappers deprecated)
-- [ ] **Rust utilities** — портировать больше userland tools (cat, cp, ls, mv…)
 
 #### Тестирование
 - [ ] **QEMU test infrastructure** — automated boot tests for x86_64
@@ -140,11 +148,15 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 зрелый графический стек, Linux совместимость.
 
 #### Architecture
-- [ ] **ARM64 port** (planning/03 §2 Phase 2) — audit ARM code,
-      создать arch/arm64/, портировать kernel, servers, drivers
+- [x] **ARM64 kernel источники** — 28 .o файлов, 0 ошибок компиляции (T2 ✅)
+- [x] **ARM64 sysroot** — кросс-компиляция (T1 ✅)
+- [x] **ARM64 IPC ABI** — LP64 message format (T8 ✅)
+- [x] **ARM64 libs** — libsys, libminc, libc (T9 ✅)
+- [ ] **ARM64 Platform + Drivers** — RPi 4 специфика (T10 🟡)
 - [ ] **x86_64 + ARM64** — обе архитектуры в CI/CD
 
 #### Filesystem
+- [x] **VFS cleanup** — LFS, CHFS, v7fs, UFS core удалены (T20 ✅)
 - [ ] **ext4 — полная поддержка** — journaling, extents, delayed allocation
 - [ ] **ext4 FS server** — полноценный сервер для MINIX VFS
 - [ ] **Minix FS → read-only legacy** — подготовка к удалению
@@ -212,14 +224,17 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 
 ```
 1.0 Build System (CMake) ✅
-    ├─> 1.0 Crypto (wolfSSL) ✅
-    ├─> 1.0 C17 + Rust ✅
-    ├─> 1.0 x86_64 ✅
-    │       └─> 1.0 i386 Removal ✅
-    ├─> 1.0 Branding ✅
-    ├─> 1.0 pkgsrc flags ✅
+1.0 Crypto (wolfSSL) ✅
+1.0 C17 + Rust (132 utils) ✅
+1.0 x86_64 (kernel ✅) ──> T7 Ramdisk 🟡
+1.0 aarch64 (kernel ✅) ──> T10 Platform 🟡
+1.0 i386 Removal ✅
+1.0 Branding ✅
+1.0 pkgsrc flags (18 MK*) ✅
+1.0 VFS Cleanup (T20) ✅
+1.0 Boot Library Cleanup (T17/T19) ✅
     │
-    ├─> 1.0 ext4 foundation ──> 1.1 ext4 full
+    ├─> 1.0 ext4 design (planning/19) ──> ext4 Phase 1 (read) ──> ext4 Phase 2-3 (write+journal) ──> 1.1 ext4 full
     ├─> 1.0 GUI (Wayland) ──> 1.1 Window Manager
     ├─> 1.0 Driver framework ──> 1.1 USB + Driver migration
     ├─> 1.0 Security design ──> 1.1 Cap/MAC implementation
@@ -241,3 +256,4 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 - `planning/07_x86_64_migration_plan.md` — x86_64 migration
 - `planning/08_arm64_migration_plan.md` — ARM64 migration (planned)
 - `TODO.md` — detailed task list
+- `planning/19_ext4_driver_architecture.md` — ext4 driver design

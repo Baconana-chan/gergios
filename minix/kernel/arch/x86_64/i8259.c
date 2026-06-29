@@ -65,3 +65,44 @@ void irq_8259_eoi(int irq)
 	else
 		eoi_8259_slave();
 }
+
+/*
+ * hw_intr_* — Hardware interrupt wrappers called from kernel/interrupt.c.
+ *
+ * On x86_64 without APIC (legacy PIC mode), these delegate to the 8259
+ * PIC driver functions. With APIC, they would delegate to I/O APIC
+ * functions (not yet implemented for x86_64).
+ *
+ * hw_intr_used/hw_intr_not_used are no-ops in non-APIC mode (matching
+ * the i386 non-APIC pattern).
+ */
+
+void hw_intr_mask(int irq)
+{
+	irq_8259_mask(irq);
+}
+
+void hw_intr_unmask(int irq)
+{
+	irq_8259_unmask(irq);
+}
+
+void hw_intr_ack(int irq)
+{
+	irq_8259_eoi(irq);
+}
+
+void hw_intr_used(int irq)
+{
+	/* No special action in PIC mode — hw_intr_unmask handles enable. */
+}
+
+void hw_intr_not_used(int irq)
+{
+	/* No special action — hw_intr_mask handles disable. */
+}
+
+void hw_intr_disable_all(void)
+{
+	/* No special action in PIC mode. */
+}

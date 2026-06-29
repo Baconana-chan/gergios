@@ -41,45 +41,27 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 - [x] Define target architecture support (x86_64, ARM64)
 - [x] Plan deprecation timeline for i386 support
 
-### 1.3 Rust Integration Foundation ✅
-> See `planning/09_c_language_modernization.md` for the full C89→C17+Rust migration plan
+### 1.3 Rust Integration — ✅ **132+ утилит**
+> Весь usr.bin/ портирован на Rust
 
-**Status**: ✅ COMPLETED — Phases 1-5 finished, 15 crates in workspace
+**Июнь 2026**: Rust workspace содержит **132+ утилиты** (core POSIX, 6.4.3–6.4.6).
 
-- [x] Evaluate Rust integration approach for microkernel architecture
-- [x] Set up Rust cross-compilation toolchain for Minix targets
-- [x] Create build system integration for Rust components (CMake + BSD Make)
-- [x] Define Rust-C FFI interface standards (extern "C", repr(C), panic=abort)
-- [x] Create prototype Rust components: 10 userland utilities (basename, dirname, echo, true, false, yes, sleep, seq, grep) + 5 library crates (minix-rs, minix-driver, minix-alloc, audio-buf, procfs-path, net-parse)
+**Что сделано:**
+- [x] Phase 1-5: 15 crates + 55 core POSIX утилит (basename, cat, chmod, cp, ls, mv, ...)
+- [x] Phase 6.4.3: 11 утилит (colrm, join, jot, pr, rev, tabs, tsort, ul, unifdef, unvis, vis)
+- [x] Phase 6.4.4: 14 утилит (cal, col, colcrt, column, csplit, fmt, hexdump, lam, ...)
+- [x] Phase 6.4.5: 45 утилит (mcookie, mesg, mkfifo, mktemp, banner, calendar, lock, logger, ...)
+- [x] Phase 6.4.6: 6 build-time tools (genassym, mkcsmapper, mkdep, mkesdb, mklocale, xinstall)
+- [x] CI/CD + ASan/MSan/TSan + fuzzing + benchmarks + code coverage
 
-**Rust Workspace (15 members):**
-
-| Type | Crate | Description | Tests |
-|------|-------|-------------|-------|
-| 🛠 Utility | basename | POSIX basename | ✅ |
-| 🛠 Utility | dirname | POSIX dirname | ✅ |
-| 🛠 Utility | echo | POSIX echo | ✅ |
-| 🛠 Utility | true | exit(0) | ✅ |
-| 🛠 Utility | false | exit(1) | ✅ |
-| 🛠 Utility | yes | repeat text | ✅ |
-| 🛠 Utility | sleep | fractional seconds | ✅ |
-| 🛠 Utility | seq | number sequences | ✅ |
-| 🛠 Utility | grep | POSIX grep (Quick Search + regex + gzip + mmap) | ✅ |
-| 📚 Library | minix-rs | IPC syscall FFI + validation + constants | 21 ✅ |
-| 📚 Library | minix-driver | Safe MMIO + port I/O wrappers | 10 ✅ |
-| 📚 Library | minix-alloc | GlobalAlloc → C malloc/free | 4 ✅ |
-| 📚 Library | audio-buf | DMA ring buffer management | 14 ✅ |
-| 📚 Library | procfs-path | PID/path parsing | 16 ✅ |
-| 📚 Library | net-parse | TCP/UDP/DNS protocol parsers | 23 ✅ |
-
-**Next:** Phase 6 — CI/CD integration + ASan/MSan/TSan
+**Осталось в pkgsrc:** rsync, m4, bzip2, unzip, tput, infocmp, indent, man, netstat
 
 ### 1.4 Filesystem Strategy
-- [ ] Evaluate modern filesystem options (ZFS, Btrfs, ext4)
-- [ ] Choose primary filesystem for Minix (recommend ext4 for simplicity)
+- [x] **VFS cleanup** — удалены lfs, chfs, v7fs, ufs core (T20 ✅)
+- [x] **Оставлены:** ffs, mfs, ext2fs, cd9660, msdosfs, udf, puffs
+- [ ] Evaluate modern filesystem options (ZFS, Btrfs, ext4) — **ext4 выбран** 🟡
 - [ ] Design filesystem integration architecture
-- [ ] Create test environment for filesystem development
-- [ ] Begin ext4 driver research and design
+- [ ] Begin ext4 driver research and design — **следующий шаг** 🟡
 
 ### 1.5 Authentication Modernization
 - [ ] Research Zero Trust authentication models
@@ -172,8 +154,8 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 
 ### 4.1 Legacy Code Removal
 - [x] Deprecate i386 architecture support (All phases complete — i386 removed)
+- [x] **Remove legacy filesystems** — LFS, CHFS, v7fs, UFS core удалены (T20 ✅)
 - [ ] Remove DDEKit-based USB drivers
-- [ ] Remove legacy filesystems (LFS, UFS2, ext2, CHFS)
 - [ ] Remove Kerberos authentication system
 - [ ] Remove legacy package management tools
 
@@ -184,15 +166,14 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 - [ ] Create developer onboarding guides
 - [ ] Update system architecture documentation
 
-### 4.3 GergiOS Rebranding
-> See `planning/10_netbsd_dependency_audit.md` §5 for full rebranding plan
+### 4.3 GergiOS Rebranding — ✅ **Завершено**
 
-- [ ] Update `minix/include/minix/config.h`: OS_NAME → "GergiOS", OS_RELEASE → "1.0.0"
-- [ ] Update `minix/kernel/main.c`: kernel announce() → GergiOS banner
-- [ ] Update `etc/boot.cfg.default`: boot menu → GergiOS
-- [ ] Update `etc/motd`: MOTD → GergiOS docs/community links
-- [ ] Update `minix/servers/mib/`: sysctl strings → GergiOS
-- [ ] Update user-facing man pages and documentation
+- [x] `config.h`: OS_NAME → "GergiOS", OS_RELEASE → "1.0.0", OS_VERSION → "GergiOS 1.0.0 (MINIX 3.4.0)"
+- [x] `kernel/main.c`: announce() → GergiOS 1.0 banner
+- [x] `etc/boot.cfg.default`: "Start GergiOS" / "Start GergiOS (single user mode)"
+- [x] `etc/motd`: "Welcome to GergiOS 1.0!" + gergios.dev
+- [x] Shutdown messages: "GergiOS has halted", "GergiOS will now reset"
+- [ ] User-facing man pages and documentation — осталось
 
 ### 4.3 Testing and Validation
 - [ ] Comprehensive security audit of new components

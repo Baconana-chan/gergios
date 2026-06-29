@@ -102,6 +102,7 @@ C:/Users/VIC/gergios/build-aarch64/minix/lib/libvtreefs/CMakeFiles/list_install_
 C:/Users/VIC/gergios/build-aarch64/minix/lib/libvtreefs/CMakeFiles/install.dir
 C:/Users/VIC/gergios/build-aarch64/minix/lib/libvtreefs/CMakeFiles/install/local.dir
 C:/Users/VIC/gergios/build-aarch64/minix/lib/libvtreefs/CMakeFiles/install/strip.dir
+C:/Users/VIC/gergios/build-aarch64/minix/kernel/CMakeFiles/kernel_objects.dir
 C:/Users/VIC/gergios/build-aarch64/minix/kernel/CMakeFiles/kernel.dir
 C:/Users/VIC/gergios/build-aarch64/minix/kernel/CMakeFiles/kernel-image.dir
 C:/Users/VIC/gergios/build-aarch64/minix/kernel/CMakeFiles/test.dir

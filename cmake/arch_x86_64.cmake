@@ -36,6 +36,10 @@ add_compile_definitions(
     __LP64__
 )
 
+# Disable ACPI for now (no x86_64 acpi.c implementation yet)
+# See arch/i386/acpi.c for reference — needs porting to x86_64.
+set(USE_ACPI OFF CACHE BOOL "ACPI power management support" FORCE)
+
 # x86_64 ABI: the kernel uses the System V AMD64 ABI
 # Key differences from i386:
 #   - 64-bit pointers (8 bytes vs 4)

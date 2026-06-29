@@ -1,0 +1,17 @@
+[package]
+name = "ext4-core"
+version = "0.1.0"
+edition = "2021"
+description = "Pure Rust ext4 filesystem parser — superblock, extent tree, htree, directory"
+
+[lib]
+crate-type = ["lib", "staticlib"]
+
+[dependencies]
+
+[dev-dependencies]
+
+[profile.release]
+lto = true
+opt-level = "z"
+strip = true

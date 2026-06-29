@@ -270,7 +270,7 @@ x86_64 migration completed across 6 phases:
 - [x] PL011 UART MINIX driver (pl011.h/pl011.c) — interrupt-driven RX/TX, termios, TTY hooks (rs_init, rs_interrupt) ✅
 - [x] T2 kernel build — все 28 .o файлов компилируются, 0 ошибок, 33 фикса ✅
 - [x] Сборка kernel — cmake --build kernel (28 .o файлов, 0 ошибок компиляции) ✅
-- [ ] Настройка линкера aarch64-elf для финальной линковки
+- [x] Настройка линкера aarch64-elf/lld для финальной линковки — kernel-aarch64 собран (1.8MB, ELF64) ✅
 - [ ] Port kernel to ARM64 (ядерные исходники созданы, ждём линковку)
 - [ ] Port servers to ARM64
 - [ ] Port drivers to ARM64

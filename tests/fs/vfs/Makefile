@@ -14,19 +14,15 @@ TESTS_C+=	t_rmdirrace
 TESTS_C+=	t_union
 TESTS_C+=	t_unpriv
 TESTS_C+=	t_vfsops
-TESTS_C+=	t_vnops
-
-LDADD+=-lrumpfs_ext2fs						# ext2fs
+TESTS_C+=	t_vnopsLDADD+=-lrumpfs_ext2fs						# ext2fs
 LDADD+=-lrumpfs_ffs						# ffs
-LDADD+=-lrumpfs_lfs						# lfs
 LDADD+=-lrumpfs_msdos						# msdos
 LDADD+=-lrumpfs_syspuffs					# puffs
 LDADD+=-lrumpdev_putter -lrumpdev				#   \ putter
-LDADD+=-lrumpfs_sysvbfs						# sysvbfs
+LDADD+=-lrumpfs_sysvbfs					# sysvbfs
 LDADD+=-lrumpfs_tmpfs						# tmpfs
 LDADD+=-lrumpfs_udf						# udf
 LDADD+=-lrumpfs_union						# union
-LDADD+=-lrumpfs_v7fs						# v7fs
 LDADD+=-lrumpdev_disk -lrumpdev					# disk device
 
 

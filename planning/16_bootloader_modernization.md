@@ -57,7 +57,7 @@ U-Boot ──→ kernel.bin (raw binary) ──→ head.S ──→ kmain
 - **Нужно**: alloc, bootcfg, dev, dev_net, exit, files, getfile, loadfile, netif, open, printf, read, stat, close, errno, globals, minixfs3
 - **Не нужно**: cd9660, dosfs, ext2fs, ffsv1, ffsv2, lfsv1, lfsv2, nfs, ufs, ustarfs, nullfs, bootp, rarp, rpc, loadfile_aout, loadfile_ecoff
 
-**Проблема**: boot library парсит `boot.cfg` — NetBSD-формат, не нужный при переходе на новый загрузчик.
+**Проблема**: boot library парсил `boot.cfg` — NetBSD-формат, не нужный при переходе на новый загрузчик. ✅ `bootcfg.c` удалён в рамках T17/T19.
 
 ### 1.4 Текущие ограничения
 
@@ -68,7 +68,7 @@ U-Boot ──→ kernel.bin (raw binary) ──→ head.S ──→ kmain
 | **GRUB — тупик** | 🟡 Medium | GRUB 2.12+ огромен, сложен в поддержке |
 | **ARM U-Boot** | 🟡 Medium | U-Boot работает, но ARM64 требует UEFI |
 | **Multiboot v1** | 🟡 Medium | Устаревший протокол (1995). Ограничен 32-bit addr в module info |
-| **66 файлов в libsa** | 🟢 Low | 75% кода boot library не используется |
+| **~37 файлов удалено из libsa** | 🟢 Low | 75% кода boot library было не используется — очищено ✅ |
 
 ---
 
@@ -341,28 +341,28 @@ mod12_init → /sbin/init
 **Зависимости**: Phase 2 (UEFI работает через Limine)
 **Статус**: ❌ Не начато
 
-### 4.7 Phase 6: Boot Library Cleanup (2-3 недели)
+### 4.7 Phase 6: Boot Library Cleanup ✅ **Завершено**
 
-**Цель**: Удалить 75% неиспользуемого кода из `sys/lib/libsa/`.
+**Цель**: Удалить 75% неиспользуемого кода из `sys/lib/libsa/`. ✅
 
-- [ ] Определить точный список нужных файлов (см. Section 6)
-- [ ] Удалить неиспользуемые FS (cd9660, dosfs, ext2fs, ffsv1/v2, lfsv1/v2, nfs, ufs, ustarfs)
-- [ ] Удалить неиспользуемые протоколы (bootp, rarp, rpc)
-- [ ] Удалить loadfile_aout, loadfile_ecoff
-- [ ] Удалить `bootcfg.c` (заменён на `limine.conf`)
-- [ ] Протестировать: сборка + загрузка в QEMU
+- [x] Определить точный список нужных файлов (см. Section 6)
+- [x] Удалить неиспользуемые FS (cd9660, dosfs, ext2fs, ffsv1/v2, lfsv1/v2, nfs, ufs, ustarfs)
+- [x] Удалить неиспользуемые протоколы (bootp, rarp, rpc, bootparam, tftp)
+- [x] Удалить loadfile_aout, loadfile_ecoff
+- [x] Удалить `bootcfg.c` (заменён на `limine.conf`)
+- [x] Протестировать: x86_64 + aarch64 kernel build — 0 ошибок ✅
 
-**Зависимости**: Phase 1 (multiboot всё ещё нужен пока)
-**Статус**: ❌ Не начато
+**Удалено**: ~37 файлов. **Оставлено**: core-инфраструктура + minixfs3 + loadfile_elf64 + ethernet/ARP/IP/UDP стек.
 
 ---
 
 ## 5. Timeline
 
 ```
-Q4 2026: Phase 0 ✅ (прототип) + Phase 1 🟡 + Phase 2 🟡 (UEFI код готов)
+Q3-Q4 2026: Phase 0 ✅ + Phase 1 🟡 + Phase 2 🟡 (UEFI код готов)
+Q4 2026: Phase 6 (libsa cleanup) ✅ — завершено раньше плана
 Q1 2027: Phase 3 🟡 (Secure Boot код готов) + Phase 4 🟡 (ARM64 boot код готов)
-Q2 2027: Phase 5 (GRUB removal) + Phase 6 (libsa cleanup)
+Q2 2027: Phase 5 (GRUB removal)
 ```
 
 **Зависимость от ARM64 kernel**: Phase 4 не может начаться, пока нет работающего
@@ -490,36 +490,23 @@ pre_init.c:
 +     CMDLINE=rootdevname=c0d0p0 bootopts=-s
 ```
 
-### 6.5 Очистка boot library (`sys/lib/libsa/`)
+### 6.5 Очистка boot library (`sys/lib/libsa/`) ✅ **Завершено в T17/T19**
 
-**Оставить (~20 файлов):**
-- `alloc.c` — аллокатор
-- `bootcfg.c` (пока не Phase 6)
-- `dev.c` — доступ к устройствам
-- `dev_net.c` — сетевой boot
-- `errno.c`, `exit.c`, `globals.c`
-- `files.c`, `fstat.c`, `getfile.c`
-- `loadfile.c`, `loadfile_elf64.c`
-- `minixfs3.c`, `minixfs3.h`
-- `net.c`, `netif.c`, `ether.c`, `arp.c`, `ip.c`, `udp.c`, `tftp.c`
-- `open.c`, `read.c`, `close.c`, `lseek.c`, `stat.c`
-- `printf.c`, `snprintf.c`, `strerror.c`
-- `byteorder.c`, `panic.c`, `twiddle.c`
+**Оставлено (~45 файлов):**
+- Core: alloc, atoi, errno, exit, files, gets, globals, panic, printf, qsort, snprintf, strerror, subr_prf, twiddle, checkpasswd, fnmatch
+- IO: closeall, close, dev, disklabel, dkcksum, ioctl, stat, fstat, lseek, open, read, write
+- FS: minixfs3, minixfs3.h
+- Loadfile: loadfile, loadfile_elf32, loadfile_elf64, lookup_elf32, lookup_elf64, loadfile.h
+- Network: globals, ether, ether_sprintf, arp, net, netif, ip, ip_cksum, udp, + headers (net.h, netif.h, iodesc.h, dev_net.h, byteorder.h, stand.h, saerrno.h, saioctl.h)
 
-**Удалить (~46 файлов):**
-- `cd9660.c` — CD-ROM FS
-- `dosfs.c` — FAT
-- `ext2fs.c` — ext2
-- `ffsv1.c`, `ffsv2.c` — BSD FFS (не MINIX)
-- `lfsv1.c`, `lfsv2.c` — Log-structured FS
-- `nfs.c`, `rpc.c` — Network FS
-- `ufs.c` — UFS
-- `ustarfs.c` — tar
-- `nullfs.c` — null FS
-- `bootp.c` — DHCP/BOOTP для загрузки
-- `rarp.c` — Reverse ARP
-- `loadfile_aout.c`, `loadfile_ecoff.c` — a.out/ECOFF бинарники
-- И другие...
+**Удалено (~37 файлов):**
+- FS: cd9660.*, dosfs.*, ext2fs.*, ffsv1.c, ffsv2.c, lfsv1.c, lfsv2.c, lfs.h, nfs.*, nfsv2.h, ufs.*, ustarfs.*, nullfs.c
+- Протоколы: bootp.*, bootparam.*, rarp.c, rpc.*, rpcv2.h, tftp.*
+- Форматы: loadfile_aout.c, loadfile_ecoff.c
+- Другое: bootcfg.*, cread.c, dev_net.c, ls.*, md5c.c, xlat_mbr_fstype.c
+
+**Makefile**: обновлён — убраны все ссылки на удалённые файлы, убран `-DCOMPAT_UFS`.
+**Проверка**: x86_64 kernel (1.9MB) + aarch64 kernel (1.8MB) — 0 ошибок сборки ✅
 
 ---
 
@@ -586,7 +573,7 @@ RAM-image boot использует `bootramdisk=1`. Переход на Limine:
 4. **Phase 3**: `sbverify --cert MOK.crt limine.efi` passes
 5. **Phase 4**: Boot infrastructure для ARM64 — ESP + BOOTAA64.EFI + limine.conf (kernel port в progress)
 6. **Phase 5**: GRUB полностью удалён из дерева
-7. **Phase 6**: `sys/lib/libsa/` содержит только нужные файлы
+7. **Phase 6**: `sys/lib/libsa/` содержит только нужные файлы ✅
 
 ---
 
@@ -596,7 +583,7 @@ RAM-image boot использует `bootramdisk=1`. Переход на Limine:
 - `planning/04_target_architecture_support.md` — x86_64 + ARM64 target specs
 - `planning/07_x86_64_migration_plan.md` — x86_64 kernel port
 - `planning/08_arm64_migration_plan.md` — ARM64 kernel port
-- `planning/10_netbsd_dependency_audit.md` §3.8 — Boot library cleanup
+- `planning/10_netbsd_dependency_audit.md` §3.7 — Boot library cleanup ✅
 - `planning/14_phase6_cicd_sanitizers.md` — QEMU test infrastructure
 - `minix/kernel/arch/x86_64/head.S` — Current multiboot entry
 - `releasetools/image.functions` — GRUB EFI code

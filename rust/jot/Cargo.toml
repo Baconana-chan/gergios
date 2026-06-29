@@ -1,0 +1,7 @@
+[package]
+name = "jot"
+version = "1.0.0"
+edition = "2024"
+description = "Rust port of the MINIX jot utility — print sequential or random data"
+
+[dependencies]

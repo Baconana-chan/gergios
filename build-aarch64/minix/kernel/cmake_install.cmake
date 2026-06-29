@@ -46,12 +46,6 @@ if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT
   if(CMAKE_ERROR_ON_ABSOLUTE_INSTALL_DESTINATION)
     message(FATAL_ERROR "ABSOLUTE path INSTALL DESTINATION forbidden (by caller): ${CMAKE_ABSOLUTE_DESTINATION_FILES}")
   endif()
-  file(INSTALL DESTINATION "/usr/sbin" TYPE EXECUTABLE FILES "C:/Users/VIC/gergios/build-aarch64/minix/kernel/kernel")
-  if(EXISTS "$ENV{DESTDIR}/usr/sbin/kernel" AND
-     NOT IS_SYMLINK "$ENV{DESTDIR}/usr/sbin/kernel")
-    if(CMAKE_INSTALL_DO_STRIP)
-      execute_process(COMMAND "C:/Program Files/LLVM/bin/llvm-strip.exe" "$ENV{DESTDIR}/usr/sbin/kernel")
-    endif()
-  endif()
+  file(INSTALL DESTINATION "/usr/sbin" TYPE FILE RENAME "kernel" FILES "C:/Users/VIC/gergios/build-aarch64/kernel-aarch64")
 endif()
 

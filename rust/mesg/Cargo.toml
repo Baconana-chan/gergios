@@ -1,0 +1,4 @@
+[package]
+name = "mesg"
+version = "1.0.0"
+edition = "2021"

@@ -3,6 +3,6 @@
 #__MINIX: adosfs efs filecorefs hfs nilfs ntfs ptyfs \
 #	  smbfs sysvbfs tmpfs union
 SUBDIR=	cd9660 msdosfs \
-	puffs udf v7fs
+	puffs udf
 
 .include <bsd.kinc.mk>

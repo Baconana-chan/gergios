@@ -1,0 +1,4 @@
+[package]
+name = "finger"
+version = "1.0.0"
+edition = "2021"

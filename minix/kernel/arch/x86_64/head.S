@@ -82,8 +82,13 @@ ENTRY(MINIX)
 	mov	%ax, %fs
 	mov	%ax, %gs
 
-	/* Initialize KERNEL_GS_BASE for SWAPGS-based syscall entry */
-	lea	load_stack_start(%rip), %rcx
+	/* Initialize KERNEL_GS_BASE for SWAPGS-based syscall entry.
+	 * Use movabs for absolute addressing — load_stack_start is in
+	 * the paged section (high VMA) but we are running at the low
+	 * VMA (unpaged section) during early boot. PC-relative (lea %rip)
+	 * would compute an out-of-range offset because the linker
+	 * calculates based on VMA, which differs by 128 TB. */
+	movabs	$load_stack_start, %rcx
 	subq	$64, %rcx
 	movq	%rcx, (%rcx)
 	movq	%rcx, %rax
@@ -92,14 +97,21 @@ ENTRY(MINIX)
 	mov	$0xC0000102, %ecx	/* MSR IA32_KERNEL_GS_BASE */
 	wrmsr
 
-	/* Call limine_pre_init() — reads Limine responses, sets up pagetables */
-	call	limine_pre_init
+	/* Call limine_pre_init() — reads Limine responses, sets up pagetables.
+	 * Use indirect call via register (movabs + call) because
+	 * limine_pre_init is at the HIGH VMA while we are executing
+	 * at the LOW VMA (unpaged section). A PC-relative call
+	 * would compute a 128TB offset that doesn't fit in 32 bits. */
+	movabs	$limine_pre_init, %rax
+	call	*%rax
 
-	/* Switch to high-mapped stack and jump to kmain */
+	/* Switch to high-mapped stack and jump to kmain.
+	 * kmain is at the HIGH VMA — use indirect jump. */
 	movabs	$k_initial_stktop, %rsp
 	push	$0
 	mov	%rax, %rdi
-	call	kmain
+	movabs	$kmain, %rax
+	call	*%rax
 #else
 	/* USE_LIMINE not set — this entry point should never be reached
 	 * because the multiboot header's HAS_ADDR+mh_entry_addr directs
@@ -328,7 +340,12 @@ long_mode_entry:
 	popf
 	
 	/* Initialize KERNEL_GS_BASE for SWAPGS-based syscall entry.
-	 * Use the identity-mapped load_stack area for per-CPU data.
+	 * Use movabs for absolute addressing — load_stack_start is in
+	 * the paged section (high VMA) but we are running at the low
+	 * VMA (unpaged section) during early boot. PC-relative (lea %rip)
+	 * would compute an out-of-range offset because the linker
+	 * calculates based on VMA, which differs by 128 TB.
+	 *
 	 * Per-CPU data layout:
 	 *   [offset 0]: kernel stack pointer (RSP0)
 	 *
@@ -341,7 +358,7 @@ long_mode_entry:
 	 *   Entry: GS.base=0 ↔ KERNEL_GS_BASE=per-CPU
 	 *   After: GS.base=per-CPU (kernel), KERNEL_GS_BASE=0
 	 */
-	lea	load_stack_start(%rip), %rcx	/* identity-mapped address */
+	movabs	$load_stack_start, %rcx
 	subq	$64, %rcx	/* per-CPU data at top-64 */
 	/* Store kernel stack pointer (the top of per-CPU area) */
 	movq	%rcx, (%rcx)
@@ -356,17 +373,18 @@ long_mode_entry:
 	
 	/* Push multiboot info for pre_init */
 	mov	%rbx, %rdi		/* multiboot info struct */
-	mov	%rax, %rsi		/* multiboot magic (0x2BADB002) */
-	
-	call	pre_init
-	
+	mov	%rax, %rsi		/* multiboot magic (0x2BADB002) */	/* Call pre_init via indirect call (pre_init is at HIGH VMA). */
+	movabs	$pre_init, %rax
+	call	*%rax
+
 	/* pre_init returns the boot info pointer in %rax.
 	 * Switch to high-mapped stack and jump to kmain.
-	 */
+	 * kmain is at HIGH VMA — use indirect jump. */
 	movabs	$k_initial_stktop, %rsp
 	push	$0
 	mov	%rax, %rdi
-	call	kmain
+	movabs	$kmain, %rax
+	call	*%rax
 	
 	/* Not reached */
 hang:

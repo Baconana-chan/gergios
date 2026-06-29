@@ -63,7 +63,7 @@ UpdateOptions:
 UpdateType: 
 
 # Compiler info
-Compiler: 
+Compiler: C:/Program Files/LLVM/bin/clang++.exe
 CompilerVersion: 
 
 # Dynamic analysis (MemCheck)

@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <minix/u64.h>
+#include <minix/type.h>
 #include "direct_utils.h"
 
 /* =========================================================================
@@ -442,4 +443,152 @@ char *strcat(char *dst, const char *src)
 	while ((*d++ = *src++) != '\0')
 		;
 	return dst;
+}
+
+/* =========================================================================
+ * cpuavg_init — Initialize per-process CPU average
+ *
+ * Called by do_fork.c when a new process is created.
+ * Zeros out the cpuavg structure.
+ * ========================================================================= */
+
+void cpuavg_init(struct cpuavg *ca)
+{
+	ca->ca_base = 0;
+	ca->ca_run = 0;
+	ca->ca_last = 0;
+	ca->ca_avg = 0;
+}
+
+/* =========================================================================
+ * cpuavg_increment — Account a clock tick for a process
+ *
+ * Called on each clock tick that is charged to a process.
+ * ========================================================================= */
+
+void cpuavg_increment(struct cpuavg *ca, clock_t now, clock_t hz)
+{
+	if (ca->ca_base == 0)
+		ca->ca_base = now;
+	ca->ca_run++;
+}
+
+/* =========================================================================
+ * get_randomness — Accumulate entropy from interrupt timing
+ *
+ * Uses CNTPCT_EL0 (ARM Generic Timer) to add entropy to the kernel pool.
+ * ========================================================================= */
+
+void get_randomness(struct k_randomness *rand, int source)
+{
+	u64_t tsc;
+
+	source %= RANDOM_SOURCES;
+	if (rand->bin[source].r_size >= RANDOM_ELEMENTS)
+		return;
+
+	read_tsc_64(&tsc);
+	rand->bin[source].r_buf[rand->bin[source].r_next] = (rand_t)(tsc & 0xFFFF);
+	if (rand->bin[source].r_size < RANDOM_ELEMENTS)
+		rand->bin[source].r_size++;
+	rand->bin[source].r_next = (rand->bin[source].r_next + 1) % RANDOM_ELEMENTS;
+}
+
+/* =========================================================================
+ * printf — Formatted output to console
+ *
+ * Wrapper around vprintf. Called by interrupt.c, proc.c, and other
+ * shared kernel code for diagnostic output.
+ * ========================================================================= */
+
+int printf(const char *fmt, ...)
+{
+	va_list ap;
+	int n;
+
+	va_start(ap, fmt);
+	n = vprintf(fmt, ap);
+	va_end(ap);
+
+	return n;
+}
+
+/* =========================================================================
+ * __assert13 — Assertion failure handler
+ *
+ * Called when an assert() macro fires. Prints diagnostic info
+ * via direct_print_char and halts. Matches the MINIX libc ABI.
+ * ========================================================================= */
+
+void __assert13(const char *file, int line, const char *func, const char *expr)
+{
+	const char *msg = "assertion failed: ";
+	const char *p;
+
+	/* Print "assertion failed: <expr> <file>:<line> <func>\n" */
+	for (p = msg; *p; p++) direct_print_char(*p);
+	for (p = expr; *p; p++) direct_print_char(*p);
+	direct_print_char(' ');
+	for (p = file; *p; p++) direct_print_char(*p);
+	direct_print_char(':');
+	{
+		char ln[12];
+		int i, val = line;
+		for (i = 11; i >= 0; i--) {
+			ln[i] = '0' + (val % 10);
+			val /= 10;
+			if (val == 0) {
+				int j;
+				for (j = i; j <= 11; j++)
+					direct_print_char(ln[j]);
+				break;
+			}
+		}
+	}
+	direct_print_char(' ');
+	for (p = func; *p; p++) direct_print_char(*p);
+	direct_print_char('\n');
+
+	/* Halt */
+	for (;;)
+		__asm__ volatile("wfi");
+}
+
+/* =========================================================================
+ * util_stacktrace — Print kernel stack trace
+ *
+ * Walks the call stack using the frame pointer (x29) chain
+ * and prints return addresses via direct_print_char.
+ * ========================================================================= */
+
+void util_stacktrace(void)
+{
+#if USE_SYSDEBUG
+	unsigned long bp, pc, hbp;
+
+	bp = get_bp();
+	while (bp) {
+		pc = ((unsigned long *)bp)[1];
+		hbp = ((unsigned long *)bp)[0];
+		/* Print hex address */
+		{
+			char buf[20];
+			int i;
+			buf[0] = '0';
+			buf[1] = 'x';
+			for (i = 0; i < 16; i++) {
+				int nibble = (int)((pc >> (60 - i*4)) & 0xF);
+				buf[2 + i] = (nibble < 10) ? ('0' + nibble) : ('a' + nibble - 10);
+			}
+			buf[18] = ' ';
+			buf[19] = '\0';
+			for (i = 0; buf[i]; i++)
+				direct_print_char(buf[i]);
+		}
+		if (hbp != 0 && hbp <= bp)
+			break;
+		bp = hbp;
+	}
+	direct_print_char('\n');
+#endif
 }

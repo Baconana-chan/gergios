@@ -1842,11 +1842,19 @@ build minix/lib/libddekit/install/strip: phony minix/lib/libddekit/CMakeFiles/in
 
 build cmake_object_order_depends_target_exec: phony || minix/lib/libexec/CMakeFiles/exec.dir
 
-build minix/lib/libexec/CMakeFiles/exec.dir/libexec_stub.c.obj: C_COMPILER__exec_unscanned_Debug C$:/Users/VIC/gergios/build-aarch64/minix/lib/libexec/libexec_stub.c || cmake_object_order_depends_target_exec
+build minix/lib/libexec/CMakeFiles/exec.dir/exec_elf.c.obj: C_COMPILER__exec_unscanned_Debug C$:/Users/VIC/gergios/minix/lib/libexec/exec_elf.c || cmake_object_order_depends_target_exec
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__minix
-  DEP_FILE = minix\lib\libexec\CMakeFiles\exec.dir\libexec_stub.c.obj.d
+  DEP_FILE = minix\lib\libexec\CMakeFiles\exec.dir\exec_elf.c.obj.d
   FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
+  OBJECT_DIR = minix\lib\libexec\CMakeFiles\exec.dir
+  OBJECT_FILE_DIR = minix\lib\libexec\CMakeFiles\exec.dir
+
+build minix/lib/libexec/CMakeFiles/exec.dir/exec_general.c.obj: C_COMPILER__exec_unscanned_Debug C$:/Users/VIC/gergios/minix/lib/libexec/exec_general.c || cmake_object_order_depends_target_exec
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__minix
+  DEP_FILE = minix\lib\libexec\CMakeFiles\exec.dir\exec_general.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
   OBJECT_DIR = minix\lib\libexec\CMakeFiles\exec.dir
   OBJECT_FILE_DIR = minix\lib\libexec\CMakeFiles\exec.dir
 
@@ -1858,7 +1866,7 @@ build minix/lib/libexec/CMakeFiles/exec.dir/libexec_stub.c.obj: C_COMPILER__exec
 #############################################
 # Link the static library minix\lib\libexec\libexec.a
 
-build minix/lib/libexec/libexec.a: C_STATIC_LIBRARY_LINKER__exec_Debug minix/lib/libexec/CMakeFiles/exec.dir/libexec_stub.c.obj
+build minix/lib/libexec/libexec.a: C_STATIC_LIBRARY_LINKER__exec_Debug minix/lib/libexec/CMakeFiles/exec.dir/exec_elf.c.obj minix/lib/libexec/CMakeFiles/exec.dir/exec_general.c.obj
   LANGUAGE_COMPILE_FLAGS = -g
   OBJECT_DIR = minix\lib\libexec\CMakeFiles\exec.dir
   POST_BUILD = cd .
@@ -2430,559 +2438,554 @@ build minix/lib/libvtreefs/install/strip: phony minix/lib/libvtreefs/CMakeFiles/
 # =============================================================================
 
 # =============================================================================
-# Object build statements for EXECUTABLE target kernel
+# Object build statements for OBJECT_LIBRARY target kernel_objects
 
 
 #############################################
-# Order-only phony target for kernel
+# Order-only phony target for kernel_objects
 
-build cmake_object_order_depends_target_kernel: phony || cmake_object_order_depends_target_exec cmake_object_order_depends_target_sys cmake_object_order_depends_target_timers
+build cmake_object_order_depends_target_kernel_objects: phony || minix/kernel/CMakeFiles/kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/clock.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/clock.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/clock.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/clock.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\clock.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\clock.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/cpulocals.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/cpulocals.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/cpulocals.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/cpulocals.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\cpulocals.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\cpulocals.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/interrupt.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/interrupt.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/interrupt.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/interrupt.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\interrupt.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\interrupt.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/main.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/main.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/main.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/main.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\main.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\main.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/proc.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/proc.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/proc.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/proc.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\proc.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\proc.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/system.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/system.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/table.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/table.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/table.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/table.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\table.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\table.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/utility.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/utility.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/utility.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/utility.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\utility.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\utility.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/usermapped_data.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/usermapped_data.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/usermapped_data.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/usermapped_data.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\usermapped_data.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\usermapped_data.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/debug.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/debug.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/debug.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/debug.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\debug.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\debug.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/profile.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/profile.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/profile.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/profile.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\profile.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\profile.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_fork.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_fork.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_fork.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_fork.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_fork.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_fork.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_exec.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_exec.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_exec.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_exec.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_exec.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_exec.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_clear.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_clear.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_clear.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_clear.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_clear.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_clear.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_exit.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_exit.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_exit.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_exit.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_exit.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_exit.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_trace.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_trace.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_trace.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_trace.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_trace.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_trace.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_runctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_runctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_runctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_runctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_runctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_runctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_update.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_update.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_update.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_update.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_update.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_update.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_times.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_times.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_times.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_times.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_times.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_times.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_setalarm.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_setalarm.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_setalarm.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_setalarm.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_setalarm.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_setalarm.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_stime.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_stime.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_stime.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_stime.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_stime.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_stime.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_settime.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_settime.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_settime.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_settime.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_settime.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_settime.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_vtimer.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vtimer.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_vtimer.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vtimer.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vtimer.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_vtimer.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_irqctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_irqctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_irqctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_irqctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_irqctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_irqctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_copy.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_copy.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_copy.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_copy.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_copy.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_copy.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_umap.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_umap.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_umap.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_umap.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_umap.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_umap.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_umap_remote.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_umap_remote.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_umap_remote.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_umap_remote.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_umap_remote.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_umap_remote.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_vumap.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vumap.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_vumap.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vumap.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vumap.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_vumap.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_memset.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_memset.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_memset.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_memset.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_memset.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_memset.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_setgrant.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_setgrant.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_setgrant.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_setgrant.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_setgrant.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_setgrant.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_privctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_privctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_privctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_privctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_privctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_privctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_safecopy.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_safecopy.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_safecopy.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_safecopy.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_safecopy.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_safecopy.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_safememset.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_safememset.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_safememset.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_safememset.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_safememset.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_safememset.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_diagctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_diagctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_diagctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_diagctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_diagctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_diagctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_getksig.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_getksig.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_getksig.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_getksig.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_getksig.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_getksig.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_endksig.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_endksig.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_endksig.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_endksig.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_endksig.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_endksig.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_kill.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_kill.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_kill.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_kill.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_kill.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_kill.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_sigsend.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sigsend.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_sigsend.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sigsend.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sigsend.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_sigsend.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_sigreturn.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sigreturn.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_sigreturn.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sigreturn.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sigreturn.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_sigreturn.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_abort.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_abort.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_abort.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_abort.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_abort.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_abort.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_getinfo.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_getinfo.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_getinfo.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_getinfo.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_getinfo.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_getinfo.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_vmctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vmctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_vmctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vmctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_vmctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_vmctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_mcontext.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_mcontext.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_mcontext.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_mcontext.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_mcontext.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_mcontext.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_schedule.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_schedule.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_schedule.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_schedule.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_schedule.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_schedule.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_schedctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_schedctl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_schedctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_schedctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_schedctl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_schedctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_statectl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_statectl.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_statectl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_statectl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_statectl.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_statectl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/system/do_sprofile.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sprofile.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\system\do_sprofile.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\system
+build minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sprofile.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/system/do_sprofile.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\system\do_sprofile.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\system
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/head.S.obj: ASM_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/head.S || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\head.S.obj.d
-  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -D__ASSEMBLY__ -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/head.S.obj: ASM_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/head.S || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\head.S.obj.d
+  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -D__ASSEMBLY__ -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/vectors.S.obj: ASM_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/vectors.S || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\vectors.S.obj.d
-  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -D__ASSEMBLY__ -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/vectors.S.obj: ASM_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/vectors.S || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\vectors.S.obj.d
+  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -D__ASSEMBLY__ -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/mpx.S.obj: ASM_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/mpx.S || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\mpx.S.obj.d
-  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -D__ASSEMBLY__ -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/mpx.S.obj: ASM_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/mpx.S || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\mpx.S.obj.d
+  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -D__ASSEMBLY__ -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/klib.S.obj: ASM_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/klib.S || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\klib.S.obj.d
-  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -D__ASSEMBLY__ -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/klib.S.obj: ASM_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/klib.S || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\klib.S.obj.d
+  FLAGS = -g -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -D__ASSEMBLY__ -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/exception.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/exception.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\exception.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/exception.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/exception.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\exception.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/hw_intr.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/hw_intr.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\hw_intr.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/hw_intr.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/hw_intr.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\hw_intr.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_timer.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_timer.c || cmake_object_order_depends_target_kernel
-  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\arch_timer.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_timer.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_timer.c || cmake_object_order_depends_target_kernel_objects
+  DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\arch_timer.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_reset.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_reset.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_reset.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_reset.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\arch_reset.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\arch_reset.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/pg_utils.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/pg_utils.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/pg_utils.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/pg_utils.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\pg_utils.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\pg_utils.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_system.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_system.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_system.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_system.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\arch_system.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\arch_system.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_do_vmctl.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_do_vmctl.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_do_vmctl.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/arch_do_vmctl.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\arch_do_vmctl.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\arch_do_vmctl.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/startup.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/startup.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/startup.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/startup.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\startup.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\startup.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/pre_init.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/pre_init.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/pre_init.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/pre_init.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\pre_init.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\pre_init.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/fdt.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/fdt.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/fdt.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/fdt.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\fdt.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\fdt.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/limine.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/limine.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/limine.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/limine.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\limine.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\limine.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/memory.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/memory.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/memory.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/memory.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\memory.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\memory.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/protect.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/protect.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/protect.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/protect.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\protect.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\protect.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/direct_tty_utils.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/direct_tty_utils.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/direct_tty_utils.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/direct_tty_utils.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\direct_tty_utils.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\direct_tty_utils.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-build minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/stubs.c.obj: C_COMPILER__kernel_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/stubs.c || cmake_object_order_depends_target_kernel
+build minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/stubs.c.obj: C_COMPILER__kernel_objects_unscanned_Debug C$:/Users/VIC/gergios/minix/kernel/arch/aarch64/stubs.c || cmake_object_order_depends_target_kernel_objects
   DEFINES = -DUSE_SYSDEBUG=1 -DUSE_UPDATE=1 -D_DEBUG -D_LP64 -D_MINIX_SYSTEM=1 -D__ARM_ARCH_8__ -D__LP64__ -D__MINIX__ -D__aarch64__ -D__kernel__ -D__minix
-  DEP_FILE = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64\stubs.c.obj.d
-  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -mcmodel=large
-  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel.dir\arch\aarch64
+  DEP_FILE = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64\stubs.c.obj.d
+  FLAGS = -g -std=gnu17 -march=armv8-a -mstrict-align -fno-stack-protector -fno-builtin -fno-asynchronous-unwind-tables -mcmodel=large
+  INCLUDES = -IC:/Users/VIC/gergios/include -IC:/Users/VIC/gergios/minix/include -IC:/Users/VIC/gergios/sys -IC:/Users/VIC/gergios/sys/arch/aarch64/include -IC:/Users/VIC/gergios/minix -IC:/Users/VIC/gergios/build-aarch64/minix/kernel -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64 -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/include -IC:/Users/VIC/gergios/minix/kernel/arch/aarch64/bsp/include -IC:/Users/VIC/gergios/minix/include/arch/aarch64/include -IC:/Users/VIC/gergios/minix/lib/libexec -IC:/Users/VIC/gergios/minix/kernel
+  OBJECT_DIR = minix\kernel\CMakeFiles\kernel_objects.dir
+  OBJECT_FILE_DIR = minix\kernel\CMakeFiles\kernel_objects.dir\arch\aarch64
 
-
-# =============================================================================
-# Link build statements for EXECUTABLE target kernel
 
 
 #############################################
-# Link the executable minix\kernel\kernel
+# Object library kernel_objects
 
-build minix/kernel/kernel: C_EXECUTABLE_LINKER__kernel_Debug minix/kernel/CMakeFiles/kernel.dir/clock.c.obj minix/kernel/CMakeFiles/kernel.dir/cpulocals.c.obj minix/kernel/CMakeFiles/kernel.dir/interrupt.c.obj minix/kernel/CMakeFiles/kernel.dir/main.c.obj minix/kernel/CMakeFiles/kernel.dir/proc.c.obj minix/kernel/CMakeFiles/kernel.dir/system.c.obj minix/kernel/CMakeFiles/kernel.dir/table.c.obj minix/kernel/CMakeFiles/kernel.dir/utility.c.obj minix/kernel/CMakeFiles/kernel.dir/usermapped_data.c.obj minix/kernel/CMakeFiles/kernel.dir/debug.c.obj minix/kernel/CMakeFiles/kernel.dir/profile.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_fork.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_exec.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_clear.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_exit.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_trace.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_runctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_update.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_times.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_setalarm.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_stime.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_settime.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_vtimer.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_irqctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_copy.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_umap.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_umap_remote.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_vumap.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_memset.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_setgrant.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_privctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_safecopy.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_safememset.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_diagctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_getksig.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_endksig.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_kill.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_sigsend.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_sigreturn.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_abort.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_getinfo.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_vmctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_mcontext.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_schedule.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_schedctl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_statectl.c.obj minix/kernel/CMakeFiles/kernel.dir/system/do_sprofile.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/head.S.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/vectors.S.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/mpx.S.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/klib.S.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/exception.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/hw_intr.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_timer.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_reset.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/pg_utils.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_system.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/arch_do_vmctl.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/startup.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/pre_init.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/fdt.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/limine.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/memory.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/protect.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/direct_tty_utils.c.obj minix/kernel/CMakeFiles/kernel.dir/arch/aarch64/stubs.c.obj | minix/lib/libsys/libsys.a minix/lib/libtimers/libtimers.a minix/lib/libsys/libsys.a minix/lib/libexec/libexec.a || minix/lib/libexec/libexec.a minix/lib/libsys/libsys.a minix/lib/libtimers/libtimers.a
-  FLAGS = -g
-  LINK_FLAGS = -static    -nostdlib -T C:/Users/VIC/gergios/minix/kernel/arch/aarch64/kernel.lds -L/usr/lib
-  LINK_LIBRARIES = minix/lib/libsys/libsys.a  minix/lib/libtimers/libtimers.a  minix/lib/libsys/libsys.a  minix/lib/libexec/libexec.a
-  OBJECT_DIR = minix\kernel\CMakeFiles\kernel.dir
-  POST_BUILD = cd .
-  PRE_LINK = cd .
-  TARGET_FILE = minix\kernel\kernel
-  TARGET_PDB = kernel.dbg
+build minix/kernel/kernel_objects: phony minix/kernel/CMakeFiles/kernel_objects.dir/clock.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/cpulocals.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/interrupt.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/main.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/proc.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/table.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/utility.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/usermapped_data.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/debug.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/profile.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_fork.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_exec.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_clear.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_exit.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_trace.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_runctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_update.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_times.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_setalarm.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_stime.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_settime.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vtimer.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_irqctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_copy.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_umap.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_umap_remote.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vumap.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_memset.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_setgrant.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_privctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_safecopy.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_safememset.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_diagctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_getksig.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_endksig.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_kill.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sigsend.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sigreturn.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_abort.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_getinfo.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_vmctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_mcontext.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_schedule.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_schedctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_statectl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/system/do_sprofile.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/head.S.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/vectors.S.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/mpx.S.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/klib.S.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/exception.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/hw_intr.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_timer.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_reset.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/pg_utils.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_system.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/arch_do_vmctl.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/startup.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/pre_init.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/fdt.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/limine.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/memory.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/protect.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/direct_tty_utils.c.obj minix/kernel/CMakeFiles/kernel_objects.dir/arch/aarch64/stubs.c.obj
+
+
+#############################################
+# Utility command for kernel
+
+build minix/kernel/kernel: phony minix/kernel/CMakeFiles/kernel kernel-aarch64 minix/kernel/kernel_objects minix/lib/libtimers/libtimers.a
 
 
 #############################################
@@ -3070,10 +3073,25 @@ build minix/kernel/install/strip: phony minix/kernel/CMakeFiles/install/strip.ut
 
 
 #############################################
+# Phony custom command for minix\kernel\CMakeFiles\kernel
+
+build minix/kernel/CMakeFiles/kernel | ${cmake_ninja_workdir}minix/kernel/CMakeFiles/kernel: phony kernel-aarch64 || minix/kernel/kernel_objects minix/lib/libtimers/libtimers.a
+
+
+#############################################
+# Custom command for kernel-aarch64
+
+build kernel-aarch64 | ${cmake_ninja_workdir}kernel-aarch64: CUSTOM_COMMAND minix/lib/libtimers/libtimers.a || minix/kernel/kernel_objects minix/lib/libtimers/libtimers.a
+  COMMAND = minix\kernel\CMakeFiles\kernel-aarch64-cab1ce6.bat 38389b71be274e2a
+  DESC = Linking kernel with C:/PROGRA~1/LLVM/bin/ld.lld
+  restat = 1
+
+
+#############################################
 # Custom command for minix\kernel\CMakeFiles\kernel-image
 
-build minix/kernel/CMakeFiles/kernel-image | ${cmake_ninja_workdir}minix/kernel/CMakeFiles/kernel-image: CUSTOM_COMMAND minix/kernel/kernel || minix/kernel/kernel minix/lib/libexec/libexec.a minix/lib/libsys/libsys.a minix/lib/libtimers/libtimers.a
-  COMMAND = cmd.exe /C "cd /D C:\Users\VIC\gergios\build-aarch64\minix\kernel && "C:\Program Files\CMake\bin\cmake.exe" -E copy C:/Users/VIC/gergios/build-aarch64/minix/kernel/kernel C:/Users/VIC/gergios/build-aarch64/kernel-aarch64.bin"
+build minix/kernel/CMakeFiles/kernel-image | ${cmake_ninja_workdir}minix/kernel/CMakeFiles/kernel-image: CUSTOM_COMMAND || minix/kernel/kernel minix/kernel/kernel_objects minix/lib/libtimers/libtimers.a
+  COMMAND = cmd.exe /C "cd /D C:\Users\VIC\gergios\build-aarch64\minix\kernel && "C:\Program Files\CMake\bin\cmake.exe" -E copy C:/Users/VIC/gergios/build-aarch64/kernel-aarch64 C:/Users/VIC/gergios/build-aarch64/kernel-aarch64.bin"
   DESC = Copying kernel binary to build directory
 
 # =============================================================================
@@ -6524,6 +6542,8 @@ build kernel: phony minix/kernel/kernel
 
 build kernel-image: phony minix/kernel/kernel-image
 
+build kernel_objects: phony minix/kernel/kernel_objects
+
 build libbdev.a: phony minix/lib/libbdev/libbdev.a
 
 build libblockdriver.a: phony minix/lib/libblockdriver/libblockdriver.a
@@ -6641,7 +6661,7 @@ build minix/drivers/tty/tty/all: phony minix/drivers/tty/tty/tty
 #############################################
 # Folder: C:/Users/VIC/gergios/build-aarch64/minix/kernel
 
-build minix/kernel/all: phony minix/kernel/kernel minix/kernel/kernel-image
+build minix/kernel/all: phony minix/kernel/kernel_objects minix/kernel/kernel minix/kernel/kernel-image
 
 # =============================================================================
 

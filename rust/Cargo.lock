@@ -37,6 +37,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "banner"
+version = "1.0.0"
+
+[[package]]
 name = "basename"
 version = "1.0.0"
 
@@ -45,6 +49,14 @@ name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
+
+[[package]]
+name = "cal"
+version = "1.0.0"
+
+[[package]]
+name = "calendar"
+version = "1.0.0"
 
 [[package]]
 name = "cat"
@@ -95,6 +107,22 @@ name = "cmp"
 version = "1.0.0"
 
 [[package]]
+name = "col"
+version = "1.0.0"
+
+[[package]]
+name = "colcrt"
+version = "1.0.0"
+
+[[package]]
+name = "colrm"
+version = "1.0.0"
+
+[[package]]
+name = "column"
+version = "1.0.0"
+
+[[package]]
 name = "comm"
 version = "1.0.0"
 
@@ -116,6 +144,14 @@ checksum = "9481c1c90cbf2ac953f07c8d4a58aa3945c425b7185c9154d67a65e4230da511"
 dependencies = [
  "cfg-if",
 ]
+
+[[package]]
+name = "csplit"
+version = "1.0.0"
+
+[[package]]
+name = "ctags"
+version = "1.0.0"
 
 [[package]]
 name = "cut"
@@ -164,6 +200,10 @@ name = "expand"
 version = "1.0.0"
 
 [[package]]
+name = "ext4-core"
+version = "0.1.0"
+
+[[package]]
 name = "false"
 version = "1.0.0"
 
@@ -172,6 +212,10 @@ name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+
+[[package]]
+name = "finger"
+version = "1.0.0"
 
 [[package]]
 name = "flate2"
@@ -184,7 +228,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "flock"
+version = "1.0.0"
+
+[[package]]
+name = "fmt"
+version = "1.0.0"
+
+[[package]]
 name = "fold"
+version = "1.0.0"
+
+[[package]]
+name = "fpr"
+version = "1.0.0"
+
+[[package]]
+name = "from"
+version = "1.0.0"
+
+[[package]]
+name = "fsplit"
 version = "1.0.0"
 
 [[package]]
@@ -212,6 +276,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "genassym"
+version = "1.0.0"
+
+[[package]]
+name = "gencat"
+version = "1.0.0"
+
+[[package]]
+name = "getopt"
+version = "1.0.0"
+
+[[package]]
 name = "grep"
 version = "1.0.0"
 dependencies = [
@@ -223,6 +299,10 @@ dependencies = [
 
 [[package]]
 name = "head"
+version = "1.0.0"
+
+[[package]]
+name = "hexdump"
 version = "1.0.0"
 
 [[package]]
@@ -264,6 +344,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipcrm"
+version = "1.0.0"
+
+[[package]]
+name = "ipcs"
+version = "1.0.0"
+
+[[package]]
+name = "join"
+version = "1.0.0"
+
+[[package]]
+name = "jot"
+version = "1.0.0"
+
+[[package]]
 name = "js-sys"
 version = "0.3.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -282,6 +378,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lam"
+version = "1.0.0"
+
+[[package]]
+name = "last"
+version = "1.0.0"
+
+[[package]]
+name = "leave"
+version = "1.0.0"
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -292,10 +400,30 @@ name = "ln"
 version = "1.0.0"
 
 [[package]]
+name = "locale"
+version = "1.0.0"
+
+[[package]]
+name = "lock"
+version = "1.0.0"
+
+[[package]]
 name = "log"
 version = "0.4.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "953f07c43838f8e6f9758cab68bf5bed85465e7587ebe0b823f1bcd81978ad3a"
+
+[[package]]
+name = "logger"
+version = "1.0.0"
+
+[[package]]
+name = "logname"
+version = "1.0.0"
+
+[[package]]
+name = "lorder"
+version = "1.0.0"
 
 [[package]]
 name = "ls"
@@ -304,6 +432,14 @@ dependencies = [
  "chrono",
  "libc",
 ]
+
+[[package]]
+name = "machine"
+version = "1.0.0"
+
+[[package]]
+name = "mcookie"
+version = "1.0.0"
 
 [[package]]
 name = "memchr"
@@ -319,6 +455,14 @@ checksum = "714098028fe011992e1c3962653c96b2d578c4b4bce9036e15ff220319b1e0e3"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "menuc"
+version = "1.0.0"
+
+[[package]]
+name = "mesg"
+version = "1.0.0"
 
 [[package]]
 name = "minix-alloc"
@@ -343,7 +487,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "mkcsmapper"
+version = "1.0.0"
+
+[[package]]
+name = "mkdep"
+version = "1.0.0"
+
+[[package]]
 name = "mkdir"
+version = "1.0.0"
+
+[[package]]
+name = "mkesdb"
+version = "1.0.0"
+
+[[package]]
+name = "mkfifo"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "mklocale"
+version = "1.0.0"
+
+[[package]]
+name = "mkstr"
+version = "1.0.0"
+
+[[package]]
+name = "mktemp"
+version = "1.0.0"
+
+[[package]]
+name = "msgc"
 version = "1.0.0"
 
 [[package]]
@@ -351,8 +530,26 @@ name = "mv"
 version = "1.0.0"
 
 [[package]]
+name = "nbperf"
+version = "1.0.0"
+
+[[package]]
 name = "net-parse"
 version = "0.1.0"
+
+[[package]]
+name = "newgrp"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "nice"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "nl"
@@ -381,6 +578,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "pagesize"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.0"
 
@@ -393,6 +597,10 @@ name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
+
+[[package]]
+name = "pr"
+version = "1.0.0"
 
 [[package]]
 name = "printenv"
@@ -417,6 +625,10 @@ version = "0.1.0"
 
 [[package]]
 name = "pwd"
+version = "1.0.0"
+
+[[package]]
+name = "pwhash"
 version = "1.0.0"
 
 [[package]]
@@ -458,6 +670,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "renice"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "rev"
+version = "1.0.0"
+
+[[package]]
 name = "rm"
 version = "1.0.0"
 
@@ -481,7 +704,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdiff"
+version = "1.0.0"
+
+[[package]]
 name = "seq"
+version = "1.0.0"
+
+[[package]]
+name = "shar"
 version = "1.0.0"
 
 [[package]]
@@ -489,6 +720,17 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "shlock"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "shuffle"
+version = "1.0.0"
 
 [[package]]
 name = "simd-adler32"
@@ -504,6 +746,10 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "sleep"
+version = "1.0.0"
+
+[[package]]
+name = "soelim"
 version = "1.0.0"
 
 [[package]]
@@ -540,6 +786,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "tabs"
+version = "1.0.0"
+
+[[package]]
 name = "tail"
 version = "1.0.0"
 
@@ -574,11 +824,19 @@ name = "true"
 version = "1.0.0"
 
 [[package]]
+name = "tsort"
+version = "1.0.0"
+
+[[package]]
 name = "tty"
 version = "1.0.0"
 dependencies = [
  "libc",
 ]
+
+[[package]]
+name = "ul"
+version = "1.0.0"
 
 [[package]]
 name = "uname"
@@ -598,7 +856,43 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
 
 [[package]]
+name = "unifdef"
+version = "1.0.0"
+
+[[package]]
 name = "uniq"
+version = "1.0.0"
+
+[[package]]
+name = "units"
+version = "1.0.0"
+
+[[package]]
+name = "unvis"
+version = "1.0.0"
+
+[[package]]
+name = "users"
+version = "1.0.0"
+
+[[package]]
+name = "uudecode"
+version = "1.0.0"
+
+[[package]]
+name = "uuencode"
+version = "1.0.0"
+
+[[package]]
+name = "uuidgen"
+version = "1.0.0"
+
+[[package]]
+name = "vis"
+version = "1.0.0"
+
+[[package]]
+name = "w"
 version = "1.0.0"
 
 [[package]]
@@ -610,6 +904,10 @@ dependencies = [
  "same-file",
  "winapi-util",
 ]
+
+[[package]]
+name = "wall"
+version = "1.0.0"
 
 [[package]]
 name = "wasm-bindgen"
@@ -658,6 +956,22 @@ dependencies = [
 
 [[package]]
 name = "wc"
+version = "1.0.0"
+
+[[package]]
+name = "what"
+version = "1.0.0"
+
+[[package]]
+name = "whereis"
+version = "1.0.0"
+
+[[package]]
+name = "who"
+version = "1.0.0"
+
+[[package]]
+name = "whois"
 version = "1.0.0"
 
 [[package]]
@@ -736,6 +1050,21 @@ checksum = "ae137229bcbd6cdf0f7b80a31df61766145077ddf49416a728b02cb3921ff3fc"
 dependencies = [
  "windows-link",
 ]
+
+[[package]]
+name = "write"
+version = "1.0.0"
+
+[[package]]
+name = "xinstall"
+version = "1.0.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "xstr"
+version = "1.0.0"
 
 [[package]]
 name = "yes"

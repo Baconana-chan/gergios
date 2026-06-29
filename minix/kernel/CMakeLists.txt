@@ -3,9 +3,20 @@
 #
 # This replicates minix/kernel/Makefile + minix/kernel/arch/*/Makefile.inc
 # using CMake instead of BSD Make.
+#
+# BUILD STRATEGY
+# ==============
+# Compilation: Clang (works on Windows MSVC Clang with --target=*-elf)
+# Linking:     ld.lld directly (Clang's -fuse-ld=lld/--ld-path fails on
+#              Windows MSVC Clang; ld.lld works when invoked directly)
+#
+# On Windows, Clang (x86_64-pc-windows-msvc) with --target=x86_64-elf tries
+# to invoke "gcc" as the linker driver, which doesn't exist. Even -fuse-ld=lld
+# and --ld-path fail because Clang can't spawn the linker executable via its
+# MSVC-based driver code. ld.lld works perfectly when called directly.
 
 # ============================================================================
-# Kernel executable
+# Kernel sources
 # ============================================================================
 
 #
@@ -62,6 +73,10 @@ set(KERNEL_SYSTEM_SOURCES
     system/do_statectl.c
 )
 
+# do_devio / do_vdevio are x86-specific (use inb/outb port I/O).
+# They are added to KERNEL_ARCH_SOURCES for x86_64 only.
+# ARM64 uses memory-mapped I/O and has separate system calls.
+
 # Architecture-specific sources
 if(MACHINE_ARCH STREQUAL "earm")
     set(KERNEL_ARCH_SOURCES
@@ -100,6 +115,15 @@ elseif(MACHINE_ARCH STREQUAL "x86_64")
         arch/x86_64/pg_utils.c       # Page table utilities (512 entries, 2MB pages)
         arch/x86_64/pre_init.c       # Boot-time kinfo + pagetable setup
         arch/x86_64/protect.c        # GDT/IDT setup, MMU init
+        arch/x86_64/do_sdevio.c      # Safe device I/O
+        arch/x86_64/apic.c           # APIC stub (TODO: implement)
+        arch/x86_64/stubs.c          # Kernel libc stubs (strlcpy, usermapped_offset)
+        arch/x86_64/_cpufeature.c    # CPU feature detection
+        arch/x86_64/arch_watchdog.c  # NMI watchdog stubs
+        arch/x86_64/do_readbios.c    # BIOS read stub
+        arch/x86_64/do_iopenable.c   # I/O enable stub
+        system/do_devio.c          # x86 port I/O system call
+        system/do_vdevio.c         # x86 vectored port I/O system call
     )
 
     # SMP sources (conditional)
@@ -227,100 +251,172 @@ elseif(MACHINE_ARCH STREQUAL "aarch64")
 endif()
 
 # ============================================================================
-# Build the kernel
+# Step 1: Compile all source files with Clang (OBJECT library)
 # ============================================================================
+#
+# We use an OBJECT library instead of add_executable because Clang's
+# linker driver doesn't work on Windows MSVC Clang with --target=*-elf.
+# The OBJECT library compiles all .c/.S files into .o files with the
+# correct compile flags, but doesn't attempt linking.
 
-# Use add_minix_executable with KERNEL flag
-add_minix_executable(kernel
-    SOURCES
-        ${KERNEL_CORE_SOURCES}
-        ${KERNEL_SYSTEM_SOURCES}
-        ${KERNEL_ARCH_SOURCES}
-    LIBS
-        timers
-        sys
-        exec
-    BINDIR
-        /usr/sbin
-    KERNEL
+add_library(kernel_objects OBJECT
+    ${KERNEL_CORE_SOURCES}
+    ${KERNEL_SYSTEM_SOURCES}
+    ${KERNEL_ARCH_SOURCES}
 )
 
-# Kernel-specific flags
-target_compile_definitions(kernel PRIVATE __kernel__)
+# Kernel-specific compile definitions
+target_compile_definitions(kernel_objects PRIVATE __kernel__)
 
-# ARM64 requires large code model for cross-section references
-# (unpaged sections at physical addresses vs main text at high VMA)
+# MINIX compile flags (from add_minix_executable)
+target_compile_options(kernel_objects PRIVATE
+    -fno-stack-protector
+    -fno-builtin
+    -fno-asynchronous-unwind-tables
+    "$<$<COMPILE_LANGUAGE:ASM>:-D__ASSEMBLY__>"
+)
+
+# MINIX system flag
+target_compile_definitions(kernel_objects PRIVATE _MINIX_SYSTEM=1)
+
+# Architecture-specific compile options
 if(MACHINE_ARCH STREQUAL "x86_64")
-    # x86_64 kernel: kernel code model + no red zone
-    target_compile_options(kernel PRIVATE
-        -mcmodel=kernel
+    target_compile_options(kernel_objects PRIVATE
+        # Use -mcmodel=large instead of -mcmodel=kernel because our
+        # kernel virtual base (0xFFFF8000F0100000) is outside the
+        # kernel code model range (top 2GB: 0xFFFFFFFF80000000+).
+        -mcmodel=large
         -mno-red-zone
     )
 elseif(MACHINE_ARCH STREQUAL "aarch64")
-    # ARM64 requires large code model for unpaged↔VMA references
-    target_compile_options(kernel PRIVATE -mcmodel=large)
+    target_compile_options(kernel_objects PRIVATE -mcmodel=large)
 endif()
 
-# Linker flags: custom linker script + no standard libs
-target_link_options(kernel PRIVATE
-    -nostdlib
-    -T "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/kernel.lds"
-    -L${MINIX_DESTDIR}/usr/lib
-)
-
-# Include paths (order is important!)
-#
-# 1. Arch-specific paths FIRST — so they take priority over shared headers.
-# 2. ${CMAKE_CURRENT_SOURCE_DIR} LAST — allows arch/*/ files to #include
-#    "glo.h", "config.h" etc. via quotes WITHOUT shadowing arch-specific
-#    headers (like interrupt.h) that live in the same directory tree.
-
-target_include_directories(kernel PRIVATE
+# Include paths
+# Order matters — arch-specific paths first, then shared paths,
+# then kernel source root last (to allow #include "glo.h" etc.
+# without shadowing arch-specific headers).
+target_include_directories(kernel_objects PRIVATE
+    # From add_minix_executable
+    "${MINIX_SOURCE_DIR}/include"
+    "${MINIX_SOURCE_DIR}/minix/include"
+    "${MINIX_SOURCE_DIR}/sys"
+    "${MINIX_SOURCE_DIR}/sys/arch/${MACHINE_ARCH}/include"
+    # From kernel CMakeLists.txt
     "${MINIX_SOURCE_DIR}/minix"
-    "${CMAKE_CURRENT_BINARY_DIR}"           # for generated offset headers
-)
-
-# Architecture-specific include paths
-target_include_directories(kernel PRIVATE
+    "${CMAKE_CURRENT_BINARY_DIR}"
+    # Architecture-specific
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}"
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/bsp/include"
     "${MINIX_SOURCE_DIR}/minix/include/arch/${MACHINE_ARCH}/include"
     "${MINIX_SOURCE_DIR}/minix/lib/libexec"
-)
-
-# Kernel source root LAST — allows arch/*/ files to #include "glo.h",
-# "config.h", "const.h" etc. by searching the kernel source root AFTER
-# arch-specific paths have been searched. This prevents the kernel's own
-# interrupt.h from shadowing the arch-specific one.
-target_include_directories(kernel PRIVATE
+    # Kernel source root LAST
     "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 # PAE support
 if(MKPAE)
-    target_compile_definitions(kernel PRIVATE PAE=1)
+    target_compile_definitions(kernel_objects PRIVATE PAE=1)
 endif()
 
-# Gold linker support
-if(HAVE_GOLD)
-    target_link_options(kernel PRIVATE
-        -Wl,--no-ctors-in-init-array
-    )
-endif()
-
-# Bitcode support (MINIX-specific LLVM feature)
+# Bitcode support
 if(USE_BITCODE)
-    target_compile_options(kernel PRIVATE -flto)
+    target_compile_options(kernel_objects PRIVATE -flto)
 endif()
+
+# ============================================================================
+# Step 2: Link with linker directly (bypass Clang driver)
+# ============================================================================
+#
+# On Windows MSVC Clang (x86_64-pc-windows-msvc), using --target=*-elf
+# makes Clang try to invoke "gcc" as the linker driver, which doesn't
+# exist. Neither -fuse-ld=lld nor --ld-path work because Clang's MSVC
+# process-creation code can't spawn the ELF linker binary.
+#
+# The fix: use the linker directly. ld.lld (from LLVM) supports both
+# x86_64 and AArch64 targets and auto-detects the architecture from
+# input object files.
+
+# Select the linker based on architecture
+if(MACHINE_ARCH STREQUAL "x86_64")
+    # ld.lld from LLVM 21.1.7 — supports ELF64 x86_64
+    set(KERNEL_LINKER "C:/PROGRA~1/LLVM/bin/ld.lld" CACHE FILEPATH "Linker for x86_64 kernel")
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    # Use existing aarch64-elf-ld cross-linker (GNU binutils)
+    # Falls back to ld.lld if aarch64-elf-ld is not available
+    find_program(HAVE_AARCH64_LD aarch64-elf-ld
+        PATHS "C:/Users/VIC/bin"
+        DOC "Path to aarch64-elf-ld cross-linker"
+    )
+    if(HAVE_AARCH64_LD)
+        set(KERNEL_LINKER "${HAVE_AARCH64_LD}" CACHE FILEPATH "Linker for ARM64 kernel")
+        message(STATUS "ARM64 linker: ${HAVE_AARCH64_LD}")
+    else()
+        set(KERNEL_LINKER "ld.lld" CACHE FILEPATH "Linker for ARM64 kernel")
+        message(STATUS "ARM64 linker: ld.lld (aarch64-elf-ld not found)")
+    endif()
+endif()
+
+# Build the kernel binary using the selected linker
+set(KERNEL_LDS "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/kernel.lds")
+
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}
+    COMMAND ${KERNEL_LINKER}
+        -nostdlib
+        -T "${KERNEL_LDS}"
+        "$<$<BOOL:${MINIX_DESTDIR}>:-L${MINIX_DESTDIR}/usr/lib>"
+        # Allow multiple symbol definitions (MINIX kernel has intentional
+        # duplicates: pre_init.c provides boot-time stubs, other files
+        # provide the real implementations used after paging is enabled).
+        --allow-multiple-definition
+        --error-limit=0
+        $<TARGET_OBJECTS:kernel_objects>
+        -o ${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}
+        # Libraries are passed directly as .a file paths.
+        # Note 1: libminc is NOT used here because its build pulls in complex
+        # libc header dependencies that fail on Windows cross-compilation.
+        # Instead, the needed libminc source files are compiled directly
+        # into the kernel_objects OBJECT library (see KERNEL_LIBMINC_SOURCES).
+        # Note 2: libsys and libexec are NOT linked because they are compiled
+        # with the small code model (default) which generates R_X86_64_32(S)
+        # relocations that conflict with the kernel's high virtual address
+        # space. The needed functions from these libraries are provided
+        # by stubs.c or compiled directly into the kernel.
+        $<TARGET_FILE:timers>
+    DEPENDS
+        kernel_objects
+        timers
+    COMMENT "Linking kernel with ${KERNEL_LINKER}"
+    COMMAND_EXPAND_LISTS
+)
+
+# Main kernel target
+add_custom_target(kernel ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}
+)
+
+# Copy kernel binary (flat binary for bootloaders)
+add_custom_target(kernel-image ALL
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}"
+        "${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}.bin"
+    DEPENDS kernel
+    COMMENT "Copying kernel binary to build directory"
+)
+
+# Install
+install(FILES ${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}
+    DESTINATION /usr/sbin
+    RENAME kernel
+)
 
 # ============================================================================
 # Custom targets for header generation
 # ============================================================================
 
 # Generate procoffsets.h (assembly offset definitions)
-# On Windows, genassym tool + shell pipes don't work, so we use
-# a pre-generated procoffsets.h file.
 set(PROCOFFSETS_H "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/procoffsets.h")
 if(EXISTS "${PROCOFFSETS_H}")
     # Pre-generated file exists — use it directly
@@ -328,7 +424,7 @@ if(EXISTS "${PROCOFFSETS_H}")
     configure_file("${PROCOFFSETS_H}"
         "${CMAKE_CURRENT_BINARY_DIR}/procoffsets.h" COPYONLY)
 else()
-    generate_kernel_offsets(TARGET kernel
+    generate_kernel_offsets(TARGET kernel_objects
         CONFIG_FILE "arch/${MACHINE_ARCH}/procoffsets.cf"
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/procoffsets.cf"
@@ -339,11 +435,9 @@ else()
 endif()
 
 # Generate extracted headers (for debug.o dependency)
-# These are generated by shell scripts from the original Makefile
 set(EXTRACTED_HEADER_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 # extracted-errno.h: extract error numbers from include/errno.h
-# On Windows, shell scripts don't work, so use pre-generated stub.
 set(EXTRACTED_ERRNO_H "${EXTRACTED_HEADER_DIR}/extracted-errno.h")
 set(PREGEN_ERRNO_H "${CMAKE_CURRENT_SOURCE_DIR}/extracted-errno.h")
 if(EXISTS "${PREGEN_ERRNO_H}")
@@ -363,10 +457,9 @@ else()
         COMMENT "Generating extracted-errno.h"
     )
 endif()
-target_sources(kernel PRIVATE "${EXTRACTED_ERRNO_H}")
+target_sources(kernel_objects PRIVATE "${EXTRACTED_ERRNO_H}")
 
 # extracted-mfield.h: extract message fields from libc/libsys/*.c
-# On Windows, shell scripts don't work, so use pre-generated stub.
 set(EXTRACTED_MFIELD_H "${EXTRACTED_HEADER_DIR}/extracted-mfield.h")
 set(PREGEN_MFIELD_H "${CMAKE_CURRENT_SOURCE_DIR}/extracted-mfield.h")
 if(EXISTS "${PREGEN_MFIELD_H}")
@@ -383,10 +476,9 @@ else()
         COMMENT "Generating extracted-mfield.h"
     )
 endif()
-target_sources(kernel PRIVATE "${EXTRACTED_MFIELD_H}")
+target_sources(kernel_objects PRIVATE "${EXTRACTED_MFIELD_H}")
 
 # extracted-mtype.h: extract message types from minix/com.h
-# On Windows, shell scripts don't work, so use pre-generated stub.
 set(EXTRACTED_MTYPE_H "${EXTRACTED_HEADER_DIR}/extracted-mtype.h")
 set(PREGEN_MTYPE_H "${CMAKE_CURRENT_SOURCE_DIR}/extracted-mtype.h")
 if(EXISTS "${PREGEN_MTYPE_H}")
@@ -398,24 +490,10 @@ else()
         DEPENDS
             "${CMAKE_CURRENT_SOURCE_DIR}/extract-mtype.sh"
             "${MINIX_SOURCE_DIR}/minix/include/minix/com.h"
-    COMMAND
+        COMMAND
             ${CMAKE_CURRENT_SOURCE_DIR}/extract-mtype.sh
             > "${EXTRACTED_MTYPE_H}"
         COMMENT "Generating extracted-mtype.h"
     )
 endif()
-target_sources(kernel PRIVATE "${EXTRACTED_MTYPE_H}")
-
-# ============================================================================
-# Custom command to copy kernel binary
-# ============================================================================
-
-# The kernel build should produce a flat binary (no ELF headers expected
-# by some bootloaders, but MINIX uses ELF)
-add_custom_target(kernel-image ALL
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "$<TARGET_FILE:kernel>"
-        "${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}.bin"
-    DEPENDS kernel
-    COMMENT "Copying kernel binary to build directory"
-)
+target_sources(kernel_objects PRIVATE "${EXTRACTED_MTYPE_H}")
