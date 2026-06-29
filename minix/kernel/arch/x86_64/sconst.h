@@ -2,29 +2,19 @@
 #define __X86_64_SCONST_H__
 
 #include "kernel/const.h"
-#include "kernel/procoffsets.h"
+#include "procoffsets.h"
+
+/* K_STACK_SIZE — must be visible in assembly (arch_proto.h is inside
+ * #ifndef __ASSEMBLY__ in kernel.h, so not available to .S files). */
+#define K_STACK_SIZE		4096
 
 /*
- * For x86_64, the stack layout after an interrupt/exception is:
- *   [RSP]   -> RIP
- *   [RSP+8] -> CS
- *   [RSP+16]-> RFLAGS
- *   [RSP+24]-> SS  (only if CPL change, i.e. user->kernel)
- *   [RSP+32]-> RSP (only if CPL change)
- *
- * For exceptions with error code:
- *   [RSP]   -> Error code
- *   [RSP+8] -> RIP
- *   ...
- *
- * For int 0x80 (32-bit compat) or syscall:
- *   syscall saves RIP->RCX, RFLAGS->R11, does not push to stack
- *
- * CURR_PROC_PTR: offset from %esp (kernel stack) to the current
+ * CURR_PROC_PTR: offset from %rsp (kernel stack) to the current
  * process pointer stored at the top of the kernel stack.
- * This is X86_STACK_TOP_RESERVED bytes from the top.
+ * Value = -X86_STACK_TOP_RESERVED = -(2 * sizeof(reg_t)) = -16.
+ * Using a literal to avoid sizeof() which is a C-only operator.
  */
-#define CURR_PROC_PTR		(-X86_STACK_TOP_RESERVED)
+#define CURR_PROC_PTR		(-16)
 
 /*
  * Tests whether the interrupt was triggered in kernel mode.
@@ -34,7 +24,7 @@
  */
 #define TEST_INT_IN_KERNEL(displ, label)	\
 	cmpq	$KERN_CS_SELECTOR, displ+8(%rsp)	;\
-	je	label					;
+	je	label
 
 /*
  * Saves the basic interrupt context (no error code) to the process structure.
@@ -47,7 +37,7 @@
  * The macro reads in CPU push order: RIP at lowest address, RFLAGS at highest.
  * displ: extra displacement (e.g., for error code or exception number).
  */
-#define SAVE_TRAP_CTX(displ, pptr, tmp)			\
+#define SAVE_TRAP_CTX(displ, pptr, tmp)		\
 	movq	(0 + displ)(%rsp), tmp			;\
 	movq	tmp, PCREG(pptr)			;\
 	movq	(8 + displ)(%rsp), tmp			;\
@@ -65,7 +55,7 @@
  *
  * The macro reads in CPU push order matching the stack layout.
  */
-#define SAVE_TRAP_CTX_USER(displ, pptr, tmp)		;\
+#define SAVE_TRAP_CTX_USER(displ, pptr, tmp)	\
 	movq	(0 + displ)(%rsp), tmp			;\
 	movq	tmp, PCREG(pptr)			;\
 	movq	(8 + displ)(%rsp), tmp			;\
@@ -90,7 +80,7 @@
 	mov	%si, %es				;\
 	xor	%si, %si				;\
 	mov	%si, %fs				;\
-	mov	%si, %gs				;
+	mov	%si, %gs
 
 /*
  * Save general-purpose registers to the process structure.
@@ -111,7 +101,7 @@
 	movq	%r12, R12REG(pptr)			;\
 	movq	%r13, R13REG(pptr)			;\
 	movq	%r14, R14REG(pptr)			;\
-	movq	%r15, R15REG(pptr)			;
+	movq	%r15, R15REG(pptr)
 
 #define RESTORE_GP_REGS(pptr)				\
 	movq	AXREG(pptr), %rax			;\
@@ -127,7 +117,20 @@
 	movq	R12REG(pptr), %r12			;\
 	movq	R13REG(pptr), %r13			;\
 	movq	R14REG(pptr), %r14			;\
-	movq	R15REG(pptr), %r15			;
+	movq	R15REG(pptr), %r15
+
+/*
+ * NOTE on ; vs \\ in macros:
+ * The \\ at end of line is consumed by the C preprocessor to join lines.
+ * The ; separator is needed to separate multiple instructions that end up
+ * on the SAME logical line after the \\ are consumed.
+ *
+ * However, when a macro calls another macro (like SAVE_PROCESS_CTX calling
+ * SAVE_GP_REGS which already ends with ;), the calling macro should NOT
+ * add another ; after the call, to avoid creating ;; (empty statement).
+ * This is handled in mpx.S where hwint_master/hwint_slave macros are
+ * defined without trailing ; after inner macro calls.
+ */
 
 /*
  * Save the full process context (interrupt/exception entry from user).
@@ -146,10 +149,10 @@
 	movq	CURR_PROC_PTR(%rsp), %rbp		;\
 	SAVE_GP_REGS(%rbp)				;\
 	movq	$trapcode, P_KERN_TRAP_STYLE(%rbp)	;\
-	popq	%rsi		/* get the orig %rbp */	;\
+	popq	%rsi					;\
 	movq	%rsi, BPREG(%rbp)			;\
 	RESTORE_KERNEL_SEGS				;\
-	SAVE_TRAP_CTX_USER(displ, %rbp, %rsi)		;
+	SAVE_TRAP_CTX_USER(displ, %rbp, %rsi)
 
 /*
  * Save process context for kernel-entry (no SS/RSP pushed by CPU).
@@ -163,7 +166,7 @@
 	movq	$trapcode, P_KERN_TRAP_STYLE(%rbp)	;\
 	popq	%rsi					;\
 	movq	%rsi, BPREG(%rbp)			;\
-	SAVE_TRAP_CTX(displ, %rbp, %rsi)		;
+	SAVE_TRAP_CTX(displ, %rbp, %rsi)
 
 /*
  * Clear IF flag in RFLAGS stored on the stack.
@@ -171,6 +174,6 @@
 #define CLEAR_IF(where)					\
 	movq	where, %rax				;\
 	andq	$0xfffffffffffffdff, %rax		;\
-	movq	%rax, where				;
+	movq	%rax, where
 
 #endif /* __X86_64_SCONST_H__ */

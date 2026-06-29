@@ -14,13 +14,14 @@
 #include <assert.h>
 #include <signal.h>
 #include <machine/vm.h>
+#include <machine/memory.h>
 
 #include <minix/u64.h>
 
 #include "archconst.h"
 #include "oxpcie.h"
 
-#include "glo.h"
+#include "kernel/kernel.h"
 
 #ifdef USE_APIC
 #include "apic.h"
@@ -137,11 +138,7 @@ void arch_proc_reset(struct proc *pr)
 	pr->p_seg.fpu_state = v;
 
 	pr->p_reg.cs = USER_CS_SELECTOR;
-	pr->p_reg.gs =
-	pr->p_reg.fs =
-	pr->p_reg.ss =
-	pr->p_reg.es =
-	pr->p_reg.ds = USER_DS_SELECTOR;
+	pr->p_reg.ss = USER_DS_SELECTOR;
 
 	arch_proc_setcontext(pr, &reg, 0, KTS_FULLCONTEXT);
 }
@@ -172,6 +169,8 @@ int restore_fpu(struct proc *pr)
 
 	return OK;
 }
+
+extern struct tss_s tss[CONFIG_MAX_CPUS];
 
 void cpu_identify(void)
 {

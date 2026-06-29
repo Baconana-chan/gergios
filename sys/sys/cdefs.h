@@ -415,6 +415,9 @@
 #define	__RENAME(x)	___RENAME(x)
 #elif defined(__lint__)
 #define	__RENAME(x)	__symbolrename(x)
+#elif defined(_MSC_VER)
+/* MSVC doesn't support symbol renaming; define as no-op for host tools */
+#define	__RENAME(x)	/* nothing */
 #else
 #error "No function renaming possible"
 #endif /* __GNUC__ */

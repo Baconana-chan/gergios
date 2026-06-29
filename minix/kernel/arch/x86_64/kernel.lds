@@ -58,5 +58,7 @@ SECTIONS
 		__k_unpaged__kern_size = . - _kern_vir_base;
 		_kern_size = __k_unpaged__kern_size;
 	}
+	_kern_end = _kern_phys_base + _kern_size;
+	__k_unpaged__kern_end = _kern_end;
 	_end = .;
 }

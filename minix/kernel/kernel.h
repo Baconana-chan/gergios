@@ -41,6 +41,7 @@
 #include "kernel/proto.h"		/* function prototypes */
 #include "kernel/glo.h"		/* global variables */
 #include "kernel/ipc.h"		/* IPC constants */
+#include "arch_proto.h"		/* architecture prototypes & constants */
 #include "kernel/profile.h"		/* system profiling */
 #include "kernel/proc.h"		/* process table */
 #include "kernel/cpulocals.h"		/* CPU-local variables */

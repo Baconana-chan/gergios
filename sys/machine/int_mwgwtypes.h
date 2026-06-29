@@ -53,4 +53,35 @@ typedef unsigned long long int	uintmax_t;
 
 #endif /* !__UINT_FAST64_TYPE__ */
 
+/* ===========================================================================
+ * Bare-metal fallback: Clang with --target=x86_64-elf or --target=aarch64-elf
+ * predefines __UINT_FAST64_TYPE__ as part of its built-in <stdint.h>, which
+ * causes the #ifndef block above to be skipped. However, Clang's built-in
+ * stdint.h does NOT get included through MINIX's header chain (which goes
+ * through include/inttypes.h → sys/sys/inttypes.h → sys/sys/stdint.h),
+ * so intmax_t/uintmax_t are never actually defined.
+ *
+ * When the built-in stdint.h IS included (e.g., via #include <stdint.h>
+ * from MINIX code), Clang defines intmax_t as 'long' on LP64 (x86_64,
+ * aarch64). When it's NOT included, we need to provide the typdef here.
+ * There's no reliable preprocessor check to detect whether intmax_t was
+ * already typedef'd. The safest approach: use 'long' on LP64 to match
+ * Clang's choice, which makes repeated typedefs harmless (C11 allows
+ * identical repeated typedefs). On non-LP64, use 'long long'.
+ * ========================================================================= */
+#ifndef intmax_t
+/* Note: #ifndef only checks MACRO namespace. But Clang predefines intmax_t
+ * as a typedef, not a macro, so this check always passes. The typedef below
+ * will either be the first definition (no Clang built-in) or a repeat of
+ * the same type (Clang built-in included first). In both cases, using
+ * 'long' on LP64 matches Clang's choice, avoiding redefinition errors. */
+#ifdef __LP64__
+typedef long int intmax_t;
+typedef unsigned long int uintmax_t;
+#else
+typedef long long int intmax_t;
+typedef unsigned long long int uintmax_t;
+#endif
+#endif
+
 #endif /* !_MACHINE_INT_MWGWTYPES_H_ */

@@ -44,6 +44,10 @@ typedef int sig_atomic_t;
  */
 #include <machine/trap.h>
 
+#if defined(__minix) && (defined(_LIBMINC) || ! defined(_STANDALONE))
+#include <arch/x86_64/include/fpu.h>
+#endif
+
 #if defined(_KERNEL) || defined(__minix)
 /*
  * Information pushed on stack when a signal is delivered.

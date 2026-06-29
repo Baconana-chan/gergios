@@ -15,14 +15,20 @@
 
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <minix/minlib.h>
 #include <minix/board.h>
 #include <sys/reboot.h>
 #include <machine/partition.h>
+#include <machine/multiboot.h>
+#include <sys/types.h>
+#include <minix/type.h>
+#include <machine/vm.h>
+#include <minix/param.h>
 #include "string.h"
 #include "direct_utils.h"
 #include "serial.h"
-#include "glo.h"
+#include "kernel/kernel.h"
 /* Function declarations shared with pre_init.c (i386 arch).
  * These are normally declared in arch/<arch>/include/arch_proto.h
  * but x86_64 doesn't have its own arch_proto.h and uses i386's.
@@ -170,14 +176,20 @@ static void limine_module_to_mb(
 {
 	mbmod->mod_start = (u32_t)(lmod->address & 0xFFFFFFFF);
 	mbmod->mod_end = (u32_t)((lmod->address + lmod->size) & 0xFFFFFFFF);
-	mbmod->cmdline = lmod->cmdline;
-	mbmod->pad = 0;
+	mbmod->mod_cmdline = (u32_t)(uintptr_t)lmod->cmdline;
+	mbmod->mod_pad = 0;
 
 #if LIMINE_VERBOSE
 	/* Debug: print loaded module info */
-	direct_print("limine: mod%d addr=0x%lx size=%lu path=%s\n",
-		index, lmod->address, lmod->size,
-		lmod->path ? lmod->path : "(null)");
+	{
+		char dbg[256];
+		snprintf(dbg, sizeof(dbg),
+			"limine: mod%d addr=0x%lx size=%lu path=%s\n",
+			index, (unsigned long)lmod->address,
+			(unsigned long)lmod->size,
+			lmod->path ? lmod->path : "(null)");
+		direct_print(dbg);
+	}
 #endif
 }
 
@@ -308,8 +320,8 @@ void limine_get_parameters(kinfo_t *cbi)
 	kinfo.kernel_allocated_bytes = (phys_bytes) &_kern_size;
 	kinfo.kernel_allocated_bytes -= cbi->bootstrap_len;
 
-	assert(!(cbi->bootstrap_start % I386_PAGE_SIZE));
-	cbi->bootstrap_len = rounddown(cbi->bootstrap_len, I386_PAGE_SIZE);
+	assert(!(cbi->bootstrap_start % X86_64_PAGE_SIZE));
+	cbi->bootstrap_len = rounddown(cbi->bootstrap_len, X86_64_PAGE_SIZE);
 
 	/* =================================================================
 	 * 3. Load modules from Limine module response
@@ -406,8 +418,13 @@ void limine_get_parameters(kinfo_t *cbi)
 	}
 
 #if LIMINE_VERBOSE
-	direct_print("limine: booted with %d modules, %d memmap entries\n",
-		cbi->mbi.mi_mods_count, cbi->mmap_size);
+	{
+		char dbg[256];
+		snprintf(dbg, sizeof(dbg),
+			"limine: booted with %d modules, %d memmap entries\n",
+			cbi->mbi.mi_mods_count, cbi->mmap_size);
+		direct_print(dbg);
+	}
 #endif
 }
 

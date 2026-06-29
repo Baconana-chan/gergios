@@ -1,10 +1,21 @@
 # minix/fs/procfs/CMakeLists.txt
 # Process filesystem server
-#
-# TODO: Migrate from minix/fs/procfs/Makefile
 
 add_minix_service(procfs
     SOURCES
-        # Add sources from minix/fs/procfs/Makefile here
-    LIBS fsdriver bdev sys
+        buf.c
+        cpuinfo.c
+        main.c
+        pid.c
+        root.c
+        service.c
+        tree.c
+        util.c
+    LIBS vtreefs fsdriver sys
+)
+
+target_include_directories(procfs PRIVATE
+    ${MINIX_SOURCE_DIR}/minix
+    ${MINIX_SOURCE_DIR}/minix/fs
+    ${MINIX_SOURCE_DIR}/minix/servers
 )

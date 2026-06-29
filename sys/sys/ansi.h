@@ -32,7 +32,18 @@
 #ifndef	_SYS_ANSI_H_
 #define	_SYS_ANSI_H_
 
+#if defined(_MSC_VER) && !defined(__GNUC__) && !defined(__clang__)
+/* MSVC-specific type definitions for host tools.
+ * Include machine/int_types.h for __int*_t/__uint*_t types that
+ * sys/sys/ansi.h uses directly (e.g., typedef __uint32_t __gid_t).
+ * On MSVC, machine/int_types.h has its own MSVC fallback. */
+#include <machine/int_types.h>
+#ifndef _BSD_SSIZE_T_
+#define _BSD_SSIZE_T_	long long
+#endif
+#else
 #include <machine/ansi.h>
+#endif
 
 typedef char *		__caddr_t;	/* core address */
 typedef __uint32_t	__gid_t;	/* group id */
@@ -68,8 +79,12 @@ typedef union {
 
 #ifdef __lint__
 typedef char *__va_list;
-#else
+#elif defined(__GNUC__) || defined(__clang__)
 typedef __builtin_va_list __va_list;
+#elif defined(_MSC_VER)
+/* MSVC defines va_list in <crtdefs.h>; alias it for compatibility */
+#include <crtdefs.h>
+typedef va_list __va_list;
 #endif
 
 #endif	/* !_SYS_ANSI_H_ */

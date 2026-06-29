@@ -4,7 +4,7 @@
 #include "string.h"
 #include "direct_utils.h"
 #include "serial.h"
-#include "glo.h"
+#include "kernel/kernel.h"
 
 static int print_line = 1, print_col = 1;
 

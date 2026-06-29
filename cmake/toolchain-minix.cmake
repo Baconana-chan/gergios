@@ -78,11 +78,38 @@ if(MINIX_TOOLCHAIN)
     set(CMAKE_STRIP "${MINIX_TOOLCHAIN}/bin/${_TOOL_PREFIX}-strip")
 else()
     # Native build (running on MINIX): use system tools
-    # CMAKE_C_COMPILER and CMAKE_ASM_COMPILER are auto-detected
+    # CMAKE_C_COMPILER and CMAKE_ASM_COMPILER are auto-detected.
     # For cross-compilation on non-MINIX hosts, set the target triple.
     # Using CMAKE_C_COMPILER_TARGET is the proper CMake way (avoids
     # duplication issues with CMAKE_C_FLAGS).
-    if(MACHINE_ARCH STREQUAL "aarch64")
+
+    # Auto-detect Clang when no compiler is set (e.g., on Windows/MSVC hosts).
+    # On Windows, CMake defaults to MSVC cl.exe; on Linux/macOS, CC/CMAKE_C_COMPILER
+    # may already be set. Only search when the user hasn't explicitly chosen.
+    if(NOT CMAKE_C_COMPILER)
+        find_program(CMAKE_C_COMPILER
+            NAMES clang
+            PATHS "C:/Program Files/LLVM/bin" "/usr/lib/llvm/bin" "/usr/bin"
+            NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH
+            DOC "C compiler for MINIX cross-build"
+        )
+        if(CMAKE_C_COMPILER)
+            # Derive CXX compiler from the same directory
+            get_filename_component(_CLANG_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
+            find_program(CMAKE_CXX_COMPILER
+                NAMES clang++
+                PATHS "${_CLANG_DIR}" "C:/Program Files/LLVM/bin"
+                NO_CMAKE_PATH NO_CMAKE_ENVIRONMENT_PATH
+                DOC "C++ compiler for MINIX cross-build"
+            )
+            mark_as_advanced(CMAKE_C_COMPILER CMAKE_CXX_COMPILER)
+        endif()
+    endif()
+
+    if(MACHINE_ARCH STREQUAL "x86_64")
+        set(CMAKE_C_COMPILER_TARGET "x86_64-elf")
+        set(CMAKE_ASM_COMPILER_TARGET "x86_64-elf")
+    elseif(MACHINE_ARCH STREQUAL "aarch64")
         set(CMAKE_C_COMPILER_TARGET "aarch64-elf")
         set(CMAKE_ASM_COMPILER_TARGET "aarch64-elf")
     elseif(MACHINE_ARCH STREQUAL "earm")

@@ -204,9 +204,9 @@ multiboot_header_addr:
 multiboot_load_addr:
 	.long _kern_phys_base		/* physical load address */
 multiboot_load_end_addr:
-	.long _kern_phys_base + _kern_size	/* load end */
+	.long _kern_end		/* load end */
 multiboot_bss_end_addr:
-	.long _kern_phys_base + _kern_size	/* BSS end */
+	.long _kern_end		/* BSS end */
 multiboot_entry_addr:
 	.long multiboot_init		/* GRUB jumps here (32-bit!) */
 multiboot_mode_type:

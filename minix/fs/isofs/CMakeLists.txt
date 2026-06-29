@@ -1,10 +1,21 @@
 # minix/fs/isofs/CMakeLists.txt
 # ISO 9660 filesystem server
-#
-# TODO: Migrate from minix/fs/isofs/Makefile
 
 add_minix_service(isofs
     SOURCES
-        # Add sources from minix/fs/isofs/Makefile here
-    LIBS fsdriver bdev sys
+        main.c
+        table.c
+        mount.c
+        super.c
+        inode.c
+        link.c
+        utility.c
+        path.c
+        read.c
+        susp.c
+        susp_rock_ridge.c
+        stadir.c
+    LIBS minixfs fsdriver bdev sys
 )
+
+target_compile_definitions(isofs PRIVATE NR_BUFS=100)

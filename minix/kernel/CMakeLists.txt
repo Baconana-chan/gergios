@@ -83,21 +83,32 @@ if(MACHINE_ARCH STREQUAL "earm")
         arch/earm/do_padconf.c
     )
 elseif(MACHINE_ARCH STREQUAL "x86_64")
+    # Core arch sources
     set(KERNEL_ARCH_SOURCES
-        arch/x86_64/mpx.S
-        arch/x86_64/arch_clock.c
-        arch/x86_64/arch_do_vmctl.c
-        arch/x86_64/arch_system.c
-        arch/x86_64/klib.S
-        arch/x86_64/memory.c
-        arch/x86_64/protect.c
-        arch/x86_64/direct_tty_utils.c
-        arch/x86_64/arch_reset.c
-        arch/x86_64/pg_utils.c
-        arch/x86_64/exception.c
-        arch/x86_64/i8259.c
-        arch/x86_64/limine.c
+        arch/x86_64/head.S           # 64-bit boot entry, long mode switch
+        arch/x86_64/mpx.S            # Context switch, syscall/irq/exception dispatch
+        arch/x86_64/klib.S           # Architecture library (phys_copy, memset, MSR, I/O)
+        arch/x86_64/arch_clock.c     # i8253, APIC, TSC timers
+        arch/x86_64/arch_do_vmctl.c  # CR3/TLB VM control
+        arch/x86_64/arch_system.c    # FPU, CPUID, context, syscall dispatch
+        arch/x86_64/arch_reset.c     # Reset/shutdown
+        arch/x86_64/direct_tty_utils.c  # Emergency VGA text I/O
+        arch/x86_64/exception.c      # Exception handler (64-bit regs)
+        arch/x86_64/i8259.c          # 8259 PIC driver
+        arch/x86_64/limine.c         # Limine boot protocol
+        arch/x86_64/memory.c         # VM: page table walk, copy, memset
+        arch/x86_64/pg_utils.c       # Page table utilities (512 entries, 2MB pages)
+        arch/x86_64/pre_init.c       # Boot-time kinfo + pagetable setup
+        arch/x86_64/protect.c        # GDT/IDT setup, MMU init
     )
+
+    # SMP sources (conditional)
+    if(CONFIG_SMP)
+        list(APPEND KERNEL_ARCH_SOURCES
+            arch/x86_64/arch_smp.c      # SMP initialization
+            arch/x86_64/trampoline.S    # AP boot trampoline
+        )
+    endif()
 elseif(MACHINE_ARCH STREQUAL "aarch64")
     # Phase 2: Kernel Bootstrap + Context Switching + Exception Handling
     set(KERNEL_ARCH_SOURCES
@@ -239,7 +250,14 @@ target_compile_definitions(kernel PRIVATE __kernel__)
 
 # ARM64 requires large code model for cross-section references
 # (unpaged sections at physical addresses vs main text at high VMA)
-if(MACHINE_ARCH STREQUAL "aarch64")
+if(MACHINE_ARCH STREQUAL "x86_64")
+    # x86_64 kernel: kernel code model + no red zone
+    target_compile_options(kernel PRIVATE
+        -mcmodel=kernel
+        -mno-red-zone
+    )
+elseif(MACHINE_ARCH STREQUAL "aarch64")
+    # ARM64 requires large code model for unpaged↔VMA references
     target_compile_options(kernel PRIVATE -mcmodel=large)
 endif()
 
@@ -251,9 +269,15 @@ target_link_options(kernel PRIVATE
 )
 
 # Include paths (order is important!)
+#
+# 1. Arch-specific paths FIRST — so they take priority over shared headers.
+# 2. ${CMAKE_CURRENT_SOURCE_DIR} LAST — allows arch/*/ files to #include
+#    "glo.h", "config.h" etc. via quotes WITHOUT shadowing arch-specific
+#    headers (like interrupt.h) that live in the same directory tree.
+
 target_include_directories(kernel PRIVATE
     "${MINIX_SOURCE_DIR}/minix"
-    "${CMAKE_CURRENT_BINARY_DIR}"       # for generated offset headers
+    "${CMAKE_CURRENT_BINARY_DIR}"           # for generated offset headers
 )
 
 # Architecture-specific include paths
@@ -262,6 +286,15 @@ target_include_directories(kernel PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/bsp/include"
     "${MINIX_SOURCE_DIR}/minix/include/arch/${MACHINE_ARCH}/include"
+    "${MINIX_SOURCE_DIR}/minix/lib/libexec"
+)
+
+# Kernel source root LAST — allows arch/*/ files to #include "glo.h",
+# "config.h", "const.h" etc. by searching the kernel source root AFTER
+# arch-specific paths have been searched. This prevents the kernel's own
+# interrupt.h from shadowing the arch-specific one.
+target_include_directories(kernel PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 # PAE support

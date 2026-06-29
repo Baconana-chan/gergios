@@ -7,6 +7,7 @@
 #include <minix/cpufeature.h>
 
 #include <assert.h>
+#include <machine/vm.h>
 #include "kernel/kernel.h"
 #include "arch_proto.h"
 

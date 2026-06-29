@@ -230,6 +230,42 @@ add_compile_options(
 )
 
 # ============================================================================
+# Architecture-specific compile definitions (from options.cmake)
+#
+# Applied here, AFTER arch_${MACHINE_ARCH}.cmake is loaded, so that
+# arch-specific overrides (e.g., USE_APIC=OFF on ARM) are respected.
+# ============================================================================
+
+if(USE_WATCHDOG)
+    add_compile_definitions(USE_WATCHDOG=1)
+endif()
+if(USE_ACPI)
+    add_compile_definitions(USE_ACPI)
+endif()
+if(USE_APIC)
+    add_compile_definitions(USE_APIC)
+endif()
+if(USE_DEBUGREG)
+    add_compile_definitions(USE_DEBUGREG)
+endif()
+if(USE_SYSDEBUG)
+    add_compile_definitions(USE_SYSDEBUG=1)
+endif()
+if(USE_LIVEUPDATE)
+    add_compile_definitions(USE_UPDATE=1)
+endif()
+if(USE_PCI)
+    add_compile_definitions(USE_PCI)
+endif()
+if(CONFIG_SMP)
+    add_compile_definitions(CONFIG_SMP)
+    add_compile_definitions(CONFIG_MAX_CPUS=${CONFIG_MAX_CPUS})
+endif()
+if(MKCOVERAGE)
+    add_compile_options(-fprofile-instr-generate -fcoverage-mapping)
+endif()
+
+# ============================================================================
 # Include targets
 # ============================================================================
 

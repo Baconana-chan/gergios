@@ -723,7 +723,7 @@ int arch_enable_paging(struct proc * caller)
 
 #ifdef USE_WATCHDOG
 	if (watchdog_enabled)
-		i386_watchdog_start();
+		nmi_watchdog_start_profiling(0);
 #endif
 
 	return OK;

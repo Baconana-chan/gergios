@@ -583,10 +583,10 @@ ENTRY(x86_invlpg)
 ENTRY(x86_load_kerncs)
 	pushq	%rbp
 	movq	%rsp, %rbp
-	/* Push new CS and return address for retfq */
+	/* Push new CS and return address for far return */
 	pushq	$KERN_CS_SELECTOR
 	pushq	$newcs64
-	retfq
+	lretq
 newcs64:
 	popq	%rbp
 	ret

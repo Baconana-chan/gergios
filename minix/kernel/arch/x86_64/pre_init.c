@@ -5,6 +5,15 @@
 
 #define UNPAGED 1
 
+/* __unpaged attribute: places function in .unpaged.text section.
+ * MINIX's patched GCC recognizes this natively; for Clang/GCC we
+ * define it as an explicit section attribute. The build system also
+ * uses objcopy --prefix-symbols=__k_unpaged_ on the resulting .o.
+ */
+#ifndef __unpaged
+#define __unpaged __attribute__((section(".unpaged.text")))
+#endif
+
 #include <assert.h>
 #include <stdlib.h>
 #include <minix/minlib.h>
@@ -15,7 +24,8 @@
 #include "string.h"
 #include "direct_utils.h"
 #include "serial.h"
-#include "glo.h"
+#include <machine/multiboot.h>
+#include "kernel/kernel.h"
 
 #if USE_SYSDEBUG
 #define MULTIBOOT_VERBOSE 1
@@ -71,6 +81,14 @@ int mb_set_param(char *bigbuf, char *name, char *value, kinfo_t *cbi)
 	return 0;
 }
 
+/* Forward declarations for functions defined later or in pg_utils.c */
+void add_memmap(kinfo_t *cbi, u64_t addr, u64_t len);
+void cut_memmap(kinfo_t *cbi, phys_bytes start, phys_bytes end);
+/* Local typedef for multiboot types (not always available through
+ * param.h when _MINIX_SYSTEM is undefined). */
+typedef struct multiboot_module multiboot_module_t;
+typedef struct multiboot_mmap multiboot_memory_map_t;
+
 int __unpaged overlaps(multiboot_module_t *mod, int n, int cmp_mod)
 {
 	multiboot_module_t *cmp = &mod[cmp_mod];
@@ -80,7 +98,7 @@ int __unpaged overlaps(multiboot_module_t *mod, int n, int cmp_mod)
 #define OVERLAP(mod1, mod2) (INRANGE(mod1, mod2->mod_start) || \
 			INRANGE(mod1, mod2->mod_end-1))
 	for(m = 0; m < n; m++) {
-		multiboot_module_t *thismod = &mod[m];
+		struct multiboot_module *thismod = &mod[m];
 		if(m == cmp_mod) continue;
 		if(OVERLAP(thismod, cmp))
 			return 1;
@@ -157,8 +175,8 @@ void get_parameters(u64_t ebx, kinfo_t *cbi)
 	memset(cbi->memmap, 0, sizeof(cbi->memmap));
 	if(mbi->mi_flags & MULTIBOOT_INFO_HAS_MMAP) {
 		cbi->mmap_size = 0;
-	        for (mmap = (multiboot_memory_map_t *) (u64_t) mbi->mmap_addr;
-      	     (unsigned long) mmap < mbi->mmap_addr + mbi->mmap_length;
+	        for (mmap = (multiboot_memory_map_t *) (u64_t) mbi->mi_mmap_addr;
+      	     (unsigned long) mmap < mbi->mi_mmap_addr + mbi->mi_mmap_length;
       	       mmap = (multiboot_memory_map_t *)
 		     	((unsigned long) mmap + mmap->mm_size + sizeof(mmap->mm_size))) {
 			if(mmap->mm_type != MULTIBOOT_MEMORY_AVAILABLE) continue;

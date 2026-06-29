@@ -2,6 +2,9 @@
 #ifndef _MACHINE_VM_H_
 #define _MACHINE_VM_H_
 
-#include_next <vm.h>
+/* Include arch-specific vm.h from the include paths.
+ * Using #include <vm.h> instead of #include_next to work reliably
+ * across all toolchains (Clang on Windows). */
+#include <vm.h>
 
 #endif /* !_MACHINE_VM_H_ */

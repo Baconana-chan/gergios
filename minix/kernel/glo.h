@@ -12,6 +12,7 @@
 #endif
 
 #include <minix/config.h>
+#include <minix/const.h>	/* for EXTERN */
 #include <minix/ipcconst.h>
 #include <machine/archtypes.h>
 #include "archconst.h"

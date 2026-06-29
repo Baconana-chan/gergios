@@ -5,6 +5,8 @@
 /* Use include_next to find the arch-specific cdefs.h
  * (e.g., sys/arch/aarch64/include/cdefs.h via -I.../sys/arch/aarch64/include)
  */
+#ifndef _MSC_VER
 #include_next <cdefs.h>
+#endif
 
 #endif /* !_MACHINE_CDEFS_H_ */

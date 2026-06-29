@@ -44,22 +44,69 @@
 **Багфиксы**: vm_memset sign-extension fix (memory.c), LSTAR 64-bit addr fix (protect.c)
 **Примечание**: CMake configure для x86_64 проходил с ошибками в usr.bin/commands — **ИСПРАВЛЕНО** (см. ниже).
 
-**⚠️ Остаются ошибки configure: wolfssl (2) + fs/isofs/procfs/ptyfs (3) — вне scope usr.bin/commands.**
+**⚠️ Все configure ошибки исправлены — 0 остаётся.**
 
-### T4. Создать `minix/lib/libsys/arch/x86_64/` с 64-bit I/O wrappers 🟡
+### T4. Создать `minix/lib/libsys/arch/x86_64/` с 64-bit I/O wrappers ✅
 **Файл**: `planning/03_migration_roadmap.md` §Architecture Phase 5
 **Описание**: Часть кода в `arch/i386/` используется libsys.
-**Статус**: ⬜ Не начато
-**Зависит от**: T3
+**Статус**: ✅ **Завершено** — 18 файлов уже существовали в arch/x86_64/, идентичных i386. Используют message passing (_kernel_call), 64-bit адаптация не требуется. Добавлен `MACHINE_ARCH STREQUAL "x86_64"` в CMakeLists.txt.
+**Примечание**: cmake configure 0 errors. Сборка через MSVC падает из-за предсуществующей проблемы `#include_next` (не относится к T4).
 
-### T5. Обновить `minix/kernel/CMakeLists.txt` — добавить `x86_64` case 🟡
+### T5. Обновить `minix/kernel/CMakeLists.txt` — добавить `x86_64` case ✅
 **Файл**: `planning/03_migration_roadmap.md` §Architecture Phase 5
-**Описание**: Сейчас CMakeLists.txt использует arch/i386/ для x86_64 через `__x86_64__`. Нужен отдельный `MACHINE_ARCH == "x86_64"` case.
-**Статус**: 🟡 Частично — aarch64 case добавлен, x86_64 требует отдельного пути
+**Описание**: Обновлён CMakeLists.txt: добавлены `head.S`, `pre_init.c`, `arch_smp.c`/`trampoline.S` (CONFIG_SMP), x86_64 compile options (`-mcmodel=kernel -mno-red-zone`).
+**Статус**: ✅ **Завершено**
 **Зависит от**: T3–T4
 
-### T6. Исправить `cmake/options.cmake` — ACPI/APIC/PCI/Watchdog для x86_64 🟡
-**Статус**: ⬜ Не начато
+### T5.5. Починить pre-existing build errors для x86_64 kernel ✅
+**Описание**: После T5 (переключения на чистый `arch/x86_64/`) в shared kernel code проявились 4 pre-existing ошибки, которые раньше были скрыты использованием `arch/i386/`:
+
+1. **`watchdog.c`** — `#include "arch/i386/glo.h"` не работает; `arch_watchdog_lockup()`/`nmi_watchdog_handler()` объявлены только под `#ifdef __i386__`
+2. **`main.c`** — `direct_utils.h` не существует для x86_64
+3. **`proc.c`** — `IPC_STATUS_REG` определён как `gpr[1]` (aarch64), но x86_64 `stackframe_s` не имеет `gpr[]` (именованные поля)
+4. **`do_trace.c`** — `SETPSW` не виден (отсутствовал include `archconst.h` в include chain)
+
+**Статус**: ✅ **Завершено**
+
+**Изменённые/созданные файлы**:
+| Файл | Изменение |
+|------|-----------|
+| `sys/machine/ipcconst.h` | ✏️ `IPC_STATUS_REG` conditional: `retreg` для x86_64, `gpr[1]` для ARM |
+| `sys/machine/memory.h` | 🆕 Memory constants (PAGE_SIZE, KERNEL_VBASE, etc.) |
+| `sys/machine/ports.h` | 🆕 `#include_next <ports.h>` delegation |
+| `sys/machine/cmos.h` | 🆕 `#include_next <cmos.h>` delegation |
+| `sys/machine/partition.h` | 🆕 `#include_next <partition.h>` delegation |
+| `minix/kernel/watchdog.h` | ✏️ `#ifdef __i386__` → `#if defined(__i386__) || defined(__x86_64__)` |
+| `arch/x86_64/include/arch_watchdog.h` | ✏️ `struct nmi_frame` definition for x86_64 |
+| `arch/x86_64/include/direct_utils.h` | 🆕 Declares `direct_print()`, `direct_cls()` |
+| `arch/x86_64/include/archconst.h` | ✏️ Added `X86_FLAGS_USER = 0x240CD5` |
+| `arch/x86_64/sconst.h` | ✏️ `"kernel/procoffsets.h"` → `"procoffsets.h"` |
+| `arch/x86_64/include/arch_proto.h` | ✏️ Added `#include "archconst.h"` |
+| `minix/kernel/kernel.h` | ✏️ Added `#include "arch_proto.h"` |
+
+**Остаётся (не относится к T5.5)**: 6+ pre-existing ошибок в x86_64 arch source файлах (missing headers: `machine/bios.h`, `apic.h`, `serial.h`; assembly errors)
+
+### T6. Исправить `cmake/options.cmake` — ACPI/APIC/PCI/Watchdog для x86_64 ✅
+**Статус**: ✅ **Завершено**
+
+**Изменения**:
+1. `cmake/options.cmake` — compile definitions перенесены из options.cmake в CMakeLists.txt
+2. `CMakeLists.txt` — USE_* compile definitions теперь добавляются ПОСЛЕ `include(arch_${MACHINE_ARCH})`
+3. `sys/machine/bios.h` — 🆕 delegation header
+4. `sys/machine/interrupt.h` — ✏️ self-contained x86 + AArch64 constants
+5. `arch/x86_64/apic.h` — 🆕 APIC constants + declarations
+6. `arch/x86_64/serial.h` — 🆕 UART 8250/16550 definitions
+7. `arch/x86_64/oxpcie.h` — 🆕 OXPCIe952 serial port definitions
+8. `sys/arch/x86_64/include/vm.h` — ✏️ X86_64_CR0_TS added
+9. `arch/x86_64/include/hw_intr.h` — ✏️ eoi_8259_master/slave declarations
+10. `arch/x86_64/klib.S` — ✏️ retfq → lretq (Clang compat)
+11. `kernel/CMakeLists.txt` — ✏️ CMAKE_CURRENT_SOURCE_DIR в include paths
+
+**Остаётся (pre-existing, не T6)**:
+- **head.S**: assembly-time/relocatable expression errors
+- **mpx.S**: `expected ')'` syntax error
+- **glo.h**: EXTERN type (возможно include order)
+- **acpi.h**: missing header для x86_64
 
 ### T7. Восстановить ramdisk boot драйверы для x86_64 🟡
 **Статус**: ⬜ Не начато

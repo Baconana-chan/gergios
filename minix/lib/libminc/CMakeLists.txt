@@ -200,21 +200,24 @@ set(LIBMINC_MINIX_SYS_SOURCES
 
 # Generated errlist.c
 set(LIBMINC_ERRNO_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/errlist.c")
+# Generate errlist.c from errno.h using sed/awk pipeline.
+# Written as single-line COMMAND to avoid Ninja multiline parsing issues on Windows.
 add_custom_command(
     OUTPUT "${LIBMINC_ERRNO_SOURCE}"
     DEPENDS
         ${LIBCDIR}/gen/errlist.awk
         ${MINIX_SOURCE_DIR}/sys/sys/errno.h
-    COMMAND
-        ${CMAKE_COMMAND} -E env
-            SHELL="${CMAKE_COMMAND} -E"
-        ${CMAKE_COMMAND} -E env sh -c
-            "cat '${MINIX_SOURCE_DIR}/sys/sys/errno.h'
-             | sed 's/(_SIGN//'
-             | awk -f '${LIBCDIR}/gen/errlist.awk'
-             > '${LIBMINC_ERRNO_SOURCE}'"
+    COMMAND ${CMAKE_COMMAND} -E env sh -c "cat '${MINIX_SOURCE_DIR}/sys/sys/errno.h' | sed 's/(_SIGN//' | awk -f '${LIBCDIR}/gen/errlist.awk' > '${LIBMINC_ERRNO_SOURCE}'"
     COMMENT "Generating errlist.c"
 )
+
+# Exclude bswap64.c for x86_64 and aarch64 (has __builtin_bswap64 via
+# machine/bswap.h static inline — the .c file's non-static definition
+# conflicts with the inline in the same translation unit).
+# On i386/arm without __builtin_bswap64, the .c file is still needed.
+if(${MACHINE_CPU} STREQUAL "x86_64" OR ${MACHINE_CPU} STREQUAL "aarch64")
+    list(REMOVE_ITEM LIBMINC_COMMON_SOURCES ${LIBCOMMONCDIR}/gen/bswap64.c)
+endif()
 
 add_minix_library(minc
     SOURCES
@@ -255,7 +258,12 @@ set_source_files_properties(strtol.c PROPERTIES
     COMPILE_DEFINITIONS "_STANDALONE"
     INCLUDE_DIRECTORIES "${LIBCOMMONCDIR}/stdlib;${MINIX_SOURCE_DIR}/sys"
 )
-set_source_files_properties(strtoul.c PROPERTIES
+# NOTE: Use the FULL path (${LIBCOMMONCDIR}/stdlib/strtoul.c) because
+# set_source_files_properties matches the EXACT path used in the target.
+# strtoul.c is added via ${LIBCOMMONCDIR}/stdlib/strtoul.c (absolute),
+# not as a relative path. Without the full path, _STANDALONE won't apply
+# and the locale-dependent #else branch in _strtoul.h will be compiled.
+set_source_files_properties(${LIBCOMMONCDIR}/stdlib/strtoul.c PROPERTIES
     COMPILE_DEFINITIONS "_STANDALONE"
     INCLUDE_DIRECTORIES "${MINIX_SOURCE_DIR}/sys"
 )
@@ -285,4 +293,7 @@ set_source_files_properties(fslib.c PROPERTIES
 target_include_directories(minc PRIVATE
     ${LIBCDIR}/include
     ${LIBCDIR}
+    ${LIBCDIR}/locale   # for setlocale_local.h (used by _strtoul.h when !_STANDALONE)
 )
+
+

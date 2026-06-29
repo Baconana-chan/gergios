@@ -2,6 +2,7 @@
 #define _X86_64_PROTO_H
 
 #include <machine/vm.h>
+#include "archconst.h"
 
 #define K_STACK_SIZE	X86_64_PAGE_SIZE
 

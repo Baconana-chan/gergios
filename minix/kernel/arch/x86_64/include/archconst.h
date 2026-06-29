@@ -69,6 +69,12 @@
 #define DPL_SHIFT            5
 #define SEGMENT           0x10
 
+/* Segment descriptor shift/max values (for sdesc) */
+#define BASE_MIDDLE_SHIFT   16
+#define BASE_HIGH_SHIFT     24
+#define BYTE_GRAN_MAX   0xFFFFFL
+#define PAGE_GRAN_SHIFT     12
+
 /* Access-byte bits. */
 #define EXECUTABLE        0x08
 #define CONFORMING        0x04
@@ -107,6 +113,11 @@
 #define IF_MASK 0x00000200
 #define IOPL_MASK 0x003000
 #define RF_MASK 0x00010000
+
+/* User-settable RFLAGS bits (arithmetic flags + DF + AC + ID) */
+/* User-settable RFLAGS bits: arithmetic flags (CF,PF,AF,ZF,SF,DF,OF)
+ * + AC (bit 18) + ID (bit 21). Bits 22-31 are reserved on x86-64. */
+#define X86_FLAGS_USER		0x240CD5
 
 /* CPU vendor strings (same as i386). */
 #define INTEL_CPUID_GEN_EBX	0x756e6547

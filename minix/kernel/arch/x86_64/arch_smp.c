@@ -28,7 +28,7 @@
 #include "acpi.h"
 #include "kernel/clock.h"
 
-#include "glo.h"
+#include "kernel/kernel.h"
 
 void trampoline(void);
 

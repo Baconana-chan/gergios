@@ -20,6 +20,29 @@ if(MACHINE_ARCH STREQUAL "aarch64")
     )
 endif()
 
+if(MACHINE_ARCH STREQUAL "x86_64")
+    set(LIBSYS_ARCH_SOURCES
+        arch/x86_64/get_randomness.c
+        arch/x86_64/getidle.c
+        arch/x86_64/ser_putc.c
+        arch/x86_64/spin.c
+        arch/x86_64/sys_eniop.c
+        arch/x86_64/sys_in.c
+        arch/x86_64/sys_out.c
+        arch/x86_64/sys_readbios.c
+        arch/x86_64/sys_sdevio.c
+        arch/x86_64/sys_umap_remote.c
+        arch/x86_64/sys_vinb.c
+        arch/x86_64/sys_vinl.c
+        arch/x86_64/sys_vinw.c
+        arch/x86_64/sys_voutb.c
+        arch/x86_64/sys_voutl.c
+        arch/x86_64/sys_voutw.c
+        arch/x86_64/tsc_util.c
+        arch/x86_64/vbox.c
+    )
+endif()
+
 set(LIBSYS_COMMON_SOURCES
     alloc_util.c
     assert.c
