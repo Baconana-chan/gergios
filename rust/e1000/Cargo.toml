@@ -1,0 +1,20 @@
+[package]
+name = "e1000"
+version = "0.1.0"
+edition = "2024"
+description = "Intel PRO/1000 Gigabit Ethernet driver for MINIX"
+
+[dependencies]
+libc = { version = "*", optional = true }
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+std = ["libc"]
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1

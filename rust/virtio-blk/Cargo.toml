@@ -1,0 +1,16 @@
+[package]
+name = "virtio-blk"
+version = "0.1.0"
+edition = "2024"
+description = "Virtio block device driver for MINIX — Rust pilot replacing C virtio_blk"
+
+[lib]
+name = "virtio_blk"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

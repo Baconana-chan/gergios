@@ -1,0 +1,16 @@
+[package]
+name = "minix-ahci"
+version = "0.1.0"
+edition = "2024"
+description = "AHCI (Advanced Host Controller Interface) SATA driver for MINIX — Phase 5 pilot Rust migration"
+
+[lib]
+name = "minix_ahci"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

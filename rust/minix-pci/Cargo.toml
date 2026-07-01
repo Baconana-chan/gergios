@@ -1,0 +1,16 @@
+[package]
+name = "minix-pci"
+version = "0.1.0"
+edition = "2024"
+description = "PCI bus driver for MINIX — Phase 5 Rust migration pilot"
+
+[lib]
+name = "minix_pci"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

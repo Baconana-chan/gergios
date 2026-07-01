@@ -1,0 +1,31 @@
+{
+    "arch": "x86_64",
+    "cpu": "x86-64",
+    "data-layout": "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
+    "disable-red-zone": false,
+    "dwarf_version": 2,
+    "executables": true,
+    "features": "-sse3,-ssse3,-sse4.1,-sse4.2,-avx,-avx2,-aes,-pclmulqdq",
+    "has-elf-tls": true,
+    "has-rpath": true,
+    "linker": "x86_64-elf64-minix-gcc",
+    "llvm-target": "x86_64-unknown-unknown",
+    "max-atomic-width": 64,
+    "os": "minix",
+    "panic-strategy": "abort",
+    "position-independent-executables": true,
+    "pre-link-args": {
+        "gcc": [
+            "-m64",
+            "-L${MINIX_DESTDIR}/usr/lib",
+            "-L${MINIX_DESTDIR}/lib"
+        ]
+    },
+    "relocation-model": "pic",
+    "target-c-int-width": "32",
+    "target-endian": "little",
+    "target-family": "unix",
+    "target-mcount": "_mcount",
+    "target-pointer-width": "64",
+    "vendor": "unknown"
+}

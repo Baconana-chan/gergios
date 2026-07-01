@@ -64,7 +64,9 @@ members = [
     "menuc",
     "mesg",
     "minix-alloc",
+    "minix-ahci",
     "minix-driver",
+    "minix-pci",
     "minix-rs",
     "mkdep",
     "mkesdb",
@@ -140,6 +142,12 @@ members = [
     "xstr",
     "yes",
     "ext4-core",
+    "virtio-blk",
+    "e1000",
 ]
+
+# Global profile: panic=abort for no_std drivers and other workspace members
+[profile.dev]
+panic = "abort"
 
 resolver = "2"

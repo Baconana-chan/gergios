@@ -489,6 +489,113 @@ where
     Ok(())
 }
 
+/// Write data to a file at a given offset using the extent tree.
+///
+/// Handles:
+/// - Writing to already-allocated blocks (read-modify-write)
+/// - Writing to sparse/hole regions (allocate new block, insert extent)
+/// - Partial block writes at start and end
+///
+/// `write_inode` is called once at the end to persist inode changes
+/// (size, block count, timestamps). The caller is responsible for
+/// updating the inode size, block count, and timestamps before calling
+/// this function, or handling them after.
+pub fn extent_write<FR, FW, FA, FI>(
+    sb: &Ext4Superblock,
+    inode: &mut Ext4Inode,
+    offset: u64,
+    buf: &[u8],
+    mut read_block: FR,
+    mut write_block: FW,
+    mut alloc_block: FA,
+    mut write_inode: FI,
+) -> Ext4Result<usize>
+where
+    FR: FnMut(u64, &mut [u8]) -> Ext4Result<()>,
+    FW: FnMut(u64, &[u8]) -> Ext4Result<()>,
+    FA: FnMut() -> Ext4Result<u64>,
+    FI: FnMut(&Ext4Inode) -> Ext4Result<()>,
+{
+    if buf.is_empty() {
+        return Ok(0);
+    }
+
+    let block_size = sb.block_size() as u64;
+    let file_size = inode.file_size();
+    let end_offset = offset + buf.len() as u64;
+    let mut total_written = 0usize;
+
+    let start_block = offset / block_size;
+    let end_block = (end_offset + block_size - 1) / block_size;
+    let sectors_per_block = block_size / 512;
+
+    for lb in start_block..end_block {
+        // Compute byte ranges within this block
+        let block_start = lb * block_size;
+        let in_block_off = if lb == start_block { (offset - block_start) as usize } else { 0 };
+        let in_block_end = if lb == end_block - 1 {
+            let end_in_block = end_offset - block_start;
+            end_in_block as usize
+        } else {
+            block_size as usize
+        };
+        let copy_len = in_block_end - in_block_off;
+
+        // Try to find existing block
+        let phys = extent_lookup(sb, inode, lb, &mut read_block)?;
+
+        match phys {
+            Some(pbn) => {
+                // Block already allocated — read-modify-write
+                let mut block_buf = vec![0u8; block_size as usize];
+                read_block(pbn, &mut block_buf)?;
+
+                // Copy user data into the block buffer
+                block_buf[in_block_off..in_block_end]
+                    .copy_from_slice(&buf[total_written..total_written + copy_len]);
+
+                write_block(pbn, &block_buf)?;
+            },
+            None => {
+                // Sparse block — allocate a new block
+                let new_phys = alloc_block()?;
+
+                // Create the block: zero-filled with user data at the right offset
+                let mut block_buf = vec![0u8; block_size as usize];
+                block_buf[in_block_off..in_block_end]
+                    .copy_from_slice(&buf[total_written..total_written + copy_len]);
+
+                write_block(new_phys, &block_buf)?;
+
+                // Insert extent mapping
+                crate::extent::extent_insert(
+                    sb, inode, lb as u32, new_phys, 1, &mut write_inode,
+                )?;
+
+                // Update block count (in 512-byte sectors)
+                let current_blocks = inode.blocks_count();
+                crate::inode::set_blocks_count(inode, current_blocks + sectors_per_block);
+            }
+        }
+
+        total_written += copy_len;
+    }
+
+    // Update file size if we wrote beyond the current end
+    if end_offset > file_size {
+        crate::inode::set_file_size(inode, end_offset);
+    }
+
+    // Update timestamps
+    // TODO: use actual current time when available
+    crate::inode::update_timestamps(inode, 0, 0, 0);
+
+    // Write the inode back
+    write_inode(inode)?;
+
+    Ok(total_written)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

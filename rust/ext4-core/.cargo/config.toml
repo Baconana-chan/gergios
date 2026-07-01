@@ -1,0 +1,27 @@
+# .cargo/config.toml — ext4-core Cargo configuration
+#
+# Native build (Windows/Linux/macOS):
+#   cargo build --release
+#
+# MINIX cross-build (requires MINIX toolchain):
+#   cargo build --release --target ../../x86_64-unknown-minix.json
+#
+# The MINIX target relies on these environment variables:
+#   MINIX_TOOLCHAIN  — path to MINIX cross-toolchain root (/opt/minix/toolchain)
+#   MINIX_DESTDIR    — path to MINIX sysroot (/opt/minix/destdir)
+#   MACHINE_ARCH     — x86_64 (default) or aarch64
+#
+# During cross-build, set the linker via RUSTFLAGS (works best with custom JSON targets):
+#   export RUSTFLAGS="-C linker=${MINIX_TOOLCHAIN}/bin/x86_64-elf64-minix-gcc"
+#
+# Or via --config on the command line:
+#   cargo build --release --target ../../x86_64-unknown-minix.json \
+#       -Zlinker-flavor --config 'target.x86_64-unknown-minix.linker="..."'
+#
+# The `build_ext4.sh` script handles all of this automatically.
+
+# Note: With custom JSON targets, Cargo matches by the JSON filename.
+# The linker is best set via environment variable or command line.
+
+[build]
+target-dir = "target"

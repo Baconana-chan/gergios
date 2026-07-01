@@ -4,10 +4,16 @@
 //! in each block group, pointed to by the group descriptor.
 
 use crate::types::*;
+use crate::journal::crc32c_le;
 
 /// Serialize an Ext4Inode into a raw buffer (for writing back to disk).
 /// `data` must be at least `sb.inode_size()` bytes.
-pub fn serialize_inode(data: &mut [u8], inode: &Ext4Inode, sb: &Ext4Superblock) {
+///
+/// If `ino` is `Some(n)`, computes and writes the CRC-32C metadata checksum
+/// into `i_checksum_hi` (offset 130) if `METADATA_CSUM` is enabled.
+/// Pass `None` when serializing a zeroed/deleted inode that won't be written
+/// back to the filesystem.
+pub fn serialize_inode(data: &mut [u8], inode: &Ext4Inode, sb: &Ext4Superblock, ino: Option<u32>) {
     let isize = sb.inode_size();
     if data.len() < isize { return; }
 
@@ -43,6 +49,33 @@ pub fn serialize_inode(data: &mut [u8], inode: &Ext4Inode, sb: &Ext4Superblock) 
         data[148..152].copy_from_slice(&inode.i_crtime_extra.to_le_bytes());
         data[152..156].copy_from_slice(&inode.i_version_hi.to_le_bytes());
         data[156..160].copy_from_slice(&inode.i_projid.to_le_bytes());
+    }
+
+    // Compute and write CRC-32C metadata checksum if requested
+    if let Some(ino_val) = ino {
+        if sb.has_metadata_csum() && isize >= 132 {
+            // Zero the checksum field before computing
+            data[130..132].copy_from_slice(&[0u8; 2]);
+
+            // Compute seed from UUID: crc32c_le(0xFFFFFFFF, s_uuid)
+            let seed = crc32c_le(0xFFFFFFFF, &sb.s_uuid);
+
+            // Feed inode number (4 bytes LE)
+            let ino_le = ino_val.to_le_bytes();
+            let mut crc = crc32c_le(seed, &ino_le);
+
+            // Feed i_generation at offset 100 (4 bytes LE)
+            if isize >= 104 {
+                crc = crc32c_le(crc, &data[100..104]);
+            }
+
+            // Feed the full inode data (with checksum field zeroed)
+            crc = crc32c_le(crc, &data[..isize]);
+
+            // Write lower 16 bits as i_checksum_hi
+            let csum = (crc as u16).to_le_bytes();
+            data[130..132].copy_from_slice(&csum);
+        }
     }
 }
 

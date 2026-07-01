@@ -7,9 +7,30 @@ description = "Pure Rust ext4 filesystem parser — superblock, extent tree, htr
 [lib]
 crate-type = ["lib", "staticlib"]
 
+[[bench]]
+name = "superblock_bench"
+harness = false
+
+[[bench]]
+name = "extent_bench"
+harness = false
+
+[[bench]]
+name = "dir_bench"
+harness = false
+
+[[bench]]
+name = "journal_bench"
+harness = false
+
+[[bench]]
+name = "xattr_acl_quota_bench"
+harness = false
+
 [dependencies]
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [profile.release]
 lto = true

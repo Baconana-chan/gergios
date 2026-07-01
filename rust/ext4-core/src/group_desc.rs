@@ -28,8 +28,47 @@ pub fn parse_group_descriptors(
     Ok(groups)
 }
 
+/// Compute the block number containing the group descriptor for a given group.
+pub fn group_desc_block(sb: &Ext4Superblock, group: u32) -> u64 {
+    let desc_size = sb.desc_size();
+    let block_size = sb.block_size();
+    // GD table starts at block 2 for 1024-byte blocks, block 1 otherwise
+    let gdt_start_block = if block_size == 1024 { 2u64 } else { 1u64 };
+    let desc_per_block = block_size / desc_size;
+    let block_offset = group as u64 / desc_per_block as u64;
+    gdt_start_block + block_offset
+}
+
+/// Compute the byte offset within the GD block for a given group.
+pub fn group_desc_offset(sb: &Ext4Superblock, group: u32) -> usize {
+    let desc_size = sb.desc_size();
+    let block_size = sb.block_size();
+    let desc_per_block = block_size / desc_size;
+    (group as usize % desc_per_block) * desc_size
+}
+
+/// Read a single group descriptor from disk via callback.
+pub fn read_group_descriptor<F>(
+    sb: &Ext4Superblock,
+    group: u32,
+    mut read_block: F,
+) -> Ext4Result<Ext4GroupDesc>
+where
+    F: FnMut(u64, &mut [u8]) -> Ext4Result<()>,
+{
+    let block_nr = group_desc_block(sb, group);
+    let block_size = sb.block_size();
+    let mut buf = vec![0u8; block_size];
+    read_block(block_nr, &mut buf)?;
+    let off = group_desc_offset(sb, group);
+    if off + sb.desc_size() > buf.len() {
+        return Err(Ext4Error::IoError);
+    }
+    parse_group_desc(&buf[off..], sb.desc_size(), sb)
+}
+
 /// Parse a single group descriptor at the given offset.
-fn parse_group_desc(data: &[u8], desc_size: usize, _sb: &Ext4Superblock) -> Ext4Result<Ext4GroupDesc> {
+pub(crate) fn parse_group_desc(data: &[u8], desc_size: usize, _sb: &Ext4Superblock) -> Ext4Result<Ext4GroupDesc> {
     if data.len() < desc_size {
         return Err(Ext4Error::IoError);
     }

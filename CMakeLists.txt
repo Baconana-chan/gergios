@@ -54,6 +54,129 @@ function(get_rust_sanitizer_flags out_var)
     set(${out_var} "${flags}" PARENT_SCOPE)
 endfunction()
 
+# Function to add a Rust static library for linking into C targets
+#
+# Usage:
+#   add_rust_library(minix-ahci
+#       LINK_TO ahci_driver              # optional: C target(s) that consume this library
+#       CRATE_TYPE staticlib             # optional: default "staticlib"
+#       INSTALL_DIR /usr/lib             # optional: install destination
+#   )
+#
+# Creates an IMPORTED CMake target named "rust_<name>" that C targets can
+# link against with target_link_libraries(). The cargo build produces a
+# .a file (or .lib on Windows) in CARGO_TARGET_DIR.
+#
+# Known limitation: CMAKE_BUILD_TYPE determines BUILD_SUBDIR at configure time,
+# so IMPORTED_LOCATION is fixed for single-config generators (Ninja, Makefiles).
+# Multi-config generators (Visual Studio, Xcode) would need generator expressions.
+function(add_rust_library name)
+    if(NOT CARGO_EXECUTABLE)
+        message(STATUS "Rust toolchain not available: skipping ${name}")
+        return()
+    endif()
+
+    set(RUST_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rust/${name}")
+
+    if(NOT EXISTS "${RUST_DIR}/Cargo.toml")
+        message(WARNING "Rust crate '${name}' not found at ${RUST_DIR} — skipping")
+        return()
+    endif()
+
+    cmake_parse_arguments(PARSE_ARGV 1 ARG
+        ""
+        "CRATE_TYPE;INSTALL_DIR"
+        "LINK_TO"
+    )
+
+    if(NOT ARG_CRATE_TYPE)
+        set(ARG_CRATE_TYPE "staticlib")
+    endif()
+
+    set(CARGO_TARGET_DIR "${CMAKE_CURRENT_BINARY_DIR}/rust")
+
+    # Build the Rust crate (produces .a / .lib)
+    get_rust_sanitizer_flags(RUST_SANITIZER_FLAGS)
+
+    if(RUST_SANITIZER_FLAGS)
+        add_custom_target(${name}_cargo
+            ALL
+            COMMAND ${CMAKE_COMMAND} -E env "RUSTFLAGS=${RUST_SANITIZER_FLAGS}"
+                "${CARGO_EXECUTABLE}" build --lib
+                --manifest-path "${RUST_DIR}/Cargo.toml"
+                --target-dir "${CARGO_TARGET_DIR}"
+                $<$<CONFIG:Release>:--release>
+            COMMENT "Building Rust library: ${name} (sanitizer: ${RUST_SANITIZER_FLAGS})"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    else()
+        add_custom_target(${name}_cargo
+            ALL
+            COMMAND "${CARGO_EXECUTABLE}" build --lib
+                --manifest-path "${RUST_DIR}/Cargo.toml"
+                --target-dir "${CARGO_TARGET_DIR}"
+                $<$<CONFIG:Release>:--release>
+            COMMENT "Building Rust library: ${name}"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+    endif()
+
+    # Determine library output path
+    set(BUILD_SUBDIR "debug")
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(BUILD_SUBDIR "release")
+    endif()
+
+    # Convert Cargo package name to library filename:
+    # - Cargo replaces hyphens with underscores in library names
+    # - staticlib produces lib<name>.a on Unix, <name>.lib on Windows
+    string(REPLACE "-" "_" RUST_LIB_NAME "${name}")
+
+    if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows")
+        set(RUST_LIB_FILE "${RUST_LIB_NAME}.lib")
+    else()
+        set(RUST_LIB_FILE "lib${RUST_LIB_NAME}.a")
+    endif()
+
+    set(RUST_LIB_PATH "${CARGO_TARGET_DIR}/${BUILD_SUBDIR}/${RUST_LIB_FILE}")
+
+    # Create an IMPORTED static library target so C targets can link against it
+    add_library(rust_${name} STATIC IMPORTED GLOBAL)
+
+    set(RUST_TARGET_PROPS
+        IMPORTED_LOCATION "${RUST_LIB_PATH}"
+    )
+
+    # If the crate exports C headers (e.g. rust/<name>/include/), expose them
+    if(EXISTS "${RUST_DIR}/include")
+        list(APPEND RUST_TARGET_PROPS
+            INTERFACE_INCLUDE_DIRECTORIES "${RUST_DIR}/include"
+        )
+    endif()
+
+    set_target_properties(rust_${name} PROPERTIES ${RUST_TARGET_PROPS})
+
+    # Make the imported target depend on the cargo build target
+    add_dependencies(rust_${name} ${name}_cargo)
+
+    # If consumer C targets are specified, link the Rust library into each
+    if(ARG_LINK_TO)
+        foreach(TGT ${ARG_LINK_TO})
+            target_link_libraries(${TGT} PRIVATE rust_${name})
+        endforeach()
+    endif()
+
+    # Install
+    if(ARG_INSTALL_DIR)
+        install(FILES "${RUST_LIB_PATH}" DESTINATION ${ARG_INSTALL_DIR})
+    else()
+        install(FILES "${RUST_LIB_PATH}" DESTINATION /usr/lib)
+    endif()
+
+    message(STATUS "Rust library: ${name} → ${RUST_LIB_FILE} (target: rust_${name})")
+endfunction()
+
+
 # Function to add a Rust-based userland utility
 function(add_rust_utility name)
     if(NOT CARGO_EXECUTABLE)
@@ -312,6 +435,11 @@ endif()
 # Network services (skip for aarch64 — CMake prototype incomplete)
 if(NOT MACHINE_ARCH STREQUAL "aarch64")
     add_subdirectory(minix/net)
+endif()
+
+# Phase 5: Rust driver libraries (staticlib for AHCI pilot)
+if(CARGO_EXECUTABLE)
+    add_rust_library(minix-ahci)
 endif()
 
 # Rust userland utilities (Phase 3)

@@ -529,6 +529,38 @@ pub struct Ext4DirEntry {
     pub name: [u8; 255],
 }
 
+// ─── Htree (dx) types ────────────────────────────────────────────────
+
+/// Maximum filename length in ext4.
+pub const EXT4_NAME_LEN: usize = 255;
+
+/// Hash version for htree directory indexing.
+pub const DX_HASH_LEGACY: u8 = 0;
+pub const DX_HASH_HALF_MD4: u8 = 1;
+pub const DX_HASH_TEA: u8 = 2;
+pub const DX_HASH_LEGACY_UNSIGNED: u8 = 3;
+pub const DX_HASH_HALF_MD4_UNSIGNED: u8 = 4;
+pub const DX_HASH_TEA_UNSIGNED: u8 = 5;
+
+/// Dx root info block (starts at offset 8 within the fake directory entry
+/// of an htree directory root block).
+#[derive(Clone, Copy, Debug)]
+pub struct Ext4DxRootInfo {
+    pub reserved_zero: u32,
+    pub hash_version: u8,
+    pub info_length: u8,       // Always 8 for version 0
+    pub indirect_levels: u8,   // 0 = 2-level tree, 1 = 3-level tree
+    pub unused_flags: u8,
+}
+
+/// Htree index entry (dx_entry) — maps a hash value to a directory leaf block.
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct Ext4DxEntry {
+    pub hash: u32,
+    pub block: u32,  // Logical block number within the directory
+}
+
 // ─── Error type ──────────────────────────────────────────────────────
 
 #[derive(Debug)]
@@ -548,6 +580,7 @@ pub enum Ext4Error {
     ExtentTreeFull,
     InvalidJournal,
     JournalCorrupt,
+    InvalidXattr,
 }
 
 impl fmt::Display for Ext4Error {
@@ -572,6 +605,7 @@ impl fmt::Display for Ext4Error {
             Ext4Error::ExtentTreeFull => write!(f, "extent tree is full, index node needed"),
             Ext4Error::InvalidJournal => write!(f, "invalid journal"),
             Ext4Error::JournalCorrupt => write!(f, "corrupt journal"),
+            Ext4Error::InvalidXattr => write!(f, "invalid extended attribute"),
         }
     }
 }
