@@ -20,18 +20,22 @@ use core::ffi::c_uint;
 /// `reg` — EEPROM word address (0, 1, 2 for MAC address)
 /// `done_bit` — bit to check for completion (device-specific)
 /// `addr_off` — address field bit offset (device-specific)
+///
+/// Returns 0 on timeout (caller should check for all-zero MAC).
 fn eeprom_read_eerd(regs: *mut u8, reg: c_uint, done_bit: u32, addr_off: u32) -> u16 {
     // Request EEPROM read
     let cmd = (reg << addr_off) | reg::EERD_START;
     write_reg(regs, reg::EERD, cmd);
 
-    // Wait until ready
-    loop {
+    // Wait until ready (with timeout to prevent hangs on broken hardware)
+    for _ in 0..reg::EERD_READ_TIMEOUT {
         let data = read_reg(regs, reg::EERD);
         if (data & done_bit) != 0 {
             return (data >> 16) as u16;
         }
     }
+
+    0 // timeout — return all-zero word
 }
 
 // ============================================================================

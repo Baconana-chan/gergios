@@ -5,9 +5,9 @@
 
 #ifndef __ASSEMBLY__
 
+#include "spinlock.h"
 #include "kernel/kernel.h"
 #include "arch_smp.h"
-#include "spinlock.h"
 
 /* number of CPUs (execution strands in the system */
 EXTERN unsigned ncpus;
@@ -43,13 +43,15 @@ EXTERN struct cpu cpus[CONFIG_MAX_CPUS];
 #define cpu_is_ready(cpu) cpu_test_flag(cpu, CPU_IS_READY)
 
 /*
- * Big Kernel Lock prevents more then one cpu executing the kernel code
+ * Big Kernel Lock prevents more then one cpu executing the kernel code.
+ * SPINLOCK_DECLARE macro may not be available due to circular includes
+ * (spinlock.h → kernel/kernel.h → smp.h), so use explicit extern.
  */
-SPINLOCK_DECLARE(big_kernel_lock)
+extern spinlock_t big_kernel_lock;
 /*
  * to sync the booting APs
  */
-SPINLOCK_DECLARE(boot_lock)
+extern spinlock_t boot_lock;
 	
 void wait_for_APs_to_finish_booting(void);
 void ap_boot_finished(unsigned cpu);

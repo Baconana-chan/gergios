@@ -158,9 +158,14 @@ int getmcontext(mcontext_t *mcp);
 static __inline void *
 __lwp_getprivate_fast(void)
 {
+#ifndef _MSC_VER
 	void *__tmp;
 	__asm volatile("movq %%fs:0, %0" : "=r" (__tmp));
 	return __tmp;
+#else
+	/* MSVC x64: inline asm not supported, TLS not used in kernel */
+	return NULL;
+#endif
 }
 
 #endif	/* !_X86_64_MCONTEXT_H_ */

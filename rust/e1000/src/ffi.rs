@@ -41,9 +41,16 @@ pub(crate) mod platform {
         pub fn sys_umap(endpt: c_int, seg: c_int, vir_addr: *const c_void,
             vir_bytes: usize, phys_addr: *mut u64) -> c_int;
 
-        // IRQ
+        // IRQ / MSI-X
         pub fn sys_irqsetpolicy(irq: c_int, policy: c_int, hook_id: *mut c_int) -> c_int;
         pub fn sys_irqenable(hook_id: *mut c_int) -> c_int;
+        pub fn sys_msix_alloc(irq: *mut c_int) -> c_int;
+        pub fn sys_msix_free(irq: c_int) -> c_int;
+        pub fn sys_msix_setpolicy(irq: c_int, policy: c_int, hook_id: *mut c_int) -> c_int;
+
+        // PCI capability (for MSI-X table parsing)
+        pub fn pci_find_cap(devind: c_int, cap_id: c_int, cap_ptr: *mut c_int) -> c_int;
+        pub fn pci_msix_parse(devind: c_int, info: *mut PciMsixInfo) -> c_int;
 
         // Port I/O (for debug/testing)
         pub fn sys_inb(port: u16, value: *mut u32) -> c_int;
@@ -87,6 +94,16 @@ pub(crate) mod platform {
 
     // Netdriver data helper types
     pub type NetdriverData = c_void;
+
+    /// MSI-X capability info (mirrors struct pci_msix_info from syslib.h).
+    #[repr(C)]
+    pub struct PciMsixInfo {
+        pub msix_table_size: c_int,
+        pub msix_table_bir: c_int,
+        pub msix_table_offset: u32,
+        pub msix_pba_bir: c_int,
+        pub msix_pba_offset: u32,
+    }
 
     pub type SefInitFreshFn = unsafe extern "C" fn(c_int, *const c_void) -> c_int;
     pub type SefSignalHandlerFn = unsafe extern "C" fn(c_int);
@@ -144,6 +161,16 @@ pub(crate) mod platform {
 #[cfg(not(target_os = "minix"))]
 pub(crate) mod platform {
     use super::*;
+
+    /// MSI-X capability info (mirrors struct pci_msix_info from syslib.h).
+    #[repr(C)]
+    pub struct PciMsixInfo {
+        pub msix_table_size: c_int,
+        pub msix_table_bir: c_int,
+        pub msix_table_offset: u32,
+        pub msix_pba_bir: c_int,
+        pub msix_pba_offset: u32,
+    }
 
     pub type NetdriverData = c_void;
     pub type SefInitFreshFn = unsafe extern "C" fn(c_int, *const c_void) -> c_int;
@@ -219,6 +246,13 @@ pub(crate) mod platform {
 
     pub unsafe fn sys_irqsetpolicy(_: c_int, _: c_int, _: *mut c_int) -> c_int { 0 }
     pub unsafe fn sys_irqenable(_: *mut c_int) -> c_int { 0 }
+    pub unsafe fn sys_irqrmpolicy(_: *mut c_int) -> c_int { 0 }
+    pub unsafe fn sys_msix_alloc(_: *mut c_int) -> c_int { -1 }
+    pub unsafe fn sys_msix_free(_: c_int) -> c_int { -1 }
+    pub unsafe fn sys_msix_setpolicy(_: c_int, _: c_int, _: *mut c_int) -> c_int { -1 }
+    pub unsafe fn pci_find_cap(_: c_int, _: c_int, _: *mut c_int) -> c_int { 0 }
+    pub unsafe fn pci_msix_parse(_: c_int, _: *mut PciMsixInfo) -> c_int { 0 }
+    pub unsafe fn vm_unmap_phys(_: c_int, _: *mut c_void, _: usize) -> c_int { -1 }
 
     pub unsafe fn sys_inb(_: u16, _: *mut u32) -> c_int { 0 }
     pub unsafe fn sys_outb(_: u16, _: u8) -> c_int { 0 }
@@ -353,6 +387,57 @@ pub fn irq_setup_ffi(irq: c_int) -> Option<c_int> {
 
 pub fn irq_reenable_ffi(hook_id: &c_int) -> c_int {
     unsafe { platform::sys_irqenable(hook_id as *const c_int as *mut c_int) }
+}
+
+pub fn irq_remove_ffi(hook_id: &mut c_int) -> c_int {
+    unsafe { platform::sys_irqrmpolicy(hook_id) }
+}
+
+// MSI-X support
+pub fn pci_find_cap_ffi(devind: c_int, cap_id: c_int) -> Option<c_int> {
+    unsafe {
+        let mut cap_ptr: c_int = 0;
+        let r = platform::pci_find_cap(devind, cap_id, &mut cap_ptr);
+        if r == 0 { None } else { Some(cap_ptr) }
+    }
+}
+
+pub fn pci_msix_parse_ffi(devind: c_int) -> Option<platform::PciMsixInfo> {
+    unsafe {
+        let mut info = platform::PciMsixInfo {
+            msix_table_size: 0,
+            msix_table_bir: 0,
+            msix_table_offset: 0,
+            msix_pba_bir: 0,
+            msix_pba_offset: 0,
+        };
+        let r = platform::pci_msix_parse(devind, &mut info);
+        if r == 0 { None } else { Some(info) }
+    }
+}
+
+pub fn msix_alloc_irq() -> Option<c_int> {
+    unsafe {
+        let mut irq: c_int = 0;
+        let r = platform::sys_msix_alloc(&mut irq);
+        if r != 0 { None } else { Some(irq) }
+    }
+}
+
+pub fn msix_free_irq(irq: c_int) -> c_int {
+    unsafe { platform::sys_msix_free(irq) }
+}
+
+pub fn msix_setup(irq: c_int) -> Option<c_int> {
+    unsafe {
+        let mut hook_id: c_int = 0;
+        let r = platform::sys_msix_setpolicy(irq, 0, &mut hook_id);
+        if r != 0 { None } else { Some(hook_id) }
+    }
+}
+
+pub fn vm_unmap_phys_ffi(base: *mut core::ffi::c_void, size: usize) -> c_int {
+    unsafe { platform::vm_unmap_phys(platform::SELF, base, size) }
 }
 
 // SEF

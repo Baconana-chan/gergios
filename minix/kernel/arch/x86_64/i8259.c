@@ -77,6 +77,14 @@ void irq_8259_eoi(int irq)
  * the i386 non-APIC pattern).
  */
 
+/*
+ * hw_intr_* wrappers for legacy PIC mode.
+ * When USE_APIC is defined, hw_intr.h defines these as macros,
+ * so we must undef them before providing function definitions.
+ * In APIC mode, these functions are not called — the macros redirect
+ * to APIC functions directly.
+ */
+#ifndef USE_APIC
 void hw_intr_mask(int irq)
 {
 	irq_8259_mask(irq);
@@ -106,3 +114,4 @@ void hw_intr_disable_all(void)
 {
 	/* No special action in PIC mode. */
 }
+#endif /* !USE_APIC */

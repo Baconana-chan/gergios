@@ -131,7 +131,7 @@ struct acpi_madt_lapic {
 struct acpi_madt_ioapic {
 	struct acpi_madt_item_hdr hdr;
 	u8_t	id;
-	u8_t	__reserved;
+	u8_t	_reserved;
 	u32_t	address;
 	u32_t	global_int_base;
 };

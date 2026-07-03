@@ -13,15 +13,21 @@ pub mod hba;
 pub mod ata;
 
 use core::ffi::{c_char, c_int, c_uint, c_ulong, c_void};
-use core::ptr;
 
 use registers::{port_flags, PortState};
 use hba::HbaController;
 use port::Prd;
+use minix_driver::work_queue::{PriorityWorkQueue, SoftIrqPriority};
 
 /// Helper: return a negative errno value (MINIX convention).
 #[inline]
 fn libc_errno(e: c_int) -> c_int { e }
+
+/// Global work queue for threaded IRQ bottom-half processing.
+///
+/// AHCI bottom-half (PHY events) runs at Tasklet priority —
+/// not performance-critical, rare connect/disconnect events.
+static WORK_QUEUE: PriorityWorkQueue = PriorityWorkQueue::new();
 
 // ============================================================================
 // Global HBA instance
@@ -106,6 +112,12 @@ unsafe extern "C" fn ahci_c_transfer(
         return libc_errno(-5) as isize; /* EIO */
     }
 
+    // Allocate a command tag (NCQ slot)
+    let cmd_tag = match port.alloc_cmd_tag() {
+        Some(t) => t,
+        None => return libc_errno(-16) as isize, /* EBUSY */
+    };
+
     let sector = position / port.sector_size as u64;
     let prd = Prd {
         dba: port.bufs.tmp_phys as u32,
@@ -114,9 +126,20 @@ unsafe extern "C" fn ahci_c_transfer(
         size: port.sector_size - 1,
     };
 
-    let result = ata::ata_transfer(
-        &hba.mmio, port_idx, port, sector, 1, do_write != 0, false, &[prd],
-    );
+    // Use NCQ if device supports it, otherwise legacy DMA
+    let result = if (port.flags & port_flags::HAS_NCQ) != 0 {
+        ata::ata_transfer_ncq(
+            &hba.mmio, port_idx, port, sector, 1, do_write != 0, cmd_tag, &[prd],
+        )
+    } else {
+        ata::ata_transfer(
+            &hba.mmio, port_idx, port, sector, 1, do_write != 0, false, cmd_tag, &[prd],
+        )
+    };
+
+    // Free the command tag
+    port.free_cmd_tag(cmd_tag);
+
     match result {
         ata::CmdResult::Success => port.sector_size as isize,
         ata::CmdResult::Failure => libc_errno(-5) as isize,
@@ -150,33 +173,81 @@ unsafe extern "C" fn ahci_c_ioctl(
 }
 
 unsafe extern "C" fn ahci_c_part(_minor: ffi::DevMinor) -> *mut c_void {
-    ptr::null_mut()
+    core::ptr::null_mut()
 }
 
-unsafe extern "C" fn ahci_c_intr(_mask: c_uint) {
+/// Bottom-half work function for AHCI interrupt processing.
+/// Called from the work queue's bottom-half context (worker thread).
+/// `data` contains the port_interrupt_snapshot packed as a u64:
+///   lower 32 bits: pi (IS register value)
+///   upper 32 bits: flags (bit 0 = msix_active)
+unsafe extern "C" fn ahci_bottom_half(data: usize) {
+    let pi = data as u32;
     let hba = global_hba();
-    let pi = hba.mmio.hba_read32(registers::hba::IS);
+    let nr_ports = hba.nr_ports;
+    let mmio = unsafe { &*core::ptr::addr_of!(hba.mmio) };
 
-    for port_idx in 0..hba.nr_ports {
+    for port_idx in 0..nr_ports {
         if (pi & (1 << port_idx as u32)) == 0 { continue; }
+
+        let smask = mmio.port_read32(port_idx, registers::port::IS);
+        mmio.port_write32(port_idx, registers::port::IS, smask);
+
         let port = &mut hba.ports[port_idx];
         if port.state == PortState::NoPort { continue; }
 
-        let smask = hba.mmio.port_read32(port_idx, registers::port::IS);
-        hba.mmio.port_write32(port_idx, registers::port::IS, smask);
-
         if smask & registers::port::IS_PCS != 0 {
-            hba.mmio.port_write32(port_idx, registers::port::SERR, registers::port::SERR_DIAG_X);
-            handle_port_connect(hba, port_idx);
+            mmio.port_write32(port_idx, registers::port::SERR, registers::port::SERR_DIAG_X);
+            if matches!(port.state, PortState::SpinUp | PortState::NoDev) {
+                port.state = PortState::WaitDev;
+            }
         } else if smask & registers::port::IS_PRCS != 0 {
-            hba.mmio.port_write32(port_idx, registers::port::SERR, registers::port::SERR_DIAG_N);
-            handle_port_disconnect(hba, port_idx);
+            mmio.port_write32(port_idx, registers::port::SERR, registers::port::SERR_DIAG_N);
+            if matches!(port.state, PortState::WaitId | PortState::GoodDev | PortState::BadDev) {
+                mmio.port_stop(port_idx);
+                port.state = PortState::NoDev;
+                port.flags &= !port_flags::BUSY;
+                port.flags |= port_flags::BARRIER;
+            }
         }
+        // NCQ completions handled by polling in wait_for_cmd_ncq
     }
-    hba.mmio.hba_write32(registers::hba::IS, pi);
+}
 
-    // Re-enable IRQ using the stored hook_id (not irq_setup which would re-register)
-    ffi::irq_reenable(&hba.hook_id);
+/// Top-half interrupt handler (called from blockdriver framework).
+/// Acknowledges the interrupt quickly and schedules bottom-half work.
+unsafe extern "C" fn ahci_c_intr(_mask: c_uint) {
+    let hba = global_hba();
+    let msix_active = hba.msix_available;
+
+    let mmio = unsafe { &*core::ptr::addr_of!(hba.mmio) };
+    let pi = mmio.hba_read32(registers::hba::IS);
+
+    if pi == 0 {
+        // Spurious — re-enable and return
+        if !msix_active { ffi::irq_reenable(&hba.hook_id); }
+        return;
+    }
+
+    // Clear IS register (ACK the interrupt)
+    mmio.hba_write32(registers::hba::IS, pi);
+
+    // Enqueue bottom-half work at Tasklet priority
+    // PHY events are rare and not performance-critical.
+    if !WORK_QUEUE.enqueue(SoftIrqPriority::Tasklet, ahci_bottom_half, pi as usize) {
+        // Queue full — fall back to inline processing
+        ahci_bottom_half(pi as usize);
+    }
+
+    // Re-enable legacy IRQ (MSI-X is edge-triggered, skip)
+    if !msix_active {
+        ffi::irq_reenable(&hba.hook_id);
+    }
+}
+
+/// Drain pending bottom-half work. Call periodically from worker context.
+pub fn drain_work_queue() {
+    WORK_QUEUE.process_all();
 }
 
 unsafe extern "C" fn ahci_c_alarm(_stamp: u64) {}
@@ -312,13 +383,13 @@ mod tests {
 
     #[test]
     fn register_constants() {
-        assert_eq!(hba::CAP, 0);
-        assert_eq!(hba::GHC, 1);
-        assert_eq!(hba::PI, 3);
-        assert_eq!(port::IS_TFES, 1 << 30);
-        assert_eq!(port::IS_PCS, 1 << 6);
-        assert_eq!(port::CMD_ST, 1 << 0);
-        assert_eq!(port::CMD_FRE, 1 << 4);
+        assert_eq!(registers::hba::CAP, 0);
+        assert_eq!(registers::hba::GHC, 1);
+        assert_eq!(registers::hba::PI, 3);
+        assert_eq!(registers::port::IS_TFES, 1 << 30);
+        assert_eq!(registers::port::IS_PCS, 1 << 6);
+        assert_eq!(registers::port::CMD_ST, 1 << 0);
+        assert_eq!(registers::port::CMD_FRE, 1 << 4);
     }
 
     #[test]

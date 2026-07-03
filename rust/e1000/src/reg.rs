@@ -144,8 +144,10 @@ pub const RCTL_UPE: u32 = 1 << 3;
 pub const RCTL_MPE: u32 = 1 << 4;
 /// Broadcast Accept Mode
 pub const RCTL_BAM: u32 = 1 << 15;
-/// Receive Buffer Size
+/// Receive Buffer Size (bits 17:16)
 pub const RCTL_BSIZE: u32 = (1 << 16) | (1 << 17);
+/// Buffer Size Extension (bit 25) — when set, BSIZE=00→16384, 01→8192, 10→32768, 11→65536
+pub const RCTL_BSEX: u32 = 1 << 25;
 
 // ============================================================================
 // TCTL register bits
@@ -180,6 +182,39 @@ pub const ICH_CYCLE_READ: u16 = 0;
 pub const ICH_FLASH_CYCLE_REPEAT_COUNT: u32 = 10;
 
 // ============================================================================
+// MSI-X Registers
+// ============================================================================
+
+// IVAR — Interrupt Vector Allocation Register
+// Assigns interrupt causes to MSI-X vectors.
+// Each 2-byte entry: bits 7:0 = vector, bit 15 = valid
+pub const IVAR: u32 = 0x00E00;
+
+// IVAR entry offsets (each 2 bytes within IVAR)
+pub const IVAR_RX0: u32 = 0;    // RX queue 0
+pub const IVAR_TX0: u32 = 2;    // TX queue 0
+pub const IVAR_RX1: u32 = 4;    // RX queue 1
+pub const IVAR_TX1: u32 = 6;    // TX queue 1
+pub const IVAR_OTHER: u32 = 8;  // Other causes (link, errors)
+
+/// IVAR entry valid bit
+pub const IVAR_VALID: u32 = 1 << 15;
+
+// EICR — Extended Interrupt Cause Read (used in MSI-X mode)
+pub const EICR: u32 = 0x01580;
+// EIAC — Extended Interrupt Auto Clear (auto-clear on read)
+pub const EIAC: u32 = 0x0158C;
+// EIMS — Extended Interrupt Mask Set
+pub const EIMS: u32 = 0x01524;
+// EIMC — Extended Interrupt Mask Clear
+pub const EIMC: u32 = 0x01528;
+
+/// EICR/EIMS bit definitions
+pub const EICR_RX0: u32 = 1 << 0;   // RX queue 0
+pub const EICR_TX0: u32 = 1 << 1;   // TX queue 0
+pub const EICR_OTHER: u32 = 1 << 2; // Other causes
+
+// ============================================================================
 // Configuration constants
 // ============================================================================
 
@@ -187,5 +222,8 @@ pub const ICH_FLASH_CYCLE_REPEAT_COUNT: u32 = 10;
 pub const RXDESC_NR: usize = 256;
 /// Number of transmit descriptors
 pub const TXDESC_NR: usize = 256;
-/// Size of each I/O buffer
-pub const IOBUF_SIZE: usize = 2048;
+/// Size of each I/O buffer (16384 = max supported by RCTL.BSEX+BSIZE=00)
+pub const IOBUF_SIZE: usize = 16384;
+
+/// EERD read timeout (number of poll iterations before giving up)
+pub const EERD_READ_TIMEOUT: u32 = 100_000;

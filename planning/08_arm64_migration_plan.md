@@ -610,6 +610,18 @@ Bit    | Field       | AARCH64_VM_* constant          | Description
 - `hw_intr_disable_all()`: no-op (используем DAIF для critical sections)
 - TODO (Phase 4+): GICv2 поддержка (RPi 4), SMP per-CPU GICR, MSI
 
+> **⚠️ SMP для ARM64 отложено**: Текущий фокус — стабилизация однопоточного ARM64 ядра.
+> SMP будет реализован после x86_64 SMP production-ready (сейчас собран и слинкован ✅)
+> и после базовой загрузки ARM64 в QEMU.
+>
+> **Рекомендуемый подход для ARM64 SMP:**
+> - PSCI CPU_ON для запуска AP ядер
+> - GICv3 SGI (Software Generated Interrupt) для IPI
+> - ACPI/DTB парсинг `/cpus` для CPU discovery
+> - per-CPU GIC Redistributor (GICR) для каждого ядра
+> - Атомарные операции: `LDXR`/`STXR` для spinlock
+> - Аналогия: `arch_smp.c`, `trampoline.S`, `arch_smp.h` из x86_64
+
 #### FDT Integration (T10) ✅
 Device Tree Blob парсер реализован в `fdt.c`/`fdt.h`:
 - Валидация DTB magic + total size

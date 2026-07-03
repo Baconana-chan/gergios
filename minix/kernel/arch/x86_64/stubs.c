@@ -29,6 +29,9 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <stdarg.h>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 /*
  * Local helper: convert unsigned integer to string buffer, return length.
@@ -324,10 +327,17 @@ int strncmp(const char *s1, const char *s2, size_t n)
 
 void read_tsc(u32_t *high, u32_t *low)
 {
+#ifndef _MSC_VER
 	u32_t lo, hi;
 	__asm__ volatile("rdtsc" : "=a"(lo), "=d"(hi));
 	*high = hi;
 	*low  = lo;
+#else
+	/* MSVC x64: use __rdtsc() intrinsic */
+	unsigned __int64 tsc = __rdtsc();
+	*high = (u32_t)(tsc >> 32);
+	*low  = (u32_t)tsc;
+#endif
 }
 
 /* =========================================================================
@@ -365,6 +375,26 @@ struct minix_ipcvecs minix_ipcvecs_softint = { NULL };
  * ========================================================================= */
 
 u64_t usermapped_offset = 0;
+
+/* =========================================================================
+ * memcmp — Compare two memory regions
+ *
+ * Standard C library function. Compares the first n bytes of s1 and s2.
+ * Returns 0 if equal, <0 if s1 < s2, >0 if s1 > s2.
+ * ========================================================================= */
+
+int memcmp(const void *s1, const void *s2, size_t n)
+{
+	const unsigned char *p1 = s1;
+	const unsigned char *p2 = s2;
+	while (n-- > 0) {
+		if (*p1 != *p2)
+			return *p1 - *p2;
+		p1++;
+		p2++;
+	}
+	return 0;
+}
 
 /* =========================================================================
  * memcpy — Copy memory region
@@ -538,8 +568,15 @@ void __assert13(const char *file, int line, const char *func, const char *expr)
 	kputc('\n');
 
 	/* Halt */
-	for (;;)
+	for (;;) {
+#ifndef _MSC_VER
 		__asm__ volatile("cli; hlt");
+#else
+		/* MSVC x64: use intrinsics */
+		_disable();
+		__halt();
+#endif
+	}
 }
 
 /* =========================================================================
@@ -584,9 +621,13 @@ size_t strlcat(char *dst, const char *src, size_t dstsize)
 
 void read_tsc_64(u64_t *t)
 {
+#ifndef _MSC_VER
 	u32_t lo, hi;
 	__asm__ volatile("rdtsc" : "=a"(lo), "=d"(hi));
 	*t = ((u64_t)hi << 32) | lo;
+#else
+	*t = __rdtsc();
+#endif
 }
 
 /* =========================================================================
@@ -597,9 +638,14 @@ void read_tsc_64(u64_t *t)
 
 unsigned long get_bp(void)
 {
+#ifndef _MSC_VER
 	unsigned long bp;
 	__asm__ volatile("movq %%rbp, %0" : "=r"(bp));
 	return bp;
+#else
+	/* MSVC x64: no inline asm, return 0 (stacktrace disabled) */
+	return 0;
+#endif
 }
 
 /* =========================================================================

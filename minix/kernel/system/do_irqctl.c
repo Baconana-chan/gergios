@@ -12,6 +12,7 @@
 #include "kernel/system.h"
 
 #include <minix/endpoint.h>
+#include "../msix.h"
 
 #if USE_IRQCTL
 
@@ -129,6 +130,64 @@ int do_irqctl(struct proc * caller, message * m_ptr)
       /* Remove the handler and return. */
       rm_irq_handler(&irq_hooks[irq_hook_id]);
       irq_hooks[irq_hook_id].proc_nr_e = NONE;
+      break;
+
+  case IRQ_MSIX_ALLOC:
+      irq_vec = msix_alloc_irq();
+      if (irq_vec < 0) return(ENOSPC);
+      /* Return allocated IRQ via hook_id (the reply field read by sys_irqctl) */
+      m_ptr->m_krn_lsys_sys_irqctl.hook_id = irq_vec + 1;
+      DEBUGBASIC(("MSI-X IRQ %d allocated by %s / %d\n",
+          irq_vec, caller->p_name, caller->p_endpoint));
+      break;
+
+  case IRQ_MSIX_FREE:
+      if (!IS_MSIX_IRQ(irq_vec) || !msix_is_allocated(irq_vec))
+          return(EINVAL);
+      msix_free_irq(irq_vec);
+      DEBUGBASIC(("MSI-X IRQ %d freed by %s / %d\n",
+          irq_vec, caller->p_name, caller->p_endpoint));
+      break;
+
+  case IRQ_MSIX_SETPOLICY:
+      if (!IS_MSIX_IRQ(irq_vec) || !msix_is_allocated(irq_vec))
+          return(EINVAL);
+
+      privp = priv(caller);
+      if (!privp) {
+          printf("do_irqctl: no priv structure!\n");
+          return EPERM;
+      }
+
+      notify_id = m_ptr->m_lsys_krn_sys_irqctl.hook_id;
+      if (notify_id > CHAR_BIT * sizeof(irq_id_t) - 1) return(EINVAL);
+
+      hook_ptr = NULL;
+      for (i=0; !hook_ptr && i<NR_IRQ_HOOKS; i++) {
+          if (irq_hooks[i].proc_nr_e == caller->p_endpoint
+              && irq_hooks[i].notify_id == notify_id) {
+              irq_hook_id = i;
+              hook_ptr = &irq_hooks[irq_hook_id];
+              rm_irq_handler(&irq_hooks[irq_hook_id]);
+          }
+      }
+
+      for (i=0; !hook_ptr && i<NR_IRQ_HOOKS; i++) {
+          if (irq_hooks[i].proc_nr_e == NONE) {
+              irq_hook_id = i;
+              hook_ptr = &irq_hooks[irq_hook_id];
+          }
+      }
+      if (hook_ptr == NULL) return(ENOSPC);
+
+      hook_ptr->proc_nr_e = caller->p_endpoint;
+      hook_ptr->notify_id = notify_id;
+      hook_ptr->policy = m_ptr->m_lsys_krn_sys_irqctl.policy;
+      put_msix_handler(hook_ptr, irq_vec, generic_handler);
+      DEBUGBASIC(("MSI-X IRQ %d handler registered by %s / %d\n",
+          irq_vec, caller->p_name, caller->p_endpoint));
+
+      m_ptr->m_krn_lsys_sys_irqctl.hook_id = irq_hook_id + 1;
       break;
 
   default:

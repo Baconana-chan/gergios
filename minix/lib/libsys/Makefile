@@ -115,11 +115,13 @@ SRCS+=	pci_attr_r16.c \
 	pci_attr_w8.c \
 	pci_del_acl.c \
 	pci_dev_name.c \
+	pci_find_cap.c \
 	pci_find_dev.c \
 	pci_first_dev.c \
 	pci_get_bar.c \
 	pci_ids.c \
 	pci_init.c \
+	pci_msix.c \
 	pci_next_dev.c \
 	pci_rescan_bus.c \
 	pci_reserve.c \

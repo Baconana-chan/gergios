@@ -29,6 +29,7 @@
 
 pub mod mmio;
 pub mod port;
+pub mod work_queue;
 
 /// Common error type for driver operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

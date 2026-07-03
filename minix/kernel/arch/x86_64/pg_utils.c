@@ -15,11 +15,30 @@
 
 extern char _kern_vir_base, _kern_phys_base, _kern_size;
 
-static phys_bytes kern_vir_start = (phys_bytes) &_kern_vir_base;
-static phys_bytes kern_phys_start = (phys_bytes) &_kern_phys_base;
-static phys_bytes kern_kernlen = (phys_bytes) &_kern_size;
+/* MSVC: &extern is not a compile-time constant — init in pg_identity/pg_mapkernel */
+static phys_bytes kern_vir_start, kern_phys_start, kern_kernlen;
+static int pg_utils_inited;
 
+static void pg_utils_init_if_needed(void)
+{
+	if (!pg_utils_inited) {
+		kern_vir_start = (phys_bytes) &_kern_vir_base;
+		kern_phys_start = (phys_bytes) &_kern_phys_base;
+		kern_kernlen = (phys_bytes) &_kern_size;
+		pg_utils_inited = 1;
+	}
+}
+
+/*
+ * Page directory must be 4KB-aligned.
+ * MSVC: __declspec(align()) for static arrays with C2099 workaround:
+ * use a separate alignment declaration via __alignof.
+ */
+#ifdef _MSC_VER
+__declspec(align(4096)) static u64_t pagedir[512];
+#else
 _Alignas(4096) static u64_t pagedir[512];
+#endif
 
 void print_memmap(kinfo_t *cbi)
 {
@@ -158,6 +177,7 @@ void pg_identity(kinfo_t *cbi)
 	uint32_t i;
 	phys_bytes phys;
 
+	pg_utils_init_if_needed();
 	assert(cbi->mem_high_phys);
 
         for(i = 0; i < X86_64_VM_DIR_ENTRIES; i++) {
@@ -178,6 +198,7 @@ int pg_mapkernel(void)
 	int pde;
 	u64_t mapped = 0, kern_phys = kern_phys_start;
 
+	pg_utils_init_if_needed();
         assert(!(kern_vir_start % X86_64_BIG_PAGE_SIZE));
         assert(!(kern_phys % X86_64_BIG_PAGE_SIZE));
         pde = kern_vir_start / X86_64_BIG_PAGE_SIZE;

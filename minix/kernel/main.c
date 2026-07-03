@@ -316,11 +316,20 @@ void kmain(kinfo_t *local_cbi)
 	  bsp_finish_booting();
   }
 #else
-  /* 
-   * if configured for a single CPU, we are already on the kernel stack which we
-   * are going to use everytime we execute kernel code. We finish booting and we
-   * never return here
+  /*
+   * Single CPU mode: try to init APIC if available.
+   * If APIC init succeeds, interrupts are routed through IOAPIC.
+   * If it fails, falls back to legacy 8259 PIC.
    */
+#ifdef USE_APIC
+  if (!config_no_apic) {
+	if (apic_single_cpu_init()) {
+		DEBUGBASIC(("APIC initialized successfully\n"));
+	} else {
+		DEBUGBASIC(("APIC init failed, using legacy PIC\n"));
+	}
+  }
+#endif
   bsp_finish_booting();
 #endif
 
@@ -444,7 +453,7 @@ void cstart(void)
   if(value)
 	config_no_apic = atoi(value);
   else
-	config_no_apic = 1;
+	config_no_apic = 0;		/* APIC enabled by default on x86_64 */
   value = env_get("apic_timer_x");
   if(value)
 	config_apic_timer_x = atoi(value);

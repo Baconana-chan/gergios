@@ -17,6 +17,7 @@
 
 #include "kernel/kernel.h"
 #include "hw_intr.h"
+#include "msix.h"
 
 
 /* number of lists of IRQ hooks, one list per supported line. */
@@ -163,6 +164,58 @@ void enable_irq(const irq_hook_t *hook)
   if((irq_actids[hook->irq] &= ~hook->id) == 0) {
     hw_intr_unmask(hook->irq);
   }
+}
+
+/*===========================================================================*
+ *				put_msix_handler			     *
+ *===========================================================================*/
+/* Register an interrupt handler for an MSI-X vector.
+ * Same as put_irq_handler() but does NOT touch the IOAPIC —
+ * MSI-X vectors bypass the I/O APIC entirely and deliver
+ * directly to the Local APIC.
+ */
+void put_msix_handler(irq_hook_t* hook, int irq,
+  const irq_handler_t handler)
+{
+  int id;
+  irq_hook_t **line;
+  unsigned long bitmap;
+
+  if( irq < 0 || irq >= NR_IRQ_VECTORS )
+	panic("invalid call to put_msix_handler: %d",  irq);
+
+  if (!IS_MSIX_IRQ(irq))
+	panic("put_msix_handler called for non-MSIX IRQ: %d", irq);
+
+  line = &irq_handlers[irq];
+
+  bitmap = 0;
+  while ( *line != NULL ) {
+	if(hook == *line) return; /* extra initialization */
+	bitmap |= (*line)->id;	/* mark ids in use */
+	line = &(*line)->next;
+  }
+
+  /* find the lowest id not in use */
+  for (id = 1; id != 0; id <<= 1)
+  	if (!(bitmap & id)) break;
+
+  if(id == 0)
+  	panic("Too many handlers for irq: %d",  irq);
+  
+  hook->next = NULL;
+  hook->handler = handler;
+  hook->irq = irq;
+  hook->id = id;
+  *line = hook;
+
+  /* Note: for MSI-X, we do NOT call hw_intr_used() or hw_intr_unmask()
+   * because MSI-X vectors bypass the IOAPIC entirely. The device's
+   * MSI-X table entry is programmed by the driver to send the correct
+   * vector directly to the Local APIC.
+   * The irq_actids tracking is also skipped — MSI-X delivery is
+   * controlled by the device's per-vector Mask bit in the MSI-X table.
+   */
 }
 
 /* Return true if the interrupt was enabled before call.  */

@@ -6,6 +6,7 @@ description = "Intel PRO/1000 Gigabit Ethernet driver for MINIX"
 
 [dependencies]
 libc = { version = "*", optional = true }
+minix-driver = { path = "../minix-driver" }
 
 [lib]
 crate-type = ["staticlib"]

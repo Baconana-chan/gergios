@@ -369,6 +369,8 @@
 #define	__section(x)	__attribute__((__section__(x)))
 #elif defined(_MSC_VER)
 #define	__packed	/* ignore */
+#define	__aligned(x)	/* ignore */
+#define	__section(x)	/* ignore */
 #else
 #define	__packed	error: no __packed for this compiler
 #define	__aligned(x)	error: no __aligned for this compiler

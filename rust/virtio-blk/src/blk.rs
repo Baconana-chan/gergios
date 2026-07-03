@@ -20,6 +20,7 @@ pub const VIRTIO_BLK_F_RO: u32 = 5;
 pub const VIRTIO_BLK_F_BLK_SIZE: u32 = 6;
 pub const VIRTIO_BLK_F_FLUSH: u32 = 9;
 pub const VIRTIO_BLK_F_TOPOLOGY: u32 = 10;
+pub const VIRTIO_BLK_F_MQ: u32 = 17;  // Multi-queue (bit 17)
 
 // ============================================================================
 // Config space offsets (from VIRTIO_DEV_SPECIFIC_OFF)
@@ -33,6 +34,7 @@ const CFG_CYLINDERS: u16 = 16;   // u16_t geometry.cylinders
 const CFG_HEADS: u16 = 18;       // u8_t geometry.heads
 const CFG_SECTORS: u16 = 19;     // u8_t geometry.sectors
 const CFG_BLK_SIZE: u16 = 20;    // u32_t blk_size
+const CFG_NUM_QUEUES: u16 = 24;  // u16_t num_queues (if VIRTIO_BLK_F_MQ)
 
 // ============================================================================
 // Request header
@@ -76,6 +78,7 @@ pub const NR_IOREQS: usize = 8;
 
 /// Fixed number of threads for the pilot.
 pub const MAX_THREADS: usize = 4;
+pub const MAX_QUEUES: usize = 4;
 
 /// Per-thread buffers for one I/O request.
 pub struct ThreadBufs {
@@ -201,6 +204,7 @@ pub struct VirtioBlk {
     pub completions: [CompletionSlot; MAX_THREADS],
     pub geometry: Option<DiskGeometry>,
     pub num_threads: usize,
+    pub num_queues: u16,       // Number of virtqueues (1 if !MQ)
 }
 
 impl VirtioBlk {
@@ -218,6 +222,7 @@ impl VirtioBlk {
             | (1 << VIRTIO_BLK_F_BLK_SIZE)
             | (1 << VIRTIO_BLK_F_FLUSH)
             | (1 << VIRTIO_BLK_F_TOPOLOGY)
+            | (1 << VIRTIO_BLK_F_MQ)
             | (1 << virtio::F_INDIRECT_DESC);
 
         let host_bits = dev.negotiate_features(guest_bits);
@@ -226,6 +231,7 @@ impl VirtioBlk {
         let ro = (host_bits >> VIRTIO_BLK_F_RO) & 1 != 0;
         let flush = (host_bits >> VIRTIO_BLK_F_FLUSH) & 1 != 0;
         let barrier = (host_bits >> VIRTIO_BLK_F_BARRIER) & 1 != 0;
+        let mq = (host_bits >> VIRTIO_BLK_F_MQ) & 1 != 0;
 
         // Read config
         let capacity = unsafe {
@@ -251,22 +257,43 @@ impl VirtioBlk {
             None
         };
 
+        // Determine number of queues from config (MQ or single)
+        let num_queues = if mq {
+            let nq = unsafe { dev.sread16(CFG_NUM_QUEUES) };
+            if nq == 0 { 1 } else { nq.min(MAX_QUEUES as u16) }
+        } else {
+            1
+        };
+
         // We know how to drive it
         unsafe { dev.write_status(virtio::STATUS_DRV); }
 
-        // Allocate a single queue (virtio-blk has 1 queue)
-        if dev.alloc_queues(1).is_err() { return None; }
+        // Allocate queues
+        if dev.alloc_queues(num_queues as usize).is_err() { return None; }
 
-        // Allocate indirect descriptor table for the queue
-        if let Some(q) = unsafe { dev.queues.as_mut() } {
+        // Allocate indirect descriptor table for each queue
+        for i in 0..num_queues as usize {
+            let q = unsafe { &mut *dev.queues.add(i) };
             if q.alloc_indirect(32).is_err() { return None; }
         }
 
         // Allocate per-thread request buffers
         let bufs = ThreadBufs::allocate(data_size)?;
 
+        // Try MSI-X — if available, use per-queue vectors
+        if dev.setup_msix(devind) {
+            // MSI-X: register per-queue IRQ handler is already done in setup_msix
+            // No need for legacy irq_setup/irqenable
+        }
+
         // All good — ready
-        if dev.ready().is_err() { return None; }
+        // For legacy mode, ready() registers IRQ. For MSI-X, skip legacy IRQ setup.
+        if !dev.msix_available {
+            if dev.ready().is_err() { return None; }
+        } else {
+            // Signal DRV_OK without legacy IRQ setup
+            unsafe { dev.write_status(virtio::STATUS_DRV_OK); }
+        }
 
         Some(VirtioBlk {
             dev,
@@ -285,7 +312,18 @@ impl VirtioBlk {
             ],
             geometry,
             num_threads: MAX_THREADS,
+            num_queues,
         })
+    }
+
+    /// Map a thread ID to a queue ID for per-queue operations.
+    #[inline]
+    pub fn queue_for_tid(&self, tid: usize) -> usize {
+        if self.num_queues > 1 {
+            tid % self.num_queues as usize
+        } else {
+            0
+        }
     }
 
     /// Perform a read or write operation.
@@ -293,8 +331,12 @@ impl VirtioBlk {
         let tid = ffi::blockdriver_get_tid() as usize;
         if tid >= self.num_threads { return ffi::platform::EINVAL as isize; }
 
+        let qid = self.queue_for_tid(tid);
         let bufs = &self.thread_bufs[tid];
-        let q = unsafe { &mut *self.dev.queues };
+        let blk_size = self.blk_size;
+
+        // Use raw pointer to avoid borrow conflict with self access below
+        let q = unsafe { &mut *self.dev.queues.add(qid) };
 
         // Prepare the request header
         unsafe {
@@ -313,7 +355,7 @@ impl VirtioBlk {
 
         let hdr_phys = bufs.hdr_phys;
         let data_phys = bufs.data_phys;
-        let data_size = (count as usize) * (self.blk_size as usize);
+        let data_size = (count as usize) * (blk_size as usize);
         let status_phys = bufs.status_phys;
 
         let d0 = head;
@@ -329,11 +371,12 @@ impl VirtioBlk {
             q.set_desc(d2, status_phys, 1, true, false);
         }
 
-        // Submit to available ring and kick
+        // Submit to available ring
         q.submit(head, tid);
-        unsafe { self.dev.kick(0); }
 
-        // Wait for completion event (event-driven model)
+        unsafe { self.dev.kick(qid as u16); }
+
+        // Wait for completion event
         let (status, _bytes) = self.completions[tid].wait_and_clear();
 
         if status == VIRTIO_BLK_S_OK {
@@ -352,13 +395,17 @@ impl VirtioBlk {
         let tid = ffi::blockdriver_get_tid() as usize;
         if tid >= self.num_threads { return ffi::platform::EINVAL; }
 
+        let qid = self.queue_for_tid(tid);
         let bufs = &self.thread_bufs[tid];
-        let q = unsafe { &mut *self.dev.queues };
+        let barrier_support = self.barrier_support;
+
+        // Use raw pointer to avoid borrow conflict
+        let q = unsafe { &mut *self.dev.queues.add(qid) };
 
         // Flush request — with optional BARRIER flag
         unsafe {
             let mut type_ = VIRTIO_BLK_T_FLUSH;
-            if self.barrier_support {
+            if barrier_support {
                 type_ |= VIRTIO_BLK_T_BARRIER;
             }
             (*bufs.hdr).type_ = type_;
@@ -378,7 +425,8 @@ impl VirtioBlk {
         q.set_desc(d1, bufs.status_phys, 1, true, false);
 
         q.submit(head, tid);
-        unsafe { self.dev.kick(0); }
+
+        unsafe { self.dev.kick(qid as u16); }
 
         // Wait for completion event
         let (status, _bytes) = self.completions[tid].wait_and_clear();
@@ -408,8 +456,11 @@ impl VirtioBlk {
             return ffi::platform::EINVAL as isize;
         }
 
+        let qid = self.queue_for_tid(tid);
         let bufs = &self.thread_bufs[tid];
-        let q = unsafe { &mut *self.dev.queues };
+
+        // Use raw pointer to avoid borrow conflict with completions below
+        let q = unsafe { &mut *self.dev.queues.add(qid) };
 
         // Prepare request header
         unsafe {
@@ -514,7 +565,8 @@ impl VirtioBlk {
 
         // Submit and kick
         q.submit(head, tid);
-        unsafe { self.dev.kick(0); }
+
+        unsafe { self.dev.kick(qid as u16); }
 
         // Wait for completion event
         let (status, _bytes) = self.completions[tid].wait_and_clear();
@@ -526,23 +578,27 @@ impl VirtioBlk {
         }
     }
 
-    /// Process the used ring on interrupt.
+    /// Process the used rings on interrupt.
     /// Publishes completion events through the atomic CompletionSlot.
+    /// Polls all queues to support multi-queue operation.
     pub fn handle_interrupt(&mut self) {
-        let q = unsafe { &mut *self.dev.queues };
-        loop {
-            match q.collect() {
-                Some((tid, _len)) => {
-                    if (tid as usize) < MAX_THREADS {
-                        // Read status from the per-thread status buffer
-                        let status = unsafe { *self.thread_bufs[tid as usize].status };
-                        // Publish completion event
-                        self.completions[tid as usize].set_done(status, _len);
-                        // Wake the waiting thread
-                        ffi::blockdriver_wakeup(tid as c_int);
+        let nq = self.num_queues as usize;
+        for qid in 0..nq {
+            let q = unsafe { &mut *self.dev.queues.add(qid) };
+            loop {
+                match q.collect() {
+                    Some((tid, _len)) => {
+                        if (tid as usize) < MAX_THREADS {
+                            // Read status from the per-thread status buffer
+                            let status = unsafe { *self.thread_bufs[tid as usize].status };
+                            // Publish completion event
+                            self.completions[tid as usize].set_done(status, _len);
+                            // Wake the waiting thread
+                            ffi::blockdriver_wakeup(tid as c_int);
+                        }
                     }
+                    None => break,
                 }
-                None => break,
             }
         }
     }

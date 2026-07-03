@@ -75,11 +75,14 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 ## Phase 2: Core Modernization
 
 ### 2.1 Kernel SMP Improvements
+- [x] **x86_64 SMP** — собран и слинкован (CONFIG_SMP=ON, clang.exe GNU driver, --target=x86_64-elf, 0 errors)
 - [ ] Fix ARM SMP issues in arch/earm/arch_clock.c
 - [ ] Implement CPU-local watchdog for all CPUs
 - [ ] Add cacheline padding for CPU-local structures
 - [ ] Fix timer synchronization across CPUs
 - [ ] Test SMP functionality on multi-core ARM hardware
+- [ ] **ARM64 SMP** — **задача на будущее** (после стабилизации UP ARM64 ядра):
+      PSCI CPU_ON, GICv3 SGI, ACPI/DTB CPU discovery
 
 ### 2.2 Modern Filesystem Implementation
 - [ ] Begin ext4 filesystem driver implementation

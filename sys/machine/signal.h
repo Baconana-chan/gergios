@@ -19,6 +19,9 @@
 #include_next <signal.h>
 #endif
 #endif
+#else
+/* MSVC: #include_next not supported — include x86_64 signal.h directly */
+#include <arch/x86_64/include/signal.h>
 #endif
 
 #endif /* !_MACHINE_SIGNAL_H_ */

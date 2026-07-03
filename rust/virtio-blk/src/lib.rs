@@ -236,9 +236,14 @@ unsafe extern "C" fn vb_part(minor: c_int) -> *mut c_void {
 
 unsafe extern "C" fn vb_intr(_mask: c_uint) {
     if let Some(ref mut blk) = *core::ptr::addr_of_mut!(VIRTIO_BLK) {
-        if blk.dev.had_irq() {
+        // For MSI-X: the per-queue vector fires directly — just poll queues,
+        // no ISR check needed. For legacy: check ISR status register first.
+        let msix_mode = blk.dev.msix_available;
+        if msix_mode || blk.dev.had_irq() {
             blk.handle_interrupt();
-            blk.dev.irq_reenable();
+            if !msix_mode {
+                blk.dev.irq_reenable();
+            }
         }
     }
 }

@@ -2,6 +2,7 @@
 #define _X86_64_PROTO_H
 
 #include <machine/vm.h>
+#include <machine/stackframe.h>
 #include "archconst.h"
 
 #define K_STACK_SIZE	X86_64_PAGE_SIZE
@@ -189,6 +190,7 @@ struct tss_s {
   u16_t iobase;
 } __attribute__((packed));
 
+struct proc;
 void enable_iop(struct proc *pp);
 u32_t read_cs(void);
 u32_t read_ds(void);
@@ -249,6 +251,10 @@ int breakpoint_set(phys_bytes linaddr, int bp, const int flags);
 #define BREAKPOINT_FLAG_MODE_OFF	(0 << 4)
 #define BREAKPOINT_FLAG_MODE_LOCAL	(1 << 4)
 #define BREAKPOINT_FLAG_MODE_GLOBAL	(2 << 4)
+
+/* arch_clock.c — i8253 timer control */
+int init_8253A_timer(const unsigned freq);
+void stop_8253A_timer(void);
 
 /* functions defined in architecture-independent kernel source. */
 #include "kernel/proto.h"

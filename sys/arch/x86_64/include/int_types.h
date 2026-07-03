@@ -3,6 +3,10 @@
 #ifndef _X86_64_INT_TYPES_H_
 #define _X86_64_INT_TYPES_H_
 
+#define	__BIT_TYPES_DEFINED__
+
+#ifndef __ASSEMBLY__
+
 /* x86_64 uses LP64 model: int=32, long=64, pointer=64 */
 typedef signed char			__int8_t;
 typedef unsigned char			__uint8_t;
@@ -13,10 +17,10 @@ typedef unsigned int			__uint32_t;
 typedef long int			__int64_t;
 typedef unsigned long int		__uint64_t;
 
-#define	__BIT_TYPES_DEFINED__
-
 /* Integer types for object pointers */
 typedef long int			__intptr_t;
 typedef unsigned long int		__uintptr_t;
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* !_X86_64_INT_TYPES_H_ */

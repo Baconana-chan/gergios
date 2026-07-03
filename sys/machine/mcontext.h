@@ -5,8 +5,8 @@
 #ifndef _MSC_VER
 #include_next <mcontext.h>
 #else
-/* MSVC fallback for host tools — mcontext not used at runtime */
-typedef struct { long long __mc_pad[(776 - 4 - 8) / 8]; } mcontext_t;
+/* MSVC: #include_next not supported — include x86_64 mcontext.h directly */
+#include <arch/x86_64/include/mcontext.h>
 #endif
 
 #endif /* !_MACHINE_MCONTEXT_H_ */

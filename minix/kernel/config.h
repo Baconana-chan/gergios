@@ -50,15 +50,27 @@
 #define USE_PADCONF        1	/* configure pinmux */
 #endif /* __arm__ */
 
+/* Enable APIC (Advanced Programmable Interrupt Controller) for x86_64.
+ * APIC replaces the legacy 8259 PIC and provides:
+ *   - IOAPIC for interrupt routing
+ *   - LAPIC timer for accurate timing
+ *   - MSI/MSI-X support
+ *   - Foundation for SMP
+ * Disabled by default; enable with -DUSE_APIC in build or via kernel config.
+ */
+#ifndef USE_APIC
+#define USE_APIC 1
+#endif
+
 /* This section contains defines for valuable system resources that are used
  * by device drivers. The number of elements of the vectors is determined by 
  * the maximum needed by any given driver. The number of interrupt hooks may
  * be incremented on systems with many device drivers. 
  */
-#ifndef USE_APIC
-#define NR_IRQ_HOOKS	  16		/* number of interrupt hooks */
+#if USE_APIC
+#define NR_IRQ_HOOKS	  128		/* number of interrupt hooks (64 legacy + 64 MSI-X) */
 #else
-#define NR_IRQ_HOOKS	  64		/* number of interrupt hooks */
+#define NR_IRQ_HOOKS	  16		/* number of interrupt hooks */
 #endif
 #define VDEVIO_BUF_SIZE   64		/* max elements per VDEVIO request */
 

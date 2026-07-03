@@ -258,13 +258,13 @@ sys/arch/x86_64/
 - [x] Port interrupt handling for x86_64 (enable existing conditional code)
 - [x] Port system call interface for 64-bit (update existing structures)
 - [x] Update CPU detection and initialization (complete existing cpu.h code)
-- [x] Implement 64-bit timer handling (adapt existing code)
-- [x] Port SMP support for x86_64 (enable existing conditional code)
-  - arch_smp.c: ACPI CPU discovery, APIC IPI, 64-bit phys_bytes, PML4 page tables
-  - trampoline.S: 16-bit → long mode (PAE + EFER.LME), 64-bit startup
-  - arch_smp.h: cpuid macro for 64-bit stack layout
-  - startup_ap_64 entry point (in mpx.S) for AP initialization
-  - **Note**: Depends on x86_64 protect.c (tss_init, prot_load_selectors, GDT/IDT/TSS setup)
+- [x] Implement 64-bit timer handling (adapt existing code)  - [x] Port SMP support for x86_64 (enable existing conditional code)
+    - arch_smp.c: ACPI CPU discovery, APIC IPI, 64-bit phys_bytes, PML4 page tables
+    - trampoline.S: 16-bit → long mode (PAE + EFER.LME), 64-bit startup
+    - arch_smp.h: cpuid macro for 64-bit stack layout
+    - startup_ap_64 entry point (in mpx.S) for AP initialization
+    - **Note**: Depends on x86_64 protect.c (tss_init, prot_load_selectors, GDT/IDT/TSS setup)
+    - **✅ Собрано и слинковано**: clang.exe (GNU driver, `--target=x86_64-elf`) на Windows, CONFIG_SMP=ON, kernel-x86_64 (1.9 MB, ELF64) — 0 ошибок
 
 #### Server Porting Tasks
 - [x] Update PM for 64-bit (fix pointer size assumptions)
@@ -317,6 +317,9 @@ sys/arch/arm64/
 - [ ] Update CPU detection and initialization for ARM64
 - [ ] Implement 64-bit timer handling (ARM generic timer)
 - [ ] Port SMP support for ARM64 (ARM64 SMP architecture)
+    - **Отложено**: SMP для ARM64 будет реализован после стабилизации однопоточного ядра. Для x86_64 SMP уже работает (CONFIG_SMP=ON, собран и слинкован).
+    - **Рекомендуемый подход**: PSCI CPU_ON, GICv3 IPI (SGI), ACPI/DTB CPU discovery
+    - **Зависимости**: GICv3 драйвер (готов), ARM Generic Timer (готов), PSCI HVC/SMC (ready)
 
 #### Server Porting Tasks
 - [ ] Update PM for ARM64 (fix pointer size assumptions, AArch64 calling convention)

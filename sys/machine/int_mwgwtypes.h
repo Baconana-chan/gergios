@@ -6,7 +6,7 @@
 #ifndef _MACHINE_INT_MWGWTYPES_H_
 #define _MACHINE_INT_MWGWTYPES_H_
 
-#ifndef __UINT_FAST64_TYPE__
+#if !defined(__UINT_FAST64_TYPE__) && !defined(_MSC_VER)
 
 /*
  * 7.18.1 Integer types
@@ -69,7 +69,8 @@ typedef unsigned long long int	uintmax_t;
  * Clang's choice, which makes repeated typedefs harmless (C11 allows
  * identical repeated typedefs). On non-LP64, use 'long long'.
  * ========================================================================= */
-#ifndef intmax_t
+/* MSVC provides intmax_t/uintmax_t in its own <stdint.h>, skip on MSVC */
+#if !defined(intmax_t) && !defined(_MSC_VER)
 /* Note: #ifndef only checks MACRO namespace. But Clang predefines intmax_t
  * as a typedef, not a macro, so this check always passes. The typedef below
  * will either be the first definition (no Clang built-in) or a repeat of

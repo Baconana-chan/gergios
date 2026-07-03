@@ -234,7 +234,6 @@ int vm_check_range(struct proc *caller,
 
 int copy_msg_from_user(message * user_mbuf, message * dst);
 int copy_msg_to_user(message * src, message * user_mbuf);
-void switch_address_space(struct proc * p);
 void release_address_space(struct proc *pr);
 
 void enable_fpu_exception(void);

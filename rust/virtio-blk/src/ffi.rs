@@ -44,10 +44,22 @@ pub(crate) mod platform {
         pub fn vm_map_phys(endpt: c_int, base: *mut c_void, size: usize) -> *mut c_void;
         pub fn vm_unmap_phys(endpt: c_int, base: *mut c_void, size: usize) -> c_int;
 
-        // IRQ
+        // PCI capability
+        pub fn pci_attr_r32(devind: c_int, offset: c_int) -> u32;
+        pub fn pci_find_cap(devind: c_int, cap_id: c_int, cap_ptr: *mut c_int) -> c_int;
+        pub fn pci_msix_parse(devind: c_int, info: *mut PciMsixInfo) -> c_int;
+
+        // IRQ / MSI-X
         pub fn sys_irqsetpolicy(irq: c_int, policy: c_int, hook_id: *mut c_int) -> c_int;
         pub fn sys_irqenable(hook_id: *mut c_int) -> c_int;
         pub fn sys_irqrmpolicy(hook_id: *mut c_int) -> c_int;
+        pub fn sys_msix_alloc(irq: *mut c_int) -> c_int;
+        pub fn sys_msix_free(irq: c_int) -> c_int;
+        pub fn sys_msix_setpolicy(irq: c_int, policy: c_int, hook_id: *mut c_int) -> c_int;
+
+        // VM (MMIO mapping for MSI-X table BAR)
+        pub fn vm_map_phys(endpt: c_int, base: *mut c_void, size: usize) -> *mut c_void;
+        pub fn vm_unmap_phys(endpt: c_int, base: *mut c_void, size: usize) -> c_int;
 
         // SEF
         pub fn sef_setcb_init_fresh(cb: Option<SefInitFreshFn>);
@@ -98,6 +110,16 @@ pub(crate) mod platform {
     pub use super::VumapVir;
     pub use super::VumapPhys;
     pub use super::IoVec;
+
+    /// MSI-X capability info (mirrors struct pci_msix_info from syslib.h).
+    #[repr(C)]
+    pub struct PciMsixInfo {
+        pub msix_table_size: c_int,
+        pub msix_table_bir: c_int,
+        pub msix_table_offset: u32,
+        pub msix_pba_bir: c_int,
+        pub msix_pba_offset: u32,
+    }
 
     pub type SefInitFreshFn = unsafe extern "C" fn(c_int, *const c_void) -> c_int;
     pub type SefSignalHandlerFn = unsafe extern "C" fn(c_int);
@@ -218,6 +240,23 @@ pub(crate) mod platform {
     pub unsafe fn sys_irqsetpolicy(_irq: c_int, _policy: c_int, _hook_id: *mut c_int) -> c_int { -1 }
     pub unsafe fn sys_irqenable(_hook_id: *mut c_int) -> c_int { -1 }
     pub unsafe fn sys_irqrmpolicy(_hook_id: *mut c_int) -> c_int { -1 }
+    pub unsafe fn sys_msix_alloc(_irq: *mut c_int) -> c_int { -1 }
+    pub unsafe fn sys_msix_free(_irq: c_int) -> c_int { -1 }
+    pub unsafe fn sys_msix_setpolicy(_irq: c_int, _policy: c_int, _hook_id: *mut c_int) -> c_int { -1 }
+
+    /// MSI-X capability info (mirrors struct pci_msix_info from syslib.h).
+    #[repr(C)]
+    pub struct PciMsixInfo {
+        pub msix_table_size: c_int,
+        pub msix_table_bir: c_int,
+        pub msix_table_offset: u32,
+        pub msix_pba_bir: c_int,
+        pub msix_pba_offset: u32,
+    }
+
+    pub unsafe fn pci_attr_r32(_devind: c_int, _offset: c_int) -> u32 { 0 }
+    pub unsafe fn pci_find_cap(_devind: c_int, _cap_id: c_int, _cap_ptr: *mut c_int) -> c_int { 0 }
+    pub unsafe fn pci_msix_parse(_devind: c_int, _info: *mut PciMsixInfo) -> c_int { 0 }
 
     pub unsafe fn sef_setcb_init_fresh(_cb: *mut c_void) {}
     pub unsafe fn sef_setcb_signal_handler(_cb: *mut c_void) {}
@@ -391,6 +430,60 @@ pub fn irq_reenable(hook_id: &c_int) -> c_int {
 pub fn irq_remove(hook_id: &mut c_int) -> c_int {
     unsafe { platform::sys_irqrmpolicy(hook_id) }
 }
+
+// MSI-X support
+pub fn pci_find_cap_ffi(devind: c_int, cap_id: c_int) -> Option<c_int> {
+    unsafe {
+        let mut cap_ptr: c_int = 0;
+        let r = platform::pci_find_cap(devind, cap_id, &mut cap_ptr);
+        if r == 0 { None } else { Some(cap_ptr) }
+    }
+}
+
+pub fn pci_msix_parse_ffi(devind: c_int) -> Option<platform::PciMsixInfo> {
+    unsafe {
+        let mut info = platform::PciMsixInfo {
+            msix_table_size: 0,
+            msix_table_bir: 0,
+            msix_table_offset: 0,
+            msix_pba_bir: 0,
+            msix_pba_offset: 0,
+        };
+        let r = platform::pci_msix_parse(devind, &mut info);
+        if r == 0 { None } else { Some(info) }
+    }
+}
+
+pub fn msix_alloc_irq() -> Option<c_int> {
+    unsafe {
+        let mut irq: c_int = 0;
+        let r = platform::sys_msix_alloc(&mut irq);
+        if r != 0 { None } else { Some(irq) }
+    }
+}
+
+pub fn msix_free_irq(irq: c_int) -> c_int {
+    unsafe { platform::sys_msix_free(irq) }
+}
+
+pub fn msix_setup(irq: c_int) -> Option<c_int> {
+    unsafe {
+        let mut hook_id: c_int = 0;
+        let r = platform::sys_msix_setpolicy(irq, 0, &mut hook_id);
+        if r != 0 { None } else { Some(hook_id) }
+    }
+}
+
+// VM mapping (for MSI-X table BAR)
+pub fn vm_map_phys_ffi(base: *mut core::ffi::c_void, size: usize) -> *mut core::ffi::c_void {
+    unsafe { platform::vm_map_phys(platform::SELF, base, size) }
+}
+
+pub fn vm_unmap_phys_ffi(base: *mut core::ffi::c_void, size: usize) -> c_int {
+    unsafe { platform::vm_unmap_phys(platform::SELF, base, size) }
+}
+
+pub use platform::PciMsixInfo;
 
 // SEF
 pub fn sef_set_init_fresh(cb: platform::SefInitFreshFn) {

@@ -12,12 +12,21 @@ pub mod driver;
 use core::ffi::{c_char, c_int, c_uint};
 use core::ptr;
 use driver::E1000;
+use minix_driver::work_queue::{PriorityWorkQueue, SoftIrqPriority};
+
+/// Work queue for e1000 bottom-half processing.
+///
+/// Priority mapping:
+/// - Hi: RX/TX events (performance-critical, must be serviced quickly)
+/// - Tasklet: Link status changes (less critical)
+static E1000_WQ: PriorityWorkQueue = PriorityWorkQueue::new();
 
 // ============================================================================
 // Global driver state
 // ============================================================================
 
 static mut E1000_STATE: Option<E1000> = None;
+static mut TERMINATING: bool = false;
 
 /// SAFETY: called only from single-threaded netdriver context.
 fn global_e1000() -> *mut Option<E1000> {
@@ -40,13 +49,13 @@ unsafe extern "C" fn ndr_init(
 ) -> c_int {
     unsafe {
         let mut dev = E1000::new();
-
-        if !dev.probe(instance as c_int) {
+        let devind = dev.probe_v2(instance as c_int);
+        if devind < 0 {
             return ffi::ENXIO;
         }
 
         ffi::tsc_calibrate_ffi();
-        dev.init_hw();
+        dev.init_hw(devind);
         dev.init_buffers();
         dev.enable_intr();
 
@@ -62,7 +71,10 @@ unsafe extern "C" fn ndr_init(
 }
 
 unsafe extern "C" fn ndr_stop() {
-    unsafe { blk().reset_hw(); }
+    // Signal handler may have already reset the hardware.
+    if !unsafe { core::ptr::addr_of_mut!(TERMINATING).read() } {
+        unsafe { blk().reset_hw(); }
+    }
 }
 
 unsafe extern "C" fn ndr_set_mode(
@@ -104,11 +116,12 @@ unsafe extern "C" fn ndr_get_link(media: *mut u32) -> c_uint {
     }
 }
 
-unsafe extern "C" fn ndr_intr(_mask: c_uint) {
+/// Bottom-half work function for e1000 interrupt processing.
+/// Runs in worker context, calls netdriver callbacks.
+unsafe extern "C" fn e1000_bottom_half(data: usize) {
     unsafe {
         let dev = blk();
-        let events = dev.handle_intr();
-        let _ = ffi::irq_reenable_ffi(&dev.irq_hook);
+        let events = data as u32;
 
         if (events & 1) != 0 { ffi::netdriver_link_ffi(); }
         if (events & 2) != 0 { ffi::netdriver_recv_ffi(); }
@@ -116,8 +129,61 @@ unsafe extern "C" fn ndr_intr(_mask: c_uint) {
     }
 }
 
+/// Top-half interrupt handler — quick ACK, then schedule bottom-half work.
+unsafe extern "C" fn ndr_intr(_mask: c_uint) {
+    unsafe {
+        let dev = blk();
+        let cause = eeprom::read_reg(dev.regs, crate::reg::ICR);
+
+        if cause == 0 {
+            // Spurious
+            if !dev.msix_available {
+                let _ = ffi::irq_reenable_ffi(&dev.irq_hook);
+            }
+            return;
+        }
+
+        // Convert ICR bits to abstract event flags, split by priority:
+        // - Link events (less critical) → Tasklet priority
+        // - RX/TX events (performance-critical) → Hi priority
+        // Abstract flags: 1=link, 2=rx, 4=tx (e1000_bottom_half uses these)
+        let mut link_flag = 0u32;
+        let mut io_flags = 0u32;
+        if (cause & crate::reg::ICR_LSC) != 0 { link_flag = 1; }
+        if (cause & (crate::reg::ICR_RXO | crate::reg::ICR_RXT)) != 0 { io_flags |= 2; }
+        if (cause & (crate::reg::ICR_TXQE | crate::reg::ICR_TXDW)) != 0 { io_flags |= 4; }
+
+        // Tasklet: link status changes
+        if link_flag != 0
+            && !E1000_WQ.enqueue(SoftIrqPriority::Tasklet, e1000_bottom_half, link_flag as usize)
+        {
+            e1000_bottom_half(link_flag as usize);
+        }
+
+        // Hi: RX/TX (performance-critical)
+        if io_flags != 0
+            && !E1000_WQ.enqueue(SoftIrqPriority::Hi, e1000_bottom_half, io_flags as usize)
+        {
+            e1000_bottom_half(io_flags as usize);
+        }
+
+        // Re-enable legacy IRQ
+        if !dev.msix_available {
+            let _ = ffi::irq_reenable_ffi(&dev.irq_hook);
+        }
+    }
+}
+
+/// Drain pending e1000 bottom-half work.
+pub fn drain_e1000_work() {
+    E1000_WQ.process_all();
+}
+
 unsafe extern "C" fn ndr_tick() {
-    unsafe { blk().update_stats(); }
+    unsafe {
+        drain_e1000_work();
+        blk().update_stats();
+    }
 }
 
 // ============================================================================
@@ -136,6 +202,21 @@ static mut NDR_TABLE: ffi::Netdriver = ffi::Netdriver {
     ndr_intr: Some(ndr_intr),
     ndr_tick: Some(ndr_tick),
 };
+unsafe extern "C" fn sef_signal_handler(signo: c_int) {
+    // Only handle SIGTERM (signal 15)
+    if signo != 15 { return; }
+
+    unsafe {
+        core::ptr::addr_of_mut!(TERMINATING).write(true);
+
+        let dev = &mut *global_e1000();
+        // Rust 2024: matching on &mut implicitly borrows, no `ref mut` needed.
+        if let Some(e) = dev {
+            // Reset hardware immediately to stop DMA and interrupts.
+            e.reset_hw();
+        }
+    }
+}
 
 // ============================================================================
 // C-compatible main entry
@@ -144,6 +225,9 @@ static mut NDR_TABLE: ffi::Netdriver = ffi::Netdriver {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn e1000_rust_main(argc: c_int, argv: *mut *mut c_char) -> c_int {
     ffi::env_setargs_ffi(argc, argv);
+
+    // Register SEF signal handler for clean shutdown on SIGTERM.
+    ffi::sef_set_signal_handler(sef_signal_handler);
 
     unsafe {
         let ndp = ptr::addr_of_mut!(NDR_TABLE);

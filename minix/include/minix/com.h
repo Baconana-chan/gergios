@@ -305,10 +305,18 @@
 #  define IRQ_RMPOLICY      2	/* remove a slot of the IRQ table */
 #  define IRQ_ENABLE        3	/* enable interrupts */
 #  define IRQ_DISABLE       4	/* disable interrupts */
+#  define IRQ_MSIX_ALLOC    5	/* allocate MSI-X vector */
+#  define IRQ_MSIX_FREE     6	/* free MSI-X vector */
+#  define IRQ_MSIX_SETPOLICY 7	/* set policy for MSI-X vector (no IOAPIC) */
 #  define IRQ_REENABLE  0x001	/* reenable IRQ line after interrupt */
 #  define IRQ_BYTE      0x100	/* byte values */      
 #  define IRQ_WORD      0x200	/* word values */
 #  define IRQ_LONG      0x400	/* long values */
+
+/* MSI-X constants — IRQs [48, 63] reuse existing IDT entries (vectors 0x80-0x8F) */
+#define NR_MSIX_IRQS       16	/* number of MSI-X interrupt slots */
+#define MSIX_IRQ_BASE      48	/* MSI-X IRQs start at 48 */
+#define MSIX_IRQ_END       (MSIX_IRQ_BASE + NR_MSIX_IRQS)
 
 #define CP_FLAG_TRY	0x01	/* do not transparently map */
 

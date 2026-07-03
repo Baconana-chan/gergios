@@ -31,6 +31,7 @@
 #include <minix/sysutil.h>	/* MINIX utility library functions */
 #include <minix/timers.h>		/* watchdog timer management */
 #include <errno.h>		/* return codes and error numbers */
+
 #include <sys/param.h>
 #include <minix/param.h>
 
@@ -38,10 +39,10 @@
 #include "kernel/config.h"		/* configuration, MUST be first */
 #include "kernel/const.h"		/* constants, MUST be second */
 #include "kernel/type.h"		/* type definitions, MUST be third */
+#include "arch_proto.h"		/* architecture prototypes & constants */
 #include "kernel/proto.h"		/* function prototypes */
 #include "kernel/glo.h"		/* global variables */
 #include "kernel/ipc.h"		/* IPC constants */
-#include "arch_proto.h"		/* architecture prototypes & constants */
 #include "kernel/profile.h"		/* system profiling */
 #include "kernel/proc.h"		/* process table */
 #include "kernel/cpulocals.h"		/* CPU-local variables */

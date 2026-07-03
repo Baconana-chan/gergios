@@ -18,6 +18,7 @@
 #include "hw_intr.h"
 
 #include "acpi.h"
+#include "../../msix.h"
 
 #ifdef USE_WATCHDOG
 #include "kernel/watchdog.h"
@@ -287,6 +288,12 @@ static void ioapic_eoi_edge(__unused struct irq * irq)
 
 void ioapic_eoi(int irq)
 {
+	/* MSI-X vectors bypass IOAPIC — just do a simple LAPIC EOI */
+	if (IS_MSIX_IRQ(irq)) {
+		apic_eoi();
+		return;
+	}
+
 	if (ioapic_enabled) {
 		io_apic_irq[irq].eoi(&io_apic_irq[irq]);
 	}
@@ -386,6 +393,10 @@ static void ioapic_enable_irq(unsigned irq)
 
 void ioapic_unmask_irq(unsigned irq)
 {
+	/* MSI-X vectors bypass IOAPIC entirely */
+	if (IS_MSIX_IRQ(irq))
+		return;
+
 	if (ioapic_enabled)
 		ioapic_enable_irq(irq);
 	else
@@ -395,6 +406,10 @@ void ioapic_unmask_irq(unsigned irq)
 
 void ioapic_mask_irq(unsigned irq)
 {
+	/* MSI-X vectors bypass IOAPIC entirely */
+	if (IS_MSIX_IRQ(irq))
+		return;
+
 	if (ioapic_enabled)
 		ioapic_disable_irq(irq);
 	else

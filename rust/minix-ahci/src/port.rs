@@ -253,6 +253,29 @@ impl Port {
         }
     }
 
+    /// Allocate a free command tag (NCQ slot).
+    /// Returns the tag index (0..queue_depth) or None if all slots busy.
+    pub fn alloc_cmd_tag(&mut self) -> Option<u32> {
+        let max = core::cmp::min(self.queue_depth, registers::MAX_CMDS as u32);
+        for tag in 0..max {
+            if (self.pend_mask & (1 << tag)) == 0 {
+                self.pend_mask |= 1 << tag;
+                return Some(tag);
+            }
+        }
+        None
+    }
+
+    /// Free a command tag, making it available for reuse.
+    pub fn free_cmd_tag(&mut self, tag: u32) {
+        self.pend_mask &= !(1 << tag);
+    }
+
+    /// Check if a command tag is currently in use.
+    pub fn is_tag_busy(&self, tag: u32) -> bool {
+        (self.pend_mask & (1 << tag)) != 0
+    }
+
     /// Compute the port register MMIO offset from the HBA base.
     pub fn reg_offset(&self, port_idx: usize) -> u32 {
         (registers::MEM_BASE_SIZE + registers::MEM_PORT_SIZE * port_idx) as u32

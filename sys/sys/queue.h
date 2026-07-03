@@ -678,6 +678,16 @@ struct {								\
  * this by changing the head/tail sentinal values, but see the note above
  * this one.
  */
+#ifdef _MSC_VER
+static __inline const void *
+__launder_type(const void *__x)
+{
+	/* MSVC does not support GCC extended asm; return the pointer directly.
+	 * This may allow slightly more aggressive aliasing optimizations than
+	 * the GCC version, but is functionally correct. */
+	return __x;
+}
+#else
 static __inline const void * __launder_type(const void *);
 static __inline const void *
 __launder_type(const void *__x)
@@ -685,6 +695,7 @@ __launder_type(const void *__x)
 	__asm __volatile("" : "+r" (__x));
 	return __x;
 }
+#endif
 
 #if defined(QUEUEDEBUG)
 #define QUEUEDEBUG_CIRCLEQ_HEAD(head, field)				\

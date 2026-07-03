@@ -125,6 +125,16 @@ int sys_vtimer(endpoint_t proc_nr, int which, clock_t *newval, clock_t
     sys_irqctl(IRQ_RMPOLICY, 0, 0, hook_id)
 int sys_irqctl(int request, int irq_vec, int policy, int *irq_hook_id);
 
+/* MSI-X support — allocate, free, and register handlers for MSI-X IRQs.
+ * Unlike legacy IRQs, MSI-X vectors bypass the IOAPIC entirely.
+ * The driver programs the MSI-X table entry in its PCI BAR with the
+ * returned IRQ number (converted to a vector via IRQ0_VECTOR + irq).
+ */
+int sys_msix_alloc(int *irq);
+#define sys_msix_free(irq) sys_irqctl(IRQ_MSIX_FREE, irq, 0, NULL)
+#define sys_msix_setpolicy(irq, policy, hook_id) \
+    sys_irqctl(IRQ_MSIX_SETPOLICY, irq, policy, hook_id)
+
 /* Shorthands for sys_vircopy() and sys_physcopy() system calls. */
 #define sys_datacopy(p1, v1, p2, v2, len) sys_vircopy(p1, v1, p2, v2, len, 0)
 #define sys_datacopy_try(p1, v1, p2, v2, len) sys_vircopy(p1, v1, p2, v2, len, CP_FLAG_TRY)
@@ -249,6 +259,20 @@ int pci_set_acl(struct rs_pci *rs_pci);
 int pci_del_acl(endpoint_t proc_ep);
 int pci_get_bar(int devind, int port, u32_t *base, u32_t *size, int
 	*ioflag);
+
+/* PCI capability list traversal */
+int pci_find_cap(int devind, int cap_id, int *cap_ptr);
+
+/* MSI-X capability info */
+struct pci_msix_info {
+	int msix_table_size;		/* number of MSI-X table entries */
+	int msix_table_bir;		/* BAR index containing MSI-X table */
+	u32_t msix_table_offset;	/* table offset from BAR (QWORDs) */
+	int msix_pba_bir;		/* BAR index containing PBA */
+	u32_t msix_pba_offset;		/* PBA offset from BAR (QWORDs) */
+};
+int pci_find_msix(int devind, int *cap_offset);
+int pci_msix_parse(int devind, struct pci_msix_info *info);
 
 /* Profiling. */
 int sys_sprof(int action, int size, int freq, int type, endpoint_t

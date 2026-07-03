@@ -8,6 +8,7 @@
 #include "kernel/system.h"
 
 #include <minix/endpoint.h>
+#include "../msix.h"
 
 #if USE_CLEAR
 
@@ -40,6 +41,9 @@ int do_clear(struct proc * caller, message * m_ptr)
   /* Check the table with IRQ hooks to see if hooks should be released. */
   for (i=0; i < NR_IRQ_HOOKS; i++) {
       if (rc->p_endpoint == irq_hooks[i].proc_nr_e) {
+        /* Free MSI-X IRQ before removing handler, if applicable */
+        if (IS_MSIX_IRQ(irq_hooks[i].irq) && msix_is_allocated(irq_hooks[i].irq))
+            msix_free_irq(irq_hooks[i].irq);
         rm_irq_handler(&irq_hooks[i]);	/* remove interrupt handler */
         irq_hooks[i].proc_nr_e = NONE;	/* mark hook as free */
       } 

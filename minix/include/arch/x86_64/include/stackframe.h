@@ -1,6 +1,8 @@
 #ifndef STACK_FRAME_H
 #define STACK_FRAME_H
 
+#ifndef __ASSEMBLY__
+
 #include <sys/types.h>
 
 typedef unsigned long reg_t;         /* machine register */
@@ -37,5 +39,7 @@ struct stackframe_s {
 	reg_t sp;
 	reg_t ss;
 };
+
+#endif /* __ASSEMBLY__ */
 
 #endif /* #ifndef STACK_FRAME_H */

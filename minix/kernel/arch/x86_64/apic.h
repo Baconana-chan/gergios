@@ -1,27 +1,20 @@
-/* x86_64 APIC — Local APIC + I/O APIC constants and declarations.
- *
- * Values are identical to i386 — APIC programming model is
- * architecture-independent for x86 (same registers, same bit
- * layout). Only addresses are 64-bit capable.
- *
- * Ported from: minix/kernel/arch/i386/apic.h
- */
+#ifndef __APIC_X86_64_H__
+#define __APIC_X86_64_H__
 
-#ifndef __X86_64_APIC_H__
-#define __X86_64_APIC_H__
+/* APIC register constants — shared with i386, same for x86_64. */
 
 #define APIC_ENABLE		0x100
 #define APIC_FOCUS_DISABLED	(1 << 9)
 #define APIC_SIV		0xFF
 
-#define APIC_TDCR_2		0x00
-#define APIC_TDCR_4		0x01
-#define APIC_TDCR_8		0x02
-#define APIC_TDCR_16		0x03
-#define APIC_TDCR_32		0x08
-#define APIC_TDCR_64		0x09
-#define APIC_TDCR_128		0x0a
-#define APIC_TDCR_1		0x0b
+#define APIC_TDCR_2	0x00
+#define APIC_TDCR_4	0x01
+#define APIC_TDCR_8	0x02
+#define APIC_TDCR_16	0x03
+#define APIC_TDCR_32	0x08
+#define APIC_TDCR_64	0x09
+#define APIC_TDCR_128	0x0a
+#define APIC_TDCR_1	0x0b
 
 #define APIC_LVTT_VECTOR_MASK	0x000000FF
 #define APIC_LVTT_DS_PENDING	(1 << 12)
@@ -39,9 +32,9 @@
 #define APIC_ICR_VECTOR			APIC_LVTT_VECTOR_MASK
 #define APIC_ICR_DM_FIXED		(0 << 8)
 #define APIC_ICR_DM_LOWEST_PRIORITY	(1 << 8)
-#define APIC_ICR_DM_SMI			(2 << 8)
+#define APIC_ICR_DM_SMI		(2 << 8)
 #define APIC_ICR_DM_RESERVED		(3 << 8)
-#define APIC_ICR_DM_NMI			(4 << 8)
+#define APIC_ICR_DM_NMI		(4 << 8)
 #define APIC_ICR_DM_INIT		(5 << 8)
 #define APIC_ICR_DM_STARTUP		(6 << 8)
 #define APIC_ICR_DM_EXTINT		(7 << 8)
@@ -68,6 +61,7 @@
 #define LOCAL_APIC_DEF_ADDR	0xfee00000 /* default local apic address */
 #define IO_APIC_DEF_ADDR	0xfec00000 /* default i/o apic address */
 
+/* LAPIC register offsets (relative to lapic_addr) */
 #define LAPIC_ID	(lapic_addr + 0x020)
 #define LAPIC_VERSION	(lapic_addr + 0x030)
 #define LAPIC_TPR	(lapic_addr + 0x080)
@@ -91,34 +85,45 @@
 #define LAPIC_TIMER_CCR	(lapic_addr + 0x390)
 #define LAPIC_TIMER_DCR	(lapic_addr + 0x3e0)
 
+/* IOAPIC register offsets */
 #define IOAPIC_ID		0x0
 #define IOAPIC_VERSION		0x1
 #define IOAPIC_ARB		0x2
 #define IOAPIC_REDIR_TABLE	0x10
 
+/* APIC interrupt vector assignments */
 #define APIC_TIMER_INT_VECTOR		0xf0
 #define APIC_SMP_SCHED_PROC_VECTOR	0xf1
 #define APIC_SMP_CPU_HALT_VECTOR	0xf2
 #define APIC_ERROR_INT_VECTOR		0xfe
 #define APIC_SPURIOUS_INT_VECTOR	0xff
 
+/* MSR constants for APIC base register */
+#define IA32_APIC_BASE		0x1b
+#define IA32_APIC_BASE_ENABLE_BIT	11
+#define IA32_APIC_BASE_XAPIC_ENABLE	(1 << 10)
+
 #ifndef __ASSEMBLY__
 
 #include "kernel/kernel.h"
 
+/* LAPIC base address (virtual, after mapping). */
 EXTERN vir_bytes lapic_addr;
+/* LAPIC EOI register virtual address. */
 EXTERN vir_bytes lapic_eoi_addr;
+/* Whether IOAPIC is enabled. */
 EXTERN int ioapic_enabled;
+/* BSP local APIC ID. */
 EXTERN int bsp_lapic_id;
+EXTERN u32_t lapic_addr_vaddr;
 
 #define MAX_NR_IOAPICS		32
-#define MAX_IOAPIC_IRQS		64
 
 struct io_apic {
 	unsigned	id;
-	vir_bytes	addr;     /* presently used address */
-	phys_bytes	paddr;    /* where is it in phys space */
-	vir_bytes	vaddr;    /* address after paging is on */
+	vir_bytes	addr;		/* presently used address */
+	phys_bytes	paddr;		/* physical address */
+	vir_bytes	vaddr;		/* address after paging is on */
 	unsigned	pins;
 	unsigned	gsi_base;
 };
@@ -126,58 +131,46 @@ struct io_apic {
 EXTERN struct io_apic io_apic[MAX_NR_IOAPICS];
 EXTERN unsigned nioapics;
 
-EXTERN u32_t lapic_addr_vaddr;
-
-int lapic_enable(unsigned cpu);
-void ioapic_unmask_irq(unsigned irq);
-void ioapic_mask_irq(unsigned irq);
-void ioapic_reset_pic(void);
-
-void lapic_microsec_sleep(unsigned count);
-void ioapic_disable_irqs(u32_t irqs);
-void ioapic_enable_irqs(u32_t irqs);
-
+/* LAPIC enable/disable */
 int lapic_enable(unsigned cpu);
 void lapic_disable(void);
 
-void ioapic_disable_all(void);
-int ioapic_enable_all(void);
-
+/* IOAPIC initialization */
 int detect_ioapics(void);
-void apic_idt_init(int reset);
+int ioapic_enable_all(void);
+void ioapic_disable_all(void);
+void ioapic_reset_pic(void);
 
-#ifdef CONFIG_SMP
-int apic_send_startup_ipi(unsigned cpu, phys_bytes trampoline);
-int apic_send_init_ipi(unsigned cpu, phys_bytes trampoline);
-unsigned int apicid(void);
-void ioapic_set_id(u32_t addr, unsigned int id);
-#else
-int apic_single_cpu_init(void);
-#endif
-
-void lapic_set_timer_periodic(const unsigned freq);
-void lapic_set_timer_one_shot(const u32_t value);
-void lapic_stop_timer(void);
-void lapic_restart_timer(void);
-
+/* IOAPIC IRQ routing */
 void ioapic_set_irq(unsigned irq);
 void ioapic_unset_irq(unsigned irq);
+void ioapic_mask_irq(unsigned irq);
+void ioapic_unmask_irq(unsigned irq);
 
+/* EOI */
+void ioapic_eoi(int irq);
+void arch_eoi(void);
 #define apic_eoi() do { *((volatile u32_t *) lapic_eoi_addr) = 0; } while(0)
 
-void ioapic_eoi(int irq);
-void dump_apic_irq_state(void);
+/* APIC IDT setup */
+void apic_idt_init(int reset);
 
+/* LAPIC timer */
+void lapic_set_timer_one_shot(const u32_t usec);
+void lapic_set_timer_periodic(const unsigned freq);
+void lapic_stop_timer(void);
+void lapic_restart_timer(void);
+void lapic_microsec_sleep(unsigned count);
+
+/* IPI */
 void apic_send_ipi(unsigned vector, unsigned cpu, int type);
-void apic_ipi_sched_intr(void);
-void apic_ipi_halt_intr(void);
 
 #define APIC_IPI_DEST		0
 #define APIC_IPI_SELF		1
 #define APIC_IPI_TO_ALL		2
-#define APIC_IPI_TO_ALL_BUT_SELF	3
+#define APIC_IPI_TO_ALL_BUT_SELF 3
 
-#define apic_send_ipi_single(vector,cpu) \
+#define apic_send_ipi_single(vector, cpu) \
 	apic_send_ipi(vector, cpu, APIC_IPI_DEST)
 #define apic_send_ipi_self(vector) \
 	apic_send_ipi(vector, 0, APIC_IPI_SELF)
@@ -186,15 +179,105 @@ void apic_ipi_halt_intr(void);
 #define apic_send_ipi_allbutself(vector) \
 	apic_send_ipi(vector, 0, APIC_IPI_TO_ALL_BUT_SELF)
 
-#include <minix/cpufeature.h>
+/* Assembly interrupt entry points (from apic_asm.S) */
+void apic_hwint0(void);
+void apic_hwint1(void);
+void apic_hwint2(void);
+void apic_hwint3(void);
+void apic_hwint4(void);
+void apic_hwint5(void);
+void apic_hwint6(void);
+void apic_hwint7(void);
+void apic_hwint8(void);
+void apic_hwint9(void);
+void apic_hwint10(void);
+void apic_hwint11(void);
+void apic_hwint12(void);
+void apic_hwint13(void);
+void apic_hwint14(void);
+void apic_hwint15(void);
+void apic_hwint16(void);
+void apic_hwint17(void);
+void apic_hwint18(void);
+void apic_hwint19(void);
+void apic_hwint20(void);
+void apic_hwint21(void);
+void apic_hwint22(void);
+void apic_hwint23(void);
+void apic_hwint24(void);
+void apic_hwint25(void);
+void apic_hwint26(void);
+void apic_hwint27(void);
+void apic_hwint28(void);
+void apic_hwint29(void);
+void apic_hwint30(void);
+void apic_hwint31(void);
+void apic_hwint32(void);
+void apic_hwint33(void);
+void apic_hwint34(void);
+void apic_hwint35(void);
+void apic_hwint36(void);
+void apic_hwint37(void);
+void apic_hwint38(void);
+void apic_hwint39(void);
+void apic_hwint40(void);
+void apic_hwint41(void);
+void apic_hwint42(void);
+void apic_hwint43(void);
+void apic_hwint44(void);
+void apic_hwint45(void);
+void apic_hwint46(void);
+void apic_hwint47(void);
+void apic_hwint48(void);
+void apic_hwint49(void);
+void apic_hwint50(void);
+void apic_hwint51(void);
+void apic_hwint52(void);
+void apic_hwint53(void);
+void apic_hwint54(void);
+void apic_hwint55(void);
+void apic_hwint56(void);
+void apic_hwint57(void);
+void apic_hwint58(void);
+void apic_hwint59(void);
+void apic_hwint60(void);
+void apic_hwint61(void);
+void apic_hwint62(void);
+void apic_hwint63(void);
+void apic_spurios_intr(void);
+void apic_error_intr(void);
+void lapic_timer_int_handler(void);
+void apic_ipi_sched_intr(void);
+void apic_ipi_halt_intr(void);
 
+/* SMP IPI handlers (C functions) */
+void apic_spurios_intr_handler(void);
+void apic_error_intr_handler(void);
+void smp_ipi_sched_handler(void);
+void smp_ipi_halt_handler(void);
+
+/* APIC interrupt state dump (used by arch_system.c watchdog) */
+void dump_apic_irq_state(void);
+
+/* APIC single-CPU init (used when CONFIG_SMP is not enabled) */
+int apic_single_cpu_init(void);
+
+#ifdef CONFIG_SMP
+/* AP startup IPIs */
+int apic_send_init_ipi(unsigned cpu, phys_bytes trampoline);
+int apic_send_startup_ipi(unsigned cpu, phys_bytes trampoline);
+#endif
+
+/* Convenience macros */
 #define cpu_feature_apic_on_chip() _cpufeature(_CPUF_I386_APIC_ON_CHIP)
 
+/* LAPIC MMIO access macros.
+ * All LAPIC/IOAPIC registers are 32-bit, even on x86_64. */
 #define lapic_read(what)	(*((volatile u32_t *)((what))))
-#define lapic_write(what, data)	do {			\
-	(*((volatile u32_t *)((what)))) = data;		\
+#define lapic_write(what, data) do {				\
+	(*((volatile u32_t *)((what)))) = data;			\
 } while(0)
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __X86_64_APIC_H__ */
+#endif /* __APIC_X86_64_H__ */

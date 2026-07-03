@@ -8,6 +8,24 @@
 use crate::ffi;
 use core::ffi::{c_int, c_void};
 
+/// Number of MSI-X vectors for virtio: 1 config + N queue vectors
+pub const VIRTIO_MSIX_CONFIG_VECTOR: u16 = 0;
+pub const VIRTIO_MSIX_QUEUE_VECTOR: u16 = 1;
+
+/// Virtio PCI MSI-X register offsets (legacy, at PCI capabilities)
+/// The queue MSI-X vector is configured through device-specific registers
+/// after QSEL selects the queue.
+const Q_MSIX_VECTOR_OFF: u16 = 2; // Queue MSI-X vector register (within dev-specific)
+const Q_CONFIG_OFF: u16 = 0x14;   // Config MSI-X vector register
+
+/// MSI-X table entry size (16 bytes per entry)
+const MSIX_ENTRY_SIZE: usize = 16;
+
+/// MSI-X message address for BSP (APIC ID 0)
+const MSIX_MESSAGE_ADDR: u32 = 0xFEE00000;
+/// Base vector for MSI-X (IRQ0_VECTOR = 0x50)
+const MSIX_VECTOR_BASE: u32 = 0x50;
+
 // ============================================================================
 // Virtio PCI register offsets (legacy, I/O port BAR)
 // ============================================================================
@@ -46,6 +64,15 @@ pub struct VirtioDevice {
     pub hook_id: c_int,      // IRQ hook ID
     pub num_queues: usize,   // Number of allocated queues
     pub queues: *mut VirtQueue, // Pointer to queue array
+    // MSI-X fields
+    pub msix_available: bool,    // Whether MSI-X is configured
+    pub msix_bar_base: *mut u8,  // Original BAR mapping start (for unmap)
+    pub msix_table_ptr: *mut u8, // Pointer to MSI-X table within mapped BAR
+    pub msix_table_size: usize,  // Number of MSI-X table entries
+    pub msix_bar_size: usize,    // Size of the mapped BAR region
+    pub msix_separate_bar: bool, // Whether table is in a separate BAR
+    pub msix_irqs: [c_int; 8],   // Per-queue + config MSI-X IRQs
+    pub msix_hook_ids: [c_int; 8], // Per-queue + config hook IDs
 }
 
 impl VirtioDevice {
@@ -57,7 +84,119 @@ impl VirtioDevice {
             hook_id: 0,
             num_queues: 0,
             queues: core::ptr::null_mut(),
+            msix_available: false,
+            msix_bar_base: core::ptr::null_mut(),
+            msix_table_ptr: core::ptr::null_mut(),
+            msix_table_size: 0,
+            msix_bar_size: 0,
+            msix_separate_bar: false,
+            msix_irqs: [0; 8],
+            msix_hook_ids: [0; 8],
         }
+    }
+
+    /// Try to set up MSI-X for virtio device.
+    /// Parses PCI MSI-X capability, maps table BAR,
+    /// allocates per-queue MSI-X vectors, and programs table entries.
+    pub fn setup_msix(&mut self, devind: c_int) -> bool {
+        let msix_info = match ffi::pci_msix_parse_ffi(devind) {
+            Some(info) => info,
+            None => return false,
+        };
+
+        let table_offset_bytes = (msix_info.msix_table_offset as usize) * 8;
+        let table_size = msix_info.msix_table_size as usize;
+        let table_bytes = table_size * MSIX_ENTRY_SIZE;
+
+        // Map the MSI-X table BAR (virtio uses I/O BAR 0, MSI-X needs MMIO BAR)
+        let bar_idx = msix_info.msix_table_bir;
+        let (bar_base, bar_size, ioflag) = match ffi::pci_get_bar_ffi(devind, bar_idx) {
+            Some(v) => v,
+            None => return false,
+        };
+        if ioflag { return false; }
+
+        let map_size = core::cmp::min(bar_size as usize, table_offset_bytes + table_bytes);
+        let bar_ptr = ffi::vm_map_phys_ffi(bar_base as *mut core::ffi::c_void, map_size);
+        if bar_ptr.is_null() { return false; }
+
+        let table_base = unsafe { (bar_ptr as *mut u8).add(table_offset_bytes) };
+        let separate_bar = bar_idx != 0; // BAR0 is virtio's I/O BAR — table is elsewhere
+
+        // Store the original BAR mapping base for proper cleanup
+        self.msix_bar_base = bar_ptr as *mut u8;
+        self.msix_table_ptr = table_base;
+        self.msix_bar_size = map_size;
+
+        // Allocate MSI-X vectors: [config, queue0, queue1, ..., queueN]
+        let num_vectors = 1 + self.num_queues; // config + per-queue
+        let max_vectors = core::cmp::min(num_vectors, table_size);
+        let mut all_ok = true;
+
+        for vec_idx in 0..max_vectors {
+            let irq = match ffi::msix_alloc_irq() {
+                Some(irq) => irq,
+                None => { all_ok = false; break; }
+            };
+            let hook_id = match ffi::msix_setup(irq) {
+                Some(hook) => hook,
+                None => {
+                    let _ = ffi::msix_free_irq(irq);
+                    all_ok = false;
+                    break;
+                }
+            };
+            self.msix_irqs[vec_idx] = irq;
+            self.msix_hook_ids[vec_idx] = hook_id;
+
+            // Program MSI-X table entry
+            unsafe {
+                let entry = table_base.add(vec_idx * MSIX_ENTRY_SIZE) as *mut u32;
+                core::ptr::write_volatile(entry, MSIX_MESSAGE_ADDR);           // msg addr low
+                core::ptr::write_volatile(entry.add(1), 0);                     // msg addr high
+                core::ptr::write_volatile(entry.add(2), MSIX_VECTOR_BASE + irq as u32); // msg data
+                core::ptr::write_volatile(entry.add(3), 0);                     // vector control
+            }
+        }
+
+        if !all_ok {
+            // Clean up partial MSI-X allocs
+            for vec_idx in 0..max_vectors {
+                if self.msix_hook_ids[vec_idx] != 0 {
+                    ffi::irq_remove(&mut self.msix_hook_ids[vec_idx]);
+                    self.msix_hook_ids[vec_idx] = 0;
+                }
+                if self.msix_irqs[vec_idx] != 0 {
+                    let _ = ffi::msix_free_irq(self.msix_irqs[vec_idx]);
+                    self.msix_irqs[vec_idx] = 0;
+                }
+            }
+            if separate_bar && !bar_ptr.is_null() {
+                let _ = ffi::vm_unmap_phys_ffi(
+                    bar_ptr as *mut core::ffi::c_void,
+                    map_size,
+                );
+            }
+            self.msix_bar_base = core::ptr::null_mut();
+            self.msix_table_ptr = core::ptr::null_mut();
+            return false;
+        }
+
+        // Configure virtio device to use MSI-X vectors
+        unsafe {
+            // Config vector at index 0
+            self.write16(Q_MSIX_VECTOR_OFF, 0);
+            // Queue vectors: each queue gets vec_idx = 1 + qid
+            for qid in 0..self.num_queues {
+                self.write16(QSEL_OFF, qid as u16);
+                self.write16(Q_MSIX_VECTOR_OFF, (1 + qid) as u16);
+            }
+        }
+
+        self.msix_available = true;
+        self.msix_table_size = max_vectors;
+        self.msix_separate_bar = separate_bar;
+        true
     }
 
     /// Probe for a virtio device matching `subdevid` at the given `instance`.
@@ -195,14 +334,42 @@ impl VirtioDevice {
     /// Reset the device.
     pub fn reset(&mut self) {
         unsafe { self.write_status(0); }
+        // Clean up MSI-X
+        self.cleanup_msix();
+        // Clean up legacy IRQ
         if self.hook_id != 0 {
             ffi::irq_remove(&mut self.hook_id);
             self.hook_id = 0;
         }
     }
 
+    /// Free MSI-X resources.
+    fn cleanup_msix(&mut self) {
+        if !self.msix_available { return; }
+        for vec_idx in 0..self.msix_table_size.min(8) {
+            if self.msix_hook_ids[vec_idx] != 0 {
+                ffi::irq_remove(&mut self.msix_hook_ids[vec_idx]);
+                self.msix_hook_ids[vec_idx] = 0;
+            }
+            if self.msix_irqs[vec_idx] != 0 {
+                let _ = ffi::msix_free_irq(self.msix_irqs[vec_idx]);
+                self.msix_irqs[vec_idx] = 0;
+            }
+        }
+        if self.msix_separate_bar && !self.msix_bar_base.is_null() {
+            let _ = ffi::vm_unmap_phys_ffi(
+                self.msix_bar_base as *mut core::ffi::c_void,
+                self.msix_bar_size,
+            );
+        }
+        self.msix_available = false;
+        self.msix_bar_base = core::ptr::null_mut();
+        self.msix_table_ptr = core::ptr::null_mut();
+    }
+
     /// Free all queue memory and clean up.
     pub fn cleanup(&mut self) {
+        self.cleanup_msix();
         if !self.queues.is_null() {
             for i in 0..self.num_queues {
                 let q = unsafe { &mut *self.queues.add(i) };

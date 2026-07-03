@@ -4,6 +4,8 @@
 
 #ifndef _MSC_VER
 #include_next <vmparam.h>
+#else
+/* MSVC: #include_next not supported */
 #endif
 
 #endif /* !_MACHINE_VMPARAM_H_ */

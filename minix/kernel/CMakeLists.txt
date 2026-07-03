@@ -16,6 +16,12 @@
 # MSVC-based driver code. ld.lld works perfectly when called directly.
 
 # ============================================================================
+# Build options
+# ============================================================================
+
+option(CONFIG_SMP "Symmetric Multi-Processing support" OFF)
+
+# ============================================================================
 # Kernel sources
 # ============================================================================
 
@@ -27,6 +33,7 @@ set(KERNEL_CORE_SOURCES
     cpulocals.c
     interrupt.c
     main.c
+    msix.c
     proc.c
     system.c
     table.c
@@ -116,7 +123,8 @@ elseif(MACHINE_ARCH STREQUAL "x86_64")
         arch/x86_64/pre_init.c       # Boot-time kinfo + pagetable setup
         arch/x86_64/protect.c        # GDT/IDT setup, MMU init
         arch/x86_64/do_sdevio.c      # Safe device I/O
-        arch/x86_64/apic.c           # APIC stub (TODO: implement)
+        arch/x86_64/apic.c           # APIC/IOAPIC driver (LAPIC, IOAPIC, timer, IPI)
+        arch/x86_64/apic_asm.S       # APIC interrupt handlers (64-bit)
         arch/x86_64/stubs.c          # Kernel libc stubs (strlcpy, usermapped_offset)
         arch/x86_64/_cpufeature.c    # CPU feature detection
         arch/x86_64/arch_watchdog.c  # NMI watchdog stubs
@@ -133,6 +141,11 @@ elseif(MACHINE_ARCH STREQUAL "x86_64")
             arch/x86_64/trampoline.S    # AP boot trampoline
         )
     endif()
+
+    # ACPI (architecture-independent table parsing, ported from i386)
+    list(APPEND KERNEL_ARCH_SOURCES
+        arch/x86_64/acpi.c              # ACPI tables (RSDP, RSDT, MADT)
+    )
 elseif(MACHINE_ARCH STREQUAL "aarch64")
     # Phase 2: Kernel Bootstrap + Context Switching + Exception Handling
     set(KERNEL_ARCH_SOURCES
@@ -268,12 +281,21 @@ add_library(kernel_objects OBJECT
 # Kernel-specific compile definitions
 target_compile_definitions(kernel_objects PRIVATE __kernel__)
 
+# SMP support
+if(CONFIG_SMP)
+    target_compile_definitions(kernel_objects PRIVATE
+        CONFIG_SMP=1
+        CONFIG_MAX_CPUS=4
+    )
+endif()
+
 # MINIX compile flags (from add_minix_executable)
 target_compile_options(kernel_objects PRIVATE
     -fno-stack-protector
     -fno-builtin
     -fno-asynchronous-unwind-tables
     "$<$<COMPILE_LANGUAGE:ASM>:-D__ASSEMBLY__>"
+    "$<$<COMPILE_LANGUAGE:ASM>:-DKTS_INT_HARD=2>"
 )
 
 # MINIX system flag

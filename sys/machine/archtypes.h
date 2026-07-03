@@ -4,6 +4,9 @@
 
 #ifndef _MSC_VER
 #include_next <archtypes.h>
+#else
+/* MSVC: #include_next not supported — include x86_64 archtypes directly */
+#include <arch/x86_64/include/archtypes.h>
 #endif
 
 #endif /* !_MACHINE_ARCHTYPES_H_ */

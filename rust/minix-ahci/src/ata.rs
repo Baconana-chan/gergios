@@ -9,11 +9,10 @@
 
 use crate::ffi;
 use crate::registers::{
-    self, ata_cmd, ata_id, fis as fis_reg, is_fpdma_cmd, port_flags, PortState, ATA_SECTOR_SIZE,
-    MAX_PRDS,
+    self, ata_cmd, ata_id, fis as fis_reg, port_flags, ATA_SECTOR_SIZE,
 };
 use crate::hba::HbaRef;
-use crate::port::{H2dFis, Prd, Port, PortBuffers};
+use crate::port::{H2dFis, Prd, Port};
 
 // ============================================================================
 // ATAPI packet sizes
@@ -149,27 +148,66 @@ pub fn ata_identify(hba: &HbaRef, port_idx: usize, port: &mut Port, blocking: bo
     }
 }
 
-/// Wait for a command to complete (spin with timeout).
+/// Drain the global work queue (bottom-half processing).
+/// Defined in lib.rs, re-exported for use in ata.rs polling loops.
+#[inline]
+pub fn drain_work_queue() {
+    crate::WORK_QUEUE.process_all();
+}
+
+/// Wait for a non-NCQ command to complete (spin with timeout).
+/// Always polls CI register — NCQ commands use wait_for_cmd_ncq instead.
+/// This is safe for: IDENTIFY, DMA EXT, FLUSH CACHE, SET FEATURES.
 fn wait_for_cmd(
     hba: &HbaRef,
     port_idx: usize,
-    port: &Port,
+    _port: &Port,
     cmd_tag: u32,
     timeout_ms: u64,
 ) -> CmdResult {
     let timeout = timeout_ms * 1000; // microseconds
+    let mask = 1 << cmd_tag;
     let mut waited = 0u32;
     loop {
-        // Check CI (non-NCQ) or SACT (NCQ) register
-        let mask = 1 << cmd_tag;
-        let done = if (port.flags & port_flags::NCQ_MODE) != 0 {
-            (hba.port_read32(port_idx, registers::port::SACT) & mask) == 0
-        } else {
-            (hba.port_read32(port_idx, registers::port::CI) & mask) == 0
-        };
+        // Drain bottom-half work queue periodically
+        drain_work_queue();
 
-        if done {
-            // Check for errors
+        // Non-NCQ commands always complete via CI register
+        if (hba.port_read32(port_idx, registers::port::CI) & mask) == 0 {
+            let tfd = hba.port_read32(port_idx, registers::port::TFD);
+            if tfd & (registers::port::TFD_ERR | registers::port::TFD_DF) != 0 {
+                return CmdResult::Failure;
+            }
+            return CmdResult::Success;
+        }
+
+        if waited >= timeout as u32 {
+            return CmdResult::Failure;
+        }
+        ffi::udelay(100);
+        waited += 100;
+    }
+}
+
+/// Wait for an NCQ command to complete (poll SACT register only).
+/// NCQ commands clear SACT[tag] on completion via D2H or SDBS FIS.
+fn wait_for_cmd_ncq(
+    hba: &HbaRef,
+    port_idx: usize,
+    _port: &Port,
+    cmd_tag: u32,
+    timeout_ms: u64,
+) -> CmdResult {
+    let timeout = timeout_ms * 1000;
+    let mask = 1 << cmd_tag;
+    let mut waited = 0u32;
+    loop {
+        // Drain bottom-half work queue periodically
+        drain_work_queue();
+
+        // NCQ: completion clears SACT bit (not CI)
+        if (hba.port_read32(port_idx, registers::port::SACT) & mask) == 0 {
+            // Check for NCQ error: TFD.ERR or TFD.DF
             let tfd = hba.port_read32(port_idx, registers::port::TFD);
             if tfd & (registers::port::TFD_ERR | registers::port::TFD_DF) != 0 {
                 return CmdResult::Failure;
@@ -270,7 +308,9 @@ pub fn ata_parse_identify(port: &mut Port, id_buf: &[u16]) -> bool {
 // ATA data transfer (READ/WRITE DMA EXT)
 // ============================================================================
 
-/// Perform an ATA data transfer.
+/// Perform an ATA data transfer (legacy DMA EXT, single slot).
+/// Uses the given cmd_tag for CL entry setup, but always issues as tag 0
+/// to the hardware (non-NCQ). For NCQ-capable devices, use ata_transfer_ncq().
 pub fn ata_transfer(
     hba: &HbaRef,
     port_idx: usize,
@@ -279,6 +319,7 @@ pub fn ata_transfer(
     count: u32,
     write: bool,
     force: bool,
+    cmd_tag: u32,
     prds: &[Prd],
 ) -> CmdResult {
     let fis = H2dFis {
@@ -307,25 +348,83 @@ pub fn ata_transfer(
         resv2: [0; 4],
     };
 
-    // Set up command table
-    let ct_virt = port.bufs.ct_virt[0];
+    let tag = cmd_tag as usize;
+
+    // Set up command table for this slot
+    let ct_virt = port.bufs.ct_virt[tag];
     unsafe { core::ptr::write_bytes(ct_virt, 0, registers::CT_SIZE) };
     let ct_slice = unsafe { core::slice::from_raw_parts_mut(ct_virt, registers::CT_SIZE) };
     setup_fis(ct_slice, &fis);
     setup_prdt(ct_slice, prds);
 
-    // Set up command list
+    // Set up command list entry for this slot
     let cl_slice = unsafe {
         core::slice::from_raw_parts_mut(port.bufs.cl_virt, registers::CL_SIZE / 4)
     };
-    setup_cl_entry(cl_slice, 0, port.bufs.ct_phys[0], prds.len() as u32, write);
+    setup_cl_entry(cl_slice, cmd_tag, port.bufs.ct_phys[tag], prds.len() as u32, write);
 
-    // Issue command (set SACT for NCQ)
-    if (port.flags & port_flags::HAS_NCQ) != 0 {
-        hba.port_write32(port_idx, registers::port::SACT, 1 << 0);
-    }
-    hba.port_issue_cmd(port_idx, 0);
-    wait_for_cmd(hba, port_idx, port, 0, 30_000) // 30s timeout for I/O
+    // Issue command
+    hba.port_issue_cmd(port_idx, cmd_tag);
+    wait_for_cmd(hba, port_idx, port, cmd_tag, 30_000) // 30s timeout for I/O
+}
+
+/// Perform an NCQ (FPDMA) data transfer.
+/// Uses READ/WRITE FPDMA QUEUED with proper tag in the Features field,
+/// allowing up to `queue_depth` concurrent commands per port.
+pub fn ata_transfer_ncq(
+    hba: &HbaRef,
+    port_idx: usize,
+    port: &mut Port,
+    start_lba: u64,
+    count: u32,
+    write: bool,
+    cmd_tag: u32,
+    prds: &[Prd],
+) -> CmdResult {
+    // NCQ tag goes in bits 7:3 of the Features register (byte 3 of FIS)
+    // Per ATA/ATAPI-8: Features[7:3] = tag[4:0]
+    let tag_feat = (cmd_tag as u8 & 0x1F) << 3;
+
+    let fis = H2dFis {
+        fis_type: registers::fis::TYPE_H2D,
+        flags: fis_reg::H2D_FLAGS_C,
+        cmd: if write { ata_cmd::WRITE_FPDMA_QUEUED } else { ata_cmd::READ_FPDMA_QUEUED },
+        feat: tag_feat,
+        lba_lo: (start_lba & 0xFF) as u8,
+        lba_mid: ((start_lba >> 8) & 0xFF) as u8,
+        lba_hi: ((start_lba >> 16) & 0xFF) as u8,
+        dev: fis_reg::DEV_LBA,
+        lba_lo_exp: ((start_lba >> 24) & 0xFF) as u8,
+        lba_mid_exp: ((start_lba >> 32) & 0xFF) as u8,
+        lba_hi_exp: ((start_lba >> 40) & 0xFF) as u8,
+        feat_exp: 0,
+        sec_cnt: (count & 0xFF) as u8,
+        sec_cnt_exp: ((count >> 8) & 0xFF) as u8,
+        resv: 0,
+        ctl: 0,
+        resv2: [0; 4],
+    };
+
+    let tag = cmd_tag as usize;
+
+    // Set up command table for this slot
+    let ct_virt = port.bufs.ct_virt[tag];
+    unsafe { core::ptr::write_bytes(ct_virt, 0, registers::CT_SIZE) };
+    let ct_slice = unsafe { core::slice::from_raw_parts_mut(ct_virt, registers::CT_SIZE) };
+    setup_fis(ct_slice, &fis);
+    setup_prdt(ct_slice, prds);
+
+    // Set up command list entry
+    let cl_slice = unsafe {
+        core::slice::from_raw_parts_mut(port.bufs.cl_virt, registers::CL_SIZE / 4)
+    };
+    setup_cl_entry(cl_slice, cmd_tag, port.bufs.ct_phys[tag], prds.len() as u32, write);
+
+    // For NCQ: set SACT first, then write CI to issue
+    hba.port_write32(port_idx, registers::port::SACT, 1 << cmd_tag);
+    hba.port_issue_cmd(port_idx, cmd_tag);
+
+    wait_for_cmd_ncq(hba, port_idx, port, cmd_tag, 30_000)
 }
 
 // ============================================================================

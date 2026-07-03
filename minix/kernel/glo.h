@@ -50,6 +50,8 @@ EXTERN irq_hook_t irq_hooks[NR_IRQ_HOOKS];	/* hooks for general use */
 EXTERN int irq_actids[NR_IRQ_VECTORS];		/* IRQ ID bits active */
 EXTERN int irq_use;				/* map of all in-use irq's */
 
+
+
 /* Miscellaneous. */
 EXTERN int verboseboot;			/* verbose boot, init'ed in cstart */
 
