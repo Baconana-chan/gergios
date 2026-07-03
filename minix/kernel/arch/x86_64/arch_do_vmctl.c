@@ -17,7 +17,10 @@
 extern phys_bytes video_mem_vaddr;
 extern char *video_mem;
 
-static void setcr3(struct proc *p, u32_t cr3, u32_t *v)
+/* On x86_64 LP64, CR3 is a 64-bit value (reg_t = unsigned long).
+ * Use u64_t/u64_t* to match p_cr3 (reg_t) and p_cr3_v (u64_t*).
+ */
+static void setcr3(struct proc *p, u64_t cr3, u64_t *v)
 {
 	p->p_seg.p_cr3 = cr3;
 	assert(p->p_seg.p_cr3);
@@ -42,7 +45,7 @@ int arch_do_vmctl(
 		m_ptr->SVMCTL_VALUE = p->p_seg.p_cr3;
 		return OK;
 	case VMCTL_SETADDRSPACE:
-		setcr3(p, m_ptr->SVMCTL_PTROOT, (u32_t *) m_ptr->SVMCTL_PTROOT_V);
+		setcr3(p, m_ptr->SVMCTL_PTROOT, (u64_t *) m_ptr->SVMCTL_PTROOT_V);
 		return OK;
 	case VMCTL_FLUSHTLB:
 	{

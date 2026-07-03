@@ -9,6 +9,13 @@
 
 #ifndef __ASSEMBLY__
 
+/* Forward declarations for struct types used below.
+ * Note: kinfo_t (typedef from <machine/vm.h>) is used, not struct kinfo.
+ */
+struct proc;
+struct boot_image;
+struct gate_table_s;
+
 /* Hardware interrupt handlers. */
 void hwint00(void);
 void hwint01(void);

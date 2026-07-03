@@ -1,0 +1,4 @@
+[submodule "crypto/external/gpl2/wolfssl/dist"]
+	path = crypto/external/gpl2/wolfssl/dist
+	url = https://github.com/wolfSSL/wolfssl.git
+	branch = master

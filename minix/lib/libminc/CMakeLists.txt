@@ -199,17 +199,31 @@ set(LIBMINC_MINIX_SYS_SOURCES
 )
 
 # Generated errlist.c
+# Generate errlist.c from errno.h at configure time (cross-platform).
+# Uses CMake file() for sed replacement and find_program(awk) for awk.
+# This avoids fragile sh -c pipelines that break on Linux.
 set(LIBMINC_ERRNO_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/errlist.c")
-# Generate errlist.c from errno.h using sed/awk pipeline.
-# Written as single-line COMMAND to avoid Ninja multiline parsing issues on Windows.
-add_custom_command(
-    OUTPUT "${LIBMINC_ERRNO_SOURCE}"
-    DEPENDS
-        ${LIBCDIR}/gen/errlist.awk
-        ${MINIX_SOURCE_DIR}/sys/sys/errno.h
-    COMMAND ${CMAKE_COMMAND} -E env sh -c "cat '${MINIX_SOURCE_DIR}/sys/sys/errno.h' | sed 's/(_SIGN//' | awk -f '${LIBCDIR}/gen/errlist.awk' > '${LIBMINC_ERRNO_SOURCE}'"
-    COMMENT "Generating errlist.c"
+
+find_program(_AWK awk)
+if(NOT _AWK)
+    message(FATAL_ERROR "awk is required to generate errlist.c — install gawk or mawk")
+endif()
+
+# Step 1: Preprocess errno.h — remove (_SIGN macro suffix (sed replacement)
+file(READ "${MINIX_SOURCE_DIR}/sys/sys/errno.h" _ERRNO_H_CONTENT)
+string(REGEX REPLACE "\\(_SIGN" "" _ERRNO_H_CLEAN "${_ERRNO_H_CONTENT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/errno_clean.h" "${_ERRNO_H_CLEAN}")
+
+# Step 2: Run awk to generate errlist.c from the cleaned errno.h
+execute_process(
+    COMMAND ${_AWK} -f "${LIBCDIR}/gen/errlist.awk" "${CMAKE_CURRENT_BINARY_DIR}/errno_clean.h"
+    OUTPUT_FILE "${LIBMINC_ERRNO_SOURCE}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    RESULT_VARIABLE _AWK_RESULT
 )
+if(_AWK_RESULT AND NOT _AWK_RESULT EQUAL 0)
+    message(FATAL_ERROR "errlist.c generation failed (awk exit code ${_AWK_RESULT})")
+endif()
 
 # Exclude bswap64.c for x86_64 and aarch64 (has __builtin_bswap64 via
 # machine/bswap.h static inline — the .c file's non-static definition

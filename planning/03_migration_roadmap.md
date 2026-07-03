@@ -851,15 +851,21 @@ For full details, see:
 ### 10. Crypto Libraries Modernization
 
 #### Current State
-- ✅ OpenSSL 0.9.8/1.0.1p — **полностью заменён**
-- ✅ wolfSSL 5.9.1 — основной крипто-провайдер
+- ✅ OpenSSL 0.9.8/1.0.1p — **полностью заменён** (код удалён, зависимости переписаны)
+- ✅ wolfSSL 5.9.1 — основной крипто-провайдер **в коде** (все `#include <openssl/*>` → `<wolfssl/openssl/*>`, все `-lcrypto` → `-lwolfssl`)
+  - **Важно**: исходники wolfSSL (`crypto/external/gpl2/wolfssl/dist/`) — отдельный git-репозиторий, клонированный вручную, не submodule. При свежем клоне нужно выполнить:
+    ```
+    cd crypto/external/gpl2/wolfssl && git clone https://github.com/wolfSSL/wolfssl.git dist
+    ```
+    Или добавить wolfssl как submodule в корневой `.gitmodules`.
 - ✅ libhcrypto (heimdal) — для Kerberos (OpenSSL-совместимый API)
 - Нет Rust crypto в production (отложено)
 
 #### Target State
-- ✅ wolfSSL как sole crypto provider
+- ✅ wolfSSL как sole crypto provider (кодовая интеграция завершена)
+- 🟡 **wolfSSL dist/ как submodule** — требуется настройка для автоматического клонирования
 - ✅ libhcrypto для heimdal (OpenSSL ABI-совместимость)
-- OpenSSL полностью удалён из дерева
+- ✅ OpenSSL полностью удалён из дерева
 
 #### Migration Steps
 
@@ -908,6 +914,10 @@ For full details, see:
 - ✅ API compatibility — решён через wolfSSL compat слой + libhcrypto
 - ✅ Security — wolfSSL 5.9.1 активно поддерживается
 - ✅ Performance — wolfSSL benchmarks в `docs/wolfssl-performance-report.md`
+- 🟡 **wolfSSL dist/ source** — не включён в корневой git-репозиторий. Нужно либо:
+  1. Клонировать вручную: `cd crypto/external/gpl2/wolfssl && git clone https://github.com/wolfSSL/wolfssl.git dist`
+  2. Или добавить как submodule в `.gitmodules`
+  3. Или автоматизировать через `releasetools/verify-wolfssl.sh`
 
 
 ---

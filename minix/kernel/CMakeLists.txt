@@ -362,13 +362,23 @@ endif()
 
 # Select the linker based on architecture
 if(MACHINE_ARCH STREQUAL "x86_64")
-    # ld.lld from LLVM 21.1.7 — supports ELF64 x86_64
-    set(KERNEL_LINKER "C:/PROGRA~1/LLVM/bin/ld.lld" CACHE FILEPATH "Linker for x86_64 kernel")
+    # ld.lld from LLVM — supports ELF64 x86_64
+    # Use find_program for cross-platform support (no hardcoded Windows paths)
+    find_program(HAVE_X86_64_LD ld.lld
+        HINTS ENV PATH
+        DOC "Path to ld.lld linker for x86_64 kernel"
+    )
+    if(HAVE_X86_64_LD)
+        set(KERNEL_LINKER "${HAVE_X86_64_LD}" CACHE FILEPATH "Linker for x86_64 kernel")
+        message(STATUS "x86_64 linker: ${HAVE_X86_64_LD}")
+    else()
+        message(FATAL_ERROR "ld.lld not found — install LLVM/Clang or set KERNEL_LINKER manually")
+    endif()
 elseif(MACHINE_ARCH STREQUAL "aarch64")
     # Use existing aarch64-elf-ld cross-linker (GNU binutils)
     # Falls back to ld.lld if aarch64-elf-ld is not available
     find_program(HAVE_AARCH64_LD aarch64-elf-ld
-        PATHS "C:/Users/VIC/bin"
+        HINTS ENV PATH
         DOC "Path to aarch64-elf-ld cross-linker"
     )
     if(HAVE_AARCH64_LD)
