@@ -6,7 +6,7 @@
  *===========================================================================*/
 
 #define _NR_PROCS	256
-#define _NR_SYS_PROCS	64
+#define _NR_SYS_PROCS	128
 
 /* Set the FP_FORMAT type based on the machine selected, either hw or sw    */
 #define _FP_NONE		  0	/* no floating point support                */

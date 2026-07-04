@@ -36,6 +36,9 @@ void eoi_8259_slave(void);
 
 #include "kernel/arch/x86_64/apic.h"
 
+/* IPI acknowledge — write 0 to LAPIC EOI register */
+#define ipi_ack				apic_eoi
+
 #define hw_intr_mask(irq)		ioapic_mask_irq(irq)
 #define hw_intr_unmask(irq)		ioapic_unmask_irq(irq)
 #define hw_intr_ack(irq)		ioapic_eoi(irq)

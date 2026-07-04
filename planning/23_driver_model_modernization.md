@@ -1,8 +1,9 @@
 # Driver Model Modernization — GergiOS 1.0+/1.1
 
-> **Статус**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 🆕, Phase 5–6 🆕
+> **Статус**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅, Phase 5 🆕, Phase 6 🆕
 > **Связанные**: `planning/03_migration_roadmap.md` §5, `planning/09_c_language_modernization.md` §Phase 5 (minix-driver), `planning/17_remaining_tasks.md`
 > **Зависимости**: Build System Migration ✅, C Language Modernization (C17 + Rust) ✅, Architecture Migration (x86_64 ✅, ARM64 🟡)
+> **SMP Status**: APIC ✅, SMP Boot ✅, BKL+Spinlocks ✅, IRQ Load Balancing ✅, NMI Watchdog ✅, Per-CPU drvqueue ✅ — см. `planning/07_x86_64_migration_plan.md` §SMP
 
 ---
 
@@ -467,8 +468,15 @@ struct gergios_pm_ops {
 ### Phase 5: Rust Driver Migration 🎯 **🆕 IN PROGRESS**
 **Цель**: Переписать критически важные драйверы на Rust.
 
-- [ ] **Rust PCI driver** (`rust/minix-pci/`)
-  - **Приоритет**: высокий (PCI — основа для всех остальных)
+- [x] **Rust PCI driver** (`rust/minix-pci/`) — **PILOT COMPLETED**
+  - [x] PCI bus scanning via I/O ports (0xCF8/0xCFC), PCI-to-PCI bridge recursive probe
+  - [x] Full BAR probing (I/O, memory 32/64-bit) with size detection
+  - [x] Device table with reservation, ACL-aware visibility (`visible_to()`), release by endpoint
+  - [x] IPC server with all 17 BUSC_PCI message types (FIRST_DEV, NEXT_DEV, FIND_DEV, ATTR_R/W, GET_BAR, RESERVE, RESCAN, DEV_NAME_S, SLOT_NAME_S, SET_ACL, DEL_ACL)
+  - [x] C-compatible FFI layer with host stubs for `cargo test`
+  - [x] 7 unit tests, `cargo check` 0 errors
+  - **LOC**: ~1,220 Rust (vs ~2,500 C — 51% reduction)
+  - **Files**: 4 source + Cargo.toml
 
 - [x] **Rust AHCI driver** (`rust/minix-ahci/`) — **PILOT COMPLETED**
   - [x] Crate scaffold + Cargo workspace integration
@@ -520,7 +528,7 @@ struct gergios_pm_ops {
   - [x] FPDMA queued commands (READ/WRITE_FPDMA_QUEUED)
   - [x] Per-slot command tables + PRDT (multiple PRDs per command)
   - [x] NCQ completion via SACT polling (wait_for_cmd_ncq)
-  - [/] Per-CPU command queue (infra ready — SMP IPI, per-CPU data, IOAPIC routing — остаётся реализация в драйвере)
+  - [x] Per-CPU command queue (infra ready — kernel/drvqueue.h + drvqueue.c + IRQ_DRVQUEUE_SETUP syscall — остаётся реализация в драйвере)
   - [x] Interrupt affinity (per-port MSI-X vectors) — AHCI (16 портов ✅), virtio-blk (per-queue ✅), e1000 (RX/TX/OTHER ✅)
 
 - [x] **Multi-queue virtio** — `virtio-blk` crate
@@ -540,7 +548,7 @@ struct gergios_pm_ops {
   - [x] AHCI: per-port MSI-X vectors (до 16 портов, alloc + program + handler)
   - [x] virtio-blk: per-queue MSI-X (config + queue vectors, 4 queues) — **done**
   - [x] e1000: RX/TX/OTHER MSI-X vectors (3 vectors, IVAR, EICR/EIAC) — **done**
-  - [/] Interrupt load balancing (infra ready — IOAPIC per-CPU routing, IPI, per-CPU LAPIC — требуется алгоритм балансировки)
+  - [x] Interrupt load balancing (round-robin non-BSP CPU распределение в ioapic_set_irq() + ioapic_set_irq_affinity() API)
   - **LOC**: ~600 C (kernel) + ~300 C (PCI) + ~400 Rust (AHCI) + ~350 Rust (virtio-blk) + ~300 Rust (e1000) = ~1,950
 
 - [x] **Threaded IRQ handlers** ✅ **CORE COMPLETED**
@@ -550,7 +558,127 @@ struct gergios_pm_ops {
   - [x] AHCI: `ahci_c_intr` (top) → `ahci_bottom_half` (port PHY events), fallback to inline
   - [x] e1000: `ndr_intr` (top) → `e1000_bottom_half` (RX/TX/link events), drain from `ndr_tick`
   - [x] Inline fallback when queue is full (no lost interrupts)
-  - [ ] Priority-based scheduling for IRQ threads (deferred — requires kernel RT scheduler, отдельный проект)
+- [x] **Priority-based scheduling for IRQ threads** ✅ **COMPLETED** (kernel RT scheduler + IRQ kthread framework)
+  - **RT Scheduler** (`kernel/sched_rt.h`, `kernel/sched_rt.c`):
+    - [x] SCHED_OTHER (0), SCHED_FIFO (1), SCHED_RR (2) scheduling classes
+    - [x] RT priority 1-99 → scheduler queue mapping (prio 99 → queue 0, prio 1 → queue 14)
+    - [x] `sched_rt_set_class()` — validate and apply RT class/priority to a process
+    - [x] `sched_rt_may_preempt()` — check if RT process should preempt current non-RT
+    - [x] `sched_rt_handle_quantum()` — SCHED_FIFO: infinite quantum, SCHED_RR: 100ms quantum + rotate
+    - [x] `p_sched_class` (char), `p_rt_priority` (u8_t) — поля в `struct proc`
+    - [x] `SYS_SETSCHEDULER = KERNEL_CALL + 58` системный вызов (`system/do_setscheduler.c`)
+    - [x] Permission: только PM, RS или сам процесс может установить RT класс
+    - [x] RT preemption в `enqueue()` с `PREEMPTIBLE` guard
+  - **IRQ Kernel Threads** (`kernel/irq_thread.h`, `kernel/irq_thread.c`):
+    - [x] Ring 0 kernel thread per IRQ (proc_nr 12-75, 64 threads)
+    - [x] Per-IRQ kernel stack (4KB), priv structure, `struct proc` slot
+    - [x] IRQ → SCHED_FIFO priority mapping (IRQ 0 → prio 99, IRQ 63 → prio 36)
+    - [x] Context save/restore via inline asm (RSP, RIP, callee-saved RBX/RBP/R12-R15)
+    - [x] `irq_thread_yield()` → `switch_to_user()` для блокировки при ожидании IRQ
+    - [x] `mini_notify()` из interrupt context → `mini_receive(ANY)` в main loop
+    - [x] `restore_kthread_context()` — загрузка RSP + IRETQ в ring 0
+    - [x] `_NR_SYS_PROCS` 64→128 для priv слотов IRQ thread'ам
+    - **LOC**: ~280 C (sched_rt) + ~225 C (irq_thread) = ~505 C
+    - **Файлы**: 5 новых (sched_rt.h/c, do_setscheduler.c, irq_thread.h/c), 8 изменённых
+  - **Deferred**:
+    - [x] SMP cross-CPU preemption (IPI-based RT wakeup on remote CPU) ✅ COMPLETED
+      - в `enqueue()`: когда RT процесс помещается в очередь на другом не-idle CPU,
+        читается remote `proc_ptr` и через `sched_rt_may_preempt()` + `PREEMPTIBLE`
+        guard проверяется необходимость вытеснения. IPI отправляется через
+        `smp_schedule(rp->p_cpu)`, обработчик `smp_ipi_sched_handler()`
+        устанавливает `RTS_PREEMPTED` — `switch_to_user()` перевыбирает процесс.
+      - BKL held гарантирует безопасность чтения remote CPU proc_ptr.
+    - [x] Per-IRQ thread statistics (latency, handled count, run count) ✅ COMPLETED
+      - `struct irq_thread_stats`: irq, rt_prio, registered, endpoint,
+        handled_count, run_count, last/max/total_latency (TSC ticks)
+      - `irq_thread_signal()`: `read_tsc_64(&it->signal_tsc)` (volatile для
+        interrupt-context safety)
+      - `irq_thread_entry()`: TSC delta = entry_tsc - signal_tsc →
+        last/max/total_latency; handled_count++, run_count++
+      - `irq_thread_get_stats()`: копирует внутреннюю таблицу в userspace
+      - `GET_IRQTHREAD_STATS = 26` в com.h, case в do_getinfo.c
+      - Чтение: `getsysinfo(SYSTEM, GET_IRQTHREAD_STATS, stats, sizeof(stats))`
+    - [x] AHCI: sys_irqthread_priority(irq, 90) — auto-registered via IRQ_SETPOLICY handler ✅
+      - do_irqctl.c: irq_thread_register() вызывается для каждого IRQ при IRQ_SETPOLICY
+      - do_irqctl.c: IRQ_THREAD_SET_PRIORITY (request 9) — драйвер может изменить приоритет
+      - ahci.c: sys_irqthread_priority(hba_state.irq, 90) — SCHED_FIFO prio 90 для storage
+      - irq_thread.c: irq_thread_set_priority() + irq_thread_device_handler()
+      - com.h: IRQ_THREAD_SET_PRIORITY 9
+      - syslib.h: sys_irqthread_priority() macro
+- [x] AHCI kernel-level MMIO fast-ack ✅
+      - irq_thread_set_mmio() — on-demand page table creation via alloc_pagetable(), PTE remap via pg_remap_page()
+      - irq_thread_device_handler() reads AHCI_HBA_IS at vaddr+8, writes back to clear (write-1-to-clear)
+      - pg_remap_page() in pg_utils.c — modifies PTE (uncacheable: PWT|PCD), INVLPG flush
+      - do_irqctl.c: IRQ_THREAD_SET_MMIO (request 10) — регистрирует MMIO phys addr для fast-ack
+      - ahci.c: sys_irqthread_mmio(hba_state.irq, hba_base_phys) — передаёт HBA BAR в ядро
+      - com.h: IRQ_THREAD_SET_MMIO 10
+      - syslib.h: sys_irqthread_mmio() macro
+    - [ ] Integration with virtio-blk C shim
+    - [ ] Integration with e1000 C shim
+
+### irqtop(1) — deferred improvements 🔮
+
+`usr.bin/irqtop/irqtop.c` — userspace утилита для просмотра per-IRQ thread stats
+в реальном времени. Базовая версия реализована: sys_getinfo(GET_IRQTHREAD_STATS),
+ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
+
+**Отложенные улучшения (когда будет время):**
+
+- **Цветовая кодировка latency**:
+  - зелёный (< 1000 TSC ticks = < 0.5µs на 2 GHz)
+  - жёлтый (1000-10000, ~0.5-5µs)
+  - красный (> 10000, > 5µs)
+  - вместо текущего reverse-video highlight
+
+- **Сортировка строк**:
+  - по IRQ номеру (текущее, по умолчанию)
+  - по max_latency (top-N самых медленных)
+  - по handled_count (самые активные)
+  - флаг `-s irq|lat|hits`
+
+- **Фильтрация**:
+  - `-r N` — показать только зарегистрированные IRQ (hide empty slots)
+  - `-i N` — показать только конкретный IRQ
+  - `-t N` — threshold: показать только IRQ с max_lat > N
+
+- **Режим daemon / logging**:
+  - `-l logfile` — запись snapshot'ов в файл
+  - `-p` — peak detection: логировать только когда max_lat превышает threshold
+  - syslog integration
+
+- **JSON/CSV output**:
+  - `-o json` — machine-readable output для скриптов
+  - `-o csv`
+
+- **Curses-based UI**:
+  - замена ANSI escape sequences на ncurses (если доступна в MINIX)
+  - поддержка ресайза терминала (SIGWINCH)
+  - интерактивные команды (q=quit, s=sort, f=filter)
+
+- **TSC → ns conversion**:
+  - добавить `sys_getcpuinfo()` или `sys_getkinfo()` для получения CPU MHz
+  - показывать latency в наносекундах вместо TSC ticks
+  - флаг `-u` для переключения TSC/ns
+
+- **История latency**:
+  - rolling window последних N замеров
+  - min/avg/max/p95/p99 за окно
+  - spike detection
+
+- **Интеграция с IS сервером**:
+  - показывать stats через `dmp` команды IS
+  - `is -irqthread`
+
+- **Интеграция с procfs**:
+  - `/proc/irqthreads` — читаемый файл со stats (без необходимости SYS_GETINFO)
+
+- **Per-CPU stats**:
+  - на SMP системах: показать на каком CPU работает каждый IRQ thread
+  - сколько раз был cross-CPU preempt (трек через irq_thread.preempt_cross_count)
+
+- **Тестирование**:
+  - unit test: verify struct layout matches kernel (compile-time assert)
+  - functional test: запуск в QEMU, verify вывод не пустой
 
 **Dependencies**: Phase 5, Architecture Migration (SMP)
 
@@ -581,6 +709,7 @@ struct gergios_pm_ops {
 | `pm.h` (framework header) | ~160 | C | ✅ |
 | `pm.c` (ACPI S3 + runtime PM + PCI D-state) | ~370 | C | ✅ |
 | **Phase 5: Rust Migration** | ~4,700 | Rust | 🆕 |
+| `minix-pci` crate | ~1,220 | Rust | ✅ Pilot |
 | `minix-ahci` crate | ~1,700 | Rust | ✅ Pilot |
 | `virtio-blk` crate | ~1,200 | Rust | ✅ Production |
 | `e1000` crate | ~1,800 | Rust | ✅ Production |

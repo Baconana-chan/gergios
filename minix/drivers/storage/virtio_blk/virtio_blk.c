@@ -680,6 +680,12 @@ virtio_blk_probe(int skip)
 	/* Let the host now that we are ready */
 	virtio_device_ready(blk_dev);
 
+	/* Elevate the IRQ thread to SCHED_FIFO priority 85.
+	 * This ensures storage I/O completions are processed
+	 * before most other kernel tasks and user-space processes,
+	 * reducing I/O latency under load. */
+	virtio_set_irq_thread_priority(blk_dev, 85);
+
 	virtio_irq_enable(blk_dev);
 
 	return OK;

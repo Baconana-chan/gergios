@@ -123,6 +123,10 @@ int sys_vtimer(endpoint_t proc_nr, int which, clock_t *newval, clock_t
     sys_irqctl(IRQ_SETPOLICY, irq_vec, policy, hook_id)
 #define sys_irqrmpolicy(hook_id) \
     sys_irqctl(IRQ_RMPOLICY, 0, 0, hook_id)
+#define sys_irqthread_priority(irq_vec, priority) \
+    sys_irqctl(IRQ_THREAD_SET_PRIORITY, irq_vec, priority, NULL)
+#define sys_irqthread_mmio(irq_vec, phys_addr) \
+    sys_irqctl(IRQ_THREAD_SET_MMIO, irq_vec, (int)(phys_addr), NULL)
 int sys_irqctl(int request, int irq_vec, int policy, int *irq_hook_id);
 
 /* MSI-X support — allocate, free, and register handlers for MSI-X IRQs.

@@ -42,6 +42,12 @@ extern int cpu_has_tsc;
  * When set, PIC interrupts route through APIC instead of CPU pins. */
 static int apic_imcrp;
 
+/* Round-robin counter for IRQ load balancing across CPUs.
+ * Only used when CONFIG_SMP is defined and ncpus > 1. */
+#ifdef CONFIG_SMP
+static unsigned irq_next_cpu;
+#endif
+
 /* EOI method type for IOAPIC interrupts */
 typedef void (* eoi_method_t)(struct irq *);
 
@@ -702,13 +708,81 @@ void ioapic_set_irq(unsigned irq)
 
 			set_irq_redir_low(irq, &low_32);
 
-			/* Route to BSP by default */
-			hi_32 = bsp_lapic_id << 24;
+			/*
+			 * Distribute IRQs across available CPUs (round-robin).
+			 * On UP systems, always route to BSP.
+			 */
+#ifdef CONFIG_SMP
+			if (ncpus > 1) {
+				unsigned cpu;
+				unsigned target_cpu;
+				unsigned start = irq_next_cpu;
+
+				target_cpu = ncpus;	/* sentinel: "no ready non-BSP CPU found" */
+
+				do {
+					cpu = irq_next_cpu;
+					irq_next_cpu = (irq_next_cpu + 1) % ncpus;
+					if (cpu_is_ready(cpu) && !cpu_is_bsp(cpu)) {
+						target_cpu = cpu;
+						break;
+					}
+				} while (irq_next_cpu != start);
+
+				if (target_cpu < ncpus)
+					hi_32 = cpuid2apicid[target_cpu] << 24;
+				else
+					hi_32 = bsp_lapic_id << 24;
+			} else
+#endif
+			{
+				/* Route to BSP (default for UP or single-CPU SMP) */
+				hi_32 = bsp_lapic_id << 24;
+			}
+
 			ioapic_redirt_entry_write(
 				(void *)(uintptr_t)io_apic[ioa].addr,
 				io_apic_irq[irq].pin, hi_32, low_32);
 		}
 	}
+}
+
+/*
+ * Set the CPU affinity for an IOAPIC IRQ.
+ * Re-programs the IOAPIC redirection entry to route the interrupt
+ * to the specified CPU (by its logical CPU id).
+ * Returns 0 on success, -1 if the IRQ is not set up or the CPU is invalid.
+ */
+int ioapic_set_irq_affinity(unsigned irq, unsigned cpu)
+{
+	u32_t hi_32;
+
+	if (irq >= NR_IRQ_VECTORS)
+		return -1;
+
+	if (!io_apic_irq[irq].ioa)
+		return -1;
+
+#ifdef CONFIG_SMP
+	if (cpu >= ncpus || !cpu_is_ready(cpu))
+		return -1;
+
+	hi_32 = cpuid2apicid[cpu] << 24;
+#else
+	/* Only BSP available */
+	if (cpu != 0)
+		return -1;
+
+	hi_32 = bsp_lapic_id << 24;
+#endif
+
+	ioapic_redirt_entry_write(
+		(void *)(uintptr_t)io_apic_irq[irq].ioa->addr,
+		io_apic_irq[irq].pin, hi_32,
+		ioapic_read((u32_t)io_apic_irq[irq].ioa->addr,
+			IOAPIC_REDIR_TABLE + io_apic_irq[irq].pin * 2));
+
+	return 0;
 }
 
 void ioapic_unset_irq(unsigned irq)

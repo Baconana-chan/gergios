@@ -143,6 +143,7 @@ void ioapic_reset_pic(void);
 
 /* IOAPIC IRQ routing */
 void ioapic_set_irq(unsigned irq);
+int ioapic_set_irq_affinity(unsigned irq, unsigned cpu);
 void ioapic_unset_irq(unsigned irq);
 void ioapic_mask_irq(unsigned irq);
 void ioapic_unmask_irq(unsigned irq);

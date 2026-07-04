@@ -35,9 +35,9 @@ static void pg_utils_init_if_needed(void)
  * use a separate alignment declaration via __alignof.
  */
 #ifdef _MSC_VER
-__declspec(align(4096)) static u64_t pagedir[512];
+__declspec(align(4096)) u64_t pagedir[512];
 #else
-_Alignas(4096) static u64_t pagedir[512];
+_Alignas(4096) u64_t pagedir[512];
 #endif
 
 void print_memmap(kinfo_t *cbi)
@@ -98,6 +98,73 @@ phys_bytes alloc_lowest(kinfo_t *cbi, phys_bytes len)
 	cut_memmap(cbi, lowest, len);
 	cbi->kernel_allocated_bytes_dynamic += len;
 	return lowest;
+}
+
+/*===========================================================================*
+ *                              pg_remap_page                                 *
+ *===========================================================================*/
+/* Remap an existing page table entry to point to a different physical address.
+ * Used by irq_thread_set_mmio() to map device MMIO regions into kernel space
+ * for interrupt fast-ack. The page tables must already exist (set up by a
+ * previous pg_map call or alloc_pagetable). Returns OK on success. */
+int pg_remap_page(vir_bytes vaddr, phys_bytes new_phys)
+{
+    int pde = X86_64_VM_PDE(vaddr);
+    int pte_idx = X86_64_VM_PTE(vaddr);
+    extern u64_t pagedir[];
+    u64_t pde_entry = pagedir[pde];
+
+    if (!(pde_entry & X86_64_VM_PRESENT))
+        return EFAULT;
+
+    /* Convert the page table physical address back to virtual.
+     * The page table was allocated from the static pagetables[] array
+     * (in kernel data section), so virtual = physical + kernel_offset.
+     * vir2phys() gives: physical = virtual - offset.
+     * So: virtual = physical + offset. */
+    extern char _kern_vir_base, _kern_phys_base;
+    u64_t kernel_off = (vir_bytes)&_kern_vir_base - (vir_bytes)&_kern_phys_base;
+    u64_t *pt = (u64_t *)(uintptr_t)((pde_entry & X86_64_VM_ADDR_MASK) + kernel_off);
+
+    /* Set the new PTE (uncacheable for MMIO). */
+    pt[pte_idx] = (new_phys & X86_64_VM_ADDR_MASK) |
+                   X86_64_VM_PRESENT | X86_64_VM_WRITE |
+                   X86_64_VM_PWT | X86_64_VM_PCD;
+
+    /* Flush TLB for this single page. */
+    __asm__ volatile("invlpg (%0)" : : "r" (vaddr) : "memory");
+
+    return OK;
+}
+
+/*===========================================================================*
+ *                              pg_unmap_page                                 *
+ *===========================================================================*/
+/* Unmap a page by clearing its PTE and flushing the TLB.
+ * Used by irq_thread_unregister() to clean up MMIO mappings when a driver
+ * removes its IRQ policy. The PDE must exist (present); if not, returns OK
+ * (nothing to unmap). Returns OK on success. */
+int pg_unmap_page(vir_bytes vaddr)
+{
+    int pde = X86_64_VM_PDE(vaddr);
+    int pte_idx = X86_64_VM_PTE(vaddr);
+    extern u64_t pagedir[];
+    u64_t pde_entry = pagedir[pde];
+
+    if (!(pde_entry & X86_64_VM_PRESENT))
+        return OK;  /* nothing mapped — nothing to unmap */
+
+    extern char _kern_vir_base, _kern_phys_base;
+    u64_t kernel_off = (vir_bytes)&_kern_vir_base - (vir_bytes)&_kern_phys_base;
+    u64_t *pt = (u64_t *)(uintptr_t)((pde_entry & X86_64_VM_ADDR_MASK) + kernel_off);
+
+    /* Clear the PTE (mark as not present). */
+    pt[pte_idx] = 0;
+
+    /* Flush TLB for this single page. */
+    __asm__ volatile("invlpg (%0)" : : "r" (vaddr) : "memory");
+
+    return OK;
 }
 
 void add_memmap(kinfo_t *cbi, u64_t addr, u64_t len)

@@ -28,7 +28,9 @@ SUBDIR= asa \
 	shuffle  sort split stat su \
 	tail tee telnet tic time touch \
 	tput \
-	tr true tsort tty ul uname unexpand unifdef \
+	tr true tsort tty ul	uname unexpand unifdef \
+	irqtop \
+
 	uniq units unvis unzip users \
 	uudecode uuencode uuidgen vis \
 	w \

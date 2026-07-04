@@ -754,7 +754,18 @@ virtio_irq_enable(struct virtio_device *dev)
 		panic("%s Unable to enable IRQ %d", dev->name, r);
 }
 
-void
+int
+virtio_set_irq_thread_priority(struct virtio_device *dev, int priority)
+{
+	/* Set the SCHED_FIFO priority for the IRQ thread associated with
+	 * this device's IRQ line. This gives the device's interrupt
+	 * handling a real-time priority, raising it above most other
+	 * kernel threads and user-space processes.
+	 *
+	 * Returns OK on success, or EINVAL if the IRQ is outside the
+	 * range handled by the IRQ thread framework. */
+	return sys_irqthread_priority(dev->irq, priority);
+}void
 virtio_irq_disable(struct virtio_device *dev)
 {
 	int r;

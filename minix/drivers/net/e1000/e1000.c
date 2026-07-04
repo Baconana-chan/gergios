@@ -369,6 +369,13 @@ e1000_init_hw(e1000_t * e, netdriver_addr_t * addr)
 	 */
 	if ((r = sys_irqsetpolicy(e->irq, 0, &e->irq_hook)) != OK)
 		panic("sys_irqsetpolicy failed: %d", r);
+
+	/* Set SCHED_FIFO priority for the IRQ thread.
+	 * Network drivers get priority 45 — above user-space,
+	 * slightly below virtio-net (50) for consistency. */
+	if ((r = sys_irqthread_priority(e->irq, 45)) != OK)
+		printf("e1000: sys_irqthread_priority failed (%d)\n", r);
+
 	if ((r = sys_irqenable(&e->irq_hook)) != OK)
 		panic("sys_irqenable failed: %d", r);
 

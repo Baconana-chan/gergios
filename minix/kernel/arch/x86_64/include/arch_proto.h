@@ -243,6 +243,11 @@ int platform_tbl_ptr(phys_bytes start, phys_bytes end, unsigned
 	increment, void * buff, unsigned size, phys_bytes * phys_addr, int ((*
 	cmp_f)(void *)));
 
+/* pg_utils.c — page table utilities */
+u64_t *alloc_pagetable(phys_bytes *ph);
+int pg_remap_page(vir_bytes vaddr, phys_bytes new_phys);
+int pg_unmap_page(vir_bytes vaddr);
+
 /* breakpoints.c */
 int breakpoint_set(phys_bytes linaddr, int bp, const int flags);
 #define BREAKPOINT_COUNT		4

@@ -46,6 +46,8 @@
 #define USE_STATECTL       1	/* let a process control its state */
 #define USE_MCONTEXT       1	/* enable getting/setting of machine context */
 
+#define USE_SETSCHEDULER   1	/* set scheduling class (RT priority) */
+
 #if defined(__arm__)
 #define USE_PADCONF        1	/* configure pinmux */
 #endif /* __arm__ */

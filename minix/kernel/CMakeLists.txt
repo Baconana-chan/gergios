@@ -31,10 +31,13 @@ option(CONFIG_SMP "Symmetric Multi-Processing support" OFF)
 set(KERNEL_CORE_SOURCES
     clock.c
     cpulocals.c
+    drvqueue.c
     interrupt.c
+    irq_thread.c
     main.c
     msix.c
     proc.c
+    sched_rt.c
     system.c
     table.c
     utility.c
@@ -77,6 +80,7 @@ set(KERNEL_SYSTEM_SOURCES
     system/do_mcontext.c
     system/do_schedule.c
     system/do_schedctl.c
+    system/do_setscheduler.c
     system/do_statectl.c
 )
 

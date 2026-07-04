@@ -73,6 +73,13 @@
                                                         -- goes multiuser */
 #define NR_BOOT_MODULES (INIT_PROC_NR+1)
 
+/* IRQ kernel threads — one per IRQ vector, SCHED_FIFO priority.
+ * Each IRQ kernel thread has its own proc entry, kernel stack, and
+ * runs at CPL 0 (kernel mode). Created dynamically in irq_thread_init().
+ * Process numbers 12..75 are reserved for IRQ threads. */
+#define IRQ_THREAD_BASE		12
+#define NR_IRQ_THREADS		64
+
 /* Root system process and root user process. */
 #define ROOT_SYS_PROC_NR  RS_PROC_NR
 #define ROOT_USR_PROC_NR  INIT_PROC_NR
@@ -266,8 +273,10 @@
 
 #  define SYS_PADCONF (KERNEL_CALL + 57)	/* sys_padconf() */
 
+#  define SYS_SETSCHEDULER (KERNEL_CALL + 58)	/* sys_setscheduler() — RT class */
+
 /* Total */
-#define NR_SYS_CALLS	58	/* number of kernel calls */
+#define NR_SYS_CALLS	59	/* number of kernel calls */
 
 #define SYS_CALL_MASK_SIZE BITMAP_CHUNKS(NR_SYS_CALLS)
 
@@ -307,11 +316,13 @@
 #  define IRQ_DISABLE       4	/* disable interrupts */
 #  define IRQ_MSIX_ALLOC    5	/* allocate MSI-X vector */
 #  define IRQ_MSIX_FREE     6	/* free MSI-X vector */
-#  define IRQ_MSIX_SETPOLICY 7	/* set policy for MSI-X vector (no IOAPIC) */
-#  define IRQ_REENABLE  0x001	/* reenable IRQ line after interrupt */
-#  define IRQ_BYTE      0x100	/* byte values */      
-#  define IRQ_WORD      0x200	/* word values */
-#  define IRQ_LONG      0x400	/* long values */
+#  define IRQ_MSIX_SETPOLICY 7	/* set policy for MSI-X vector (no IOAPIC) */#define IRQ_REENABLE  0x001	/* reenable IRQ line after interrupt */
+#define IRQ_BYTE      0x100	/* byte values */      
+#define IRQ_WORD      0x200	/* word values */
+#define IRQ_LONG      0x400	/* long values */
+#define IRQ_DRVQUEUE_SETUP 8	/* attach driver process to per-CPU queue */
+#define IRQ_THREAD_SET_PRIORITY 9	/* set IRQ thread SCHED_FIFO priority */
+#define IRQ_THREAD_SET_MMIO 10		/* register device MMIO for kernel fast-ack */
 
 /* MSI-X constants — IRQs [48, 63] reuse existing IDT entries (vectors 0x80-0x8F) */
 #define NR_MSIX_IRQS       16	/* number of MSI-X interrupt slots */
@@ -345,6 +356,7 @@
 #   define GET_CPUINFO    23    /* get information about cpus */
 #   define GET_REGS	  24	/* get general process registers */
 #   define GET_CPUTICKS	  25	/* get per-state ticks for a cpu */
+#   define GET_IRQTHREAD_STATS 26	/* get per-IRQ thread statistics */
 
 /* Subfunctions for SYS_PRIVCTL */
 #define SYS_PRIV_ALLOW		1	/* Allow process to run */

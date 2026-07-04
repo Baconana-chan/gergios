@@ -1,0 +1,80 @@
+.\"	$GergiOS$
+.Dd July 5, 2026
+.Dt IRQTOP 1
+.Os
+.Sh NAME
+.Nm irqtop
+.Nd display per-IRQ thread statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl d Ar delay
+.Op Fl h
+.Op Fl m Ar warn_max
+.Op Fl n
+.Sh DESCRIPTION
+.Nm
+displays real-time statistics for per-IRQ kernel threads.
+Each IRQ vector is serviced by a dedicated ring 0 kernel thread
+running at SCHED_FIFO priority.
+Statistics are read from the kernel via
+.Xr sys_getinfo 2
+with
+.Dv GET_IRQTHREAD_STATS .
+.Pp
+The columns are as follows:
+.Bl -tag -width "MAX_LAT"
+.It IRQ
+IRQ vector number (0\(en63).
+.It NAME
+Short descriptive name for the IRQ (timer, keyboard, serial, msix-N, ...).
+.It PRIO
+SCHED_FIFO real-time priority (1\(en99, higher = more urgent).
+.It HANDLED
+Total number of IRQ events handled.
+.It RUN
+Total number of times the handler was invoked.
+.It LAST_LAT
+Latency of the most recent handler invocation, in TSC ticks.
+.It AVG_LAT
+Average latency over all invocations, in TSC ticks.
+.It MAX_LAT
+Worst-case (maximum) latency observed, in TSC ticks.
+.It REG
+Whether an IRQ handler has been registered for this vector.
+.El
+.Pp
+Latency is measured as the number of TSC (Time-Stamp Counter) ticks
+between the moment the kernel signals the IRQ thread and the moment
+the thread begins executing the handler.
+To convert TSC ticks to nanoseconds, divide by the TSC frequency in MHz
+(displayed in the summary line).
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl d Ar delay
+Set the refresh interval in seconds (default: 1.0).
+.It Fl h
+Display help text and exit.
+.It Fl m Ar warn_max
+Highlight rows whose MAX_LAT exceeds
+.Ar warn_max
+TSC ticks.
+.It Fl n
+One-shot mode: print statistics once and exit without clearing the screen.
+Useful for scripting or non-interactive use.
+.El
+.Sh EXAMPLES
+.Bl -tag
+.It Nm
+Display statistics with a 1-second refresh.
+.It Nm Fl d 0.5 Fl m 10000
+Refresh every 500 ms, highlight IRQs with more than 10,000 ticks latency.
+.It Nm Fl n
+Print a single snapshot to stdout.
+.El
+.Sh SEE ALSO
+.Xr top 1 ,
+.Xr systat 1 ,
+.Xr sys_getinfo 2
+.Sh AUTHORS
+.An GergiOS

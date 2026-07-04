@@ -22,6 +22,8 @@
 #include "oxpcie.h"
 
 #include "kernel/kernel.h"
+#include "kernel/drvqueue.h"
+#include "kernel/irq_thread.h"
 
 #ifdef USE_APIC
 #include "apic.h"
@@ -230,10 +232,14 @@ void arch_init(void)
 	else if (!apic_single_cpu_init()) {
 		DEBUGBASIC(("APIC not present, using legacy PIC\n"));
 	}
-#endif
+#endif    /* Initialize per-CPU driver queues for lock-free driver commands */
+    drvqueue_init();
 
-	cut_memmap(&kinfo, BIOS_MEM_BEGIN, BIOS_MEM_END);
-	cut_memmap(&kinfo, BASE_MEM_TOP, UPPER_MEM_END);
+    /* Initialize IRQ thread framework for priority-based interrupt handling */
+    irq_thread_init();
+
+    cut_memmap(&kinfo, BIOS_MEM_BEGIN, BIOS_MEM_END);
+    cut_memmap(&kinfo, BASE_MEM_TOP, UPPER_MEM_END);
 }
 
 void do_ser_debug(void)
@@ -483,8 +489,68 @@ void arch_proc_setcontext(struct proc *p, struct stackframe_s *state,
 	p->p_seg.p_kern_trap_style = trap_style;
 }
 
+/*===========================================================================*
+ *                      restore_kthread_context                             *
+ *===========================================================================*/
+/* Restore a kernel thread's context and jump to it in ring 0.
+ *
+ * Kernel threads run at CPL 0 (ring 0) and share the kernel's address space.
+ * They have their own kernel stack (from irq_thread_stacks[]).
+ *
+ * For IRETQ to ring 0, the CPU pops only RIP, CS, RFLAGS (not RSP or SS).
+ * So we:
+ *   1. Restore callee-saved registers (RBX, RBP, R12-R15)
+ *   2. Set RSP to the kthread's saved stack pointer
+ *   3. Push RFLAGS, CS (KERN_CS), RIP onto the new stack
+ *   4. IRETQ (pops RIP, CS, RFLAGS, starts kthread with its own stack)
+ *
+ * This is a one-way door — after IRETQ, the kthread runs independently
+ * and returns to the kernel scheduler via switch_to_user() when it yields.
+ */
+static void __noreturn restore_kthread_context(struct proc *p)
+{
+	reg_t rsp = p->p_reg.sp;
+	reg_t rip = p->p_reg.pc;
+	reg_t rflags = p->p_reg.psw | IF_MASK;
+	reg_t rbx = p->p_reg.rbx;
+	reg_t rbp = p->p_reg.rbp;
+	reg_t r12 = p->p_reg.r12;
+	reg_t r13 = p->p_reg.r13;
+	reg_t r14 = p->p_reg.r14;
+	reg_t r15 = p->p_reg.r15;
+
+	__asm__ volatile(
+		"movq %0, %%r15\n\t"
+		"movq %1, %%r14\n\t"
+		"movq %2, %%r13\n\t"
+		"movq %3, %%r12\n\t"
+		"movq %4, %%rbp\n\t"
+		"movq %5, %%rbx\n\t"
+		"movq %6, %%rsp\n\t"	/* switch to kthread's stack */
+		"pushq %7\n\t"		/* RFLAGS */
+		"pushq %8\n\t"		/* CS = KERN_CS_SELECTOR (ring 0) */
+		"pushq %9\n\t"		/* RIP */
+		"iretq\n\t"		/* pop RIP, CS, RFLAGS → start kthread */
+		:
+		: "r" (r15), "r" (r14), "r" (r13), "r" (r12),
+		  "r" (rbp), "r" (rbx),
+		  "r" (rsp),
+		  "r" (rflags),
+		  "r" ((reg_t) KERN_CS_SELECTOR),
+		  "r" (rip)
+		: "memory"
+	);
+	__builtin_unreachable();
+}
+
 void restore_user_context(struct proc *p)
 {
+	/* Kernel threads: jump to ring 0 with their own stack. */
+	if (p->p_kthread) {
+		restore_kthread_context(p);
+		NOT_REACHABLE;
+	}
+
 	int trap_style = p->p_seg.p_kern_trap_style;
 
 	p->p_seg.p_kern_trap_style = KTS_NONE;

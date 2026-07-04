@@ -32,6 +32,9 @@ struct proc {
   unsigned p_quantum_size_ms;	/* assigned time quantum in ms
 				   FIXME remove this */
   struct proc *p_scheduler;	/* who should get out of quantum msg */
+  char p_sched_class;		/* SCHED_OTHER / SCHED_FIFO / SCHED_RR */
+  u8_t p_rt_priority;		/* 1-99 for RT, 0 for normal */
+  char p_kthread;		/* 1 = ring 0 kernel thread (skip address space switch) */
   unsigned p_cpu;		/* what CPU is the process running on */
 #ifdef CONFIG_SMP
   bitchunk_t p_cpu_mask[BITMAP_CHUNKS(CONFIG_MAX_CPUS)]; /* what CPUs is the
@@ -130,6 +133,13 @@ struct proc {
    * do_ipc() arguments that are still to be executed
    */
   struct { reg_t r1, r2, r3; } p_defer;
+
+  /* Per-CPU driver queue — for lock-free driver command delivery.
+   * Set by drvqueue_attach() when a driver binds to a CPU.
+   * Read by the driver (via user-space mapping) and written by
+   * the kernel interrupt handler (for MSI-X IRQs).
+   * NULL if the process is not attached to a driver queue. */
+  struct drv_queue *p_drvqueue;
 
 #if DEBUG_TRACE
   int p_schedules;
@@ -284,6 +294,8 @@ EXTERN struct proc proc[NR_TASKS + NR_PROCS];	/* process table */
 
 int mini_send(struct proc *caller_ptr, endpoint_t dst_e, message *m_ptr,
 	int flags);
+int mini_receive(struct proc *caller_ptr, endpoint_t src_e,
+	message *m_buff_usr, int flags);
 
 #endif /* __ASSEMBLY__ */
 

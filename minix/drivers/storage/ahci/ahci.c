@@ -2099,6 +2099,32 @@ static void ahci_init(int devind)
 	if ((r = sys_irqenable(&hba_state.hook_id)) != OK)
 		panic("unable to enable IRQ: %d", r);
 
+	/* Request SCHED_FIFO priority 90 for the IRQ thread handling this
+	 * device's IRQ. This ensures I/O completion processing is prioritized
+	 * above non-RT work on the CPU that receives AHCI interrupts. */
+	r = sys_irqthread_priority(hba_state.irq, 90);
+	if (r != OK && r != EINVAL) {
+		/* EINVAL means IRQ is outside the IRQ thread range (≥ NR_IRQ_THREADS)
+		 * — that's acceptable, just no IRQ thread for this IRQ. */
+		dprintf(V_INFO, ("AHCI%u: IRQ thread priority not set for IRQ %d (%d)\n",
+			ahci_instance, hba_state.irq, r));
+	} else if (r == OK) {
+		dprintf(V_INFO, ("AHCI%u: IRQ thread set to SCHED_FIFO prio 90 for IRQ %d\n",
+			ahci_instance, hba_state.irq));
+	}
+
+	/* Register the HBA MMIO physical address for kernel-level IRQ fast-ack.
+	 * The kernel IRQ thread handler will read and clear AHCI_HBA_IS directly
+	 * from ring 0, reducing interrupt delivery latency. */
+	r = sys_irqthread_mmio(hba_state.irq, base);
+	if (r != OK && r != EINVAL) {
+		dprintf(V_INFO, ("AHCI%u: IRQ thread MMIO not registered for IRQ %d (%d)\n",
+			ahci_instance, hba_state.irq, r));
+	} else if (r == OK) {
+		dprintf(V_INFO, ("AHCI%u: IRQ thread MMIO fast-ack enabled for IRQ %d (phys 0x%x)\n",
+			ahci_instance, hba_state.irq, base));
+	}
+
 	/* Reset the HBA. */
 	ahci_reset();
 

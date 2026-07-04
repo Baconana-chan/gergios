@@ -13,6 +13,8 @@
 
 #include <minix/endpoint.h>
 #include "../msix.h"
+#include "../drvqueue.h"
+#include "../irq_thread.h"
 
 #if USE_IRQCTL
 
@@ -118,6 +120,18 @@ int do_irqctl(struct proc * caller, message * m_ptr)
 
       /* Return index of the IRQ hook in use. */
       m_ptr->m_krn_lsys_sys_irqctl.hook_id = irq_hook_id + 1;
+
+      /* Automatically register a kernel-side IRQ thread handler for this
+       * IRQ. This enables per-IRQ thread statistics and allows the IRQ
+       * thread to run at an RT priority (SCHED_FIFO). The default priority
+       * is derived from the IRQ vector number (set in irq_thread_init).
+       * Drivers may change the priority via IRQ_THREAD_SET_PRIORITY. */
+      if (irq_vec < NR_IRQ_THREADS) {
+          r = irq_thread_register(irq_vec, irq_thread_device_handler);
+          if (r != OK)
+              DEBUGBASIC(("do_irqctl: irq_thread_register(%d) failed (%d)\n",
+                  irq_vec, r));
+      }
       break;
 
   case IRQ_RMPOLICY:
@@ -130,6 +144,12 @@ int do_irqctl(struct proc * caller, message * m_ptr)
       /* Remove the handler and return. */
       rm_irq_handler(&irq_hooks[irq_hook_id]);
       irq_hooks[irq_hook_id].proc_nr_e = NONE;
+
+      /* Clean up IRQ thread resources (MMIO mapping, handler registration).
+       * Use the IRQ vector stored in the hook (set by put_irq_handler). */
+      irq_vec = irq_hooks[irq_hook_id].irq;
+      if (irq_vec >= 0 && irq_vec < NR_IRQ_THREADS)
+          irq_thread_unregister(irq_vec);
       break;
 
   case IRQ_MSIX_ALLOC:
@@ -188,6 +208,81 @@ int do_irqctl(struct proc * caller, message * m_ptr)
           irq_vec, caller->p_name, caller->p_endpoint));
 
       m_ptr->m_krn_lsys_sys_irqctl.hook_id = irq_hook_id + 1;
+      break;
+
+  case IRQ_THREAD_SET_PRIORITY:
+      /* Set the SCHED_FIFO priority for an IRQ thread.
+       * The vector field holds the IRQ number; policy holds the priority.
+       * Only the driver that registered the IRQ may change its priority. */
+      {
+          int new_prio;
+
+          if (irq_vec < 0 || irq_vec >= NR_IRQ_THREADS) {
+              r = EINVAL;
+              break;
+          }
+          new_prio = m_ptr->m_lsys_krn_sys_irqctl.policy;
+          if (new_prio < 1 || new_prio > 99) {
+              r = EINVAL;
+              break;
+          }
+          r = irq_thread_set_priority(irq_vec, new_prio);
+          if (r == OK)
+              DEBUGBASIC(("IRQ %d thread priority set to %d by %s / %d\n",
+                  irq_vec, new_prio,
+                  caller->p_name, caller->p_endpoint));
+      }
+      break;
+
+  case IRQ_THREAD_SET_MMIO:
+      /* Register a device MMIO physical address for kernel-level IRQ fast-ack.
+       * The vector field holds the IRQ number.
+       * The policy field holds the 32-bit MMIO physical address
+       * (PCI BAR values are 32-bit in the current implementation).
+       *
+       * After this call, the IRQ thread handler will read the device's
+       * interrupt status register at the mapped address and clear pending
+       * bits directly from ring 0, reducing interrupt delivery latency. */
+      {
+          phys_bytes mmio_phys;
+
+          if (irq_vec < 0 || irq_vec >= NR_IRQ_THREADS) {
+              r = EINVAL;
+              break;
+          }
+
+          mmio_phys = (phys_bytes)(unsigned)m_ptr->m_lsys_krn_sys_irqctl.policy;
+
+          if (mmio_phys == 0) {
+              r = EINVAL;
+              break;
+          }
+
+          r = irq_thread_set_mmio(irq_vec, mmio_phys);
+          if (r == OK)
+              DEBUGBASIC(("IRQ %d thread MMIO set to phys 0x%lx by %s / %d\n",
+                  irq_vec, (unsigned long)mmio_phys,
+                  caller->p_name, caller->p_endpoint));
+      }
+      break;
+
+  case IRQ_DRVQUEUE_SETUP:
+      /*
+       * Attach the calling driver process to a per-CPU driver queue.
+       * 'vector' field contains the target CPU number.
+       * 'hook_id' field contains flags (reserved, must be 0).
+       *
+       * After this call, the driver's p_drvqueue is set and it can
+       * begin receiving commands via the per-CPU lock-free queue.
+       */
+      r = drvqueue_attach(caller->p_endpoint, (unsigned)irq_vec);
+      if (r != OK) {
+          DEBUGBASIC(("do_irqctl: drvqueue_attach failed for %s / %d, cpu %d\n",
+              caller->p_name, caller->p_endpoint, irq_vec));
+      } else {
+          DEBUGBASIC(("do_irqctl: %s / %d attached to drvqueue CPU %d\n",
+              caller->p_name, caller->p_endpoint, irq_vec));
+      }
       break;
 
   default:

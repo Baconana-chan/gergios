@@ -18,6 +18,7 @@
 #include "kernel/kernel.h"
 #include "hw_intr.h"
 #include "msix.h"
+#include "irq_thread.h"
 
 
 /* number of lists of IRQ hooks, one list per supported line. */
@@ -150,6 +151,11 @@ void irq_handle(int irq)
     /* Next hooked function. */
     hook = hook->next;
   }
+
+  /* Signal the IRQ thread for this IRQ vector.
+   * The IRQ thread receives a notification and processes
+   * the interrupt at SCHED_FIFO priority. */
+  irq_thread_signal(irq);
 
   /* reenable the IRQ only if there is no active handler */
   if (irq_actids[irq] == 0)

@@ -406,6 +406,12 @@ virtio_net_init(unsigned int instance, netdriver_addr_t * addr,
 
 	virtio_device_ready(net_dev);
 
+	/* Elevate the IRQ thread to SCHED_FIFO priority 50.
+	 * This ensures network packet processing runs at a
+	 * moderate real-time priority, above user-space but
+	 * below storage (85) and timer (99). */
+	virtio_set_irq_thread_priority(net_dev, 50);
+
 	virtio_irq_enable(net_dev);
 
 	*caps = NDEV_CAP_MCAST | NDEV_CAP_BCAST;

@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "kernel/system.h"
+#include "kernel/irq_thread.h"
 
 
 #if USE_GETINFO
@@ -198,6 +199,13 @@ int do_getinfo(struct proc * caller, message * m_ptr)
 	get_cpu_ticks(cpu, ticks);
 	length = sizeof(ticks);
 	src_vir = (vir_bytes)ticks;
+	break;
+    }
+    case GET_IRQTHREAD_STATS: {
+	static struct irq_thread_stats stats[NR_IRQ_THREADS];
+	irq_thread_get_stats(stats, NR_IRQ_THREADS);
+	length = sizeof(stats);
+	src_vir = (vir_bytes) stats;
 	break;
     }
     default:

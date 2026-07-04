@@ -644,6 +644,7 @@ For full details, see:
 - [x] **Multi-queue virtio** — VIRTIO_BLK_F_MQ negotiation, queue_for_tid() round-robin
 - [x] **MSI-X support** — ядро (IRQ alloc 48-63 pool), PCI MSI-X cap parsing, AHCI/virtio/e1000 vectors
 - [x] **Threaded IRQ handlers** — `WorkQueue` lock-free SPSC ring buffer, top-half/bottom-half
+- [x] **Priority-based scheduling for IRQ threads** ✅ — RT scheduler (SCHED_FIFO/SCHED_RR) + ring 0 kernel thread per-IRQ
 - [ ] Interrupt load balancing (future: SMP)
 - [ ] Per-CPU command queue (future: SMP)
 

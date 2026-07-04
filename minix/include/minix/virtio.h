@@ -109,6 +109,12 @@ int virtio_from_queue(struct virtio_device *dev, int qidx, void **data,
 void virtio_irq_enable(struct virtio_device *dev);
 void virtio_irq_disable(struct virtio_device *dev);
 
+/* Set the SCHED_FIFO priority of the IRQ thread for this device.
+ * Higher priority (1-99) means the IRQ thread preempts more processes.
+ * Typical values: 50 for network, 70 for USB, 85 for storage, 99 for timer.
+ * Returns OK on success, or EINVAL if the IRQ is outside the valid range. */
+int virtio_set_irq_thread_priority(struct virtio_device *dev, int priority);
+
 /* Checks the ISR field of the device and returns true if
  * the interrupt was for this device.
  */

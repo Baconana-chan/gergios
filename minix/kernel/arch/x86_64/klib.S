@@ -731,6 +731,63 @@ ENTRY(arch_pause)
 	ret
 
 /*===========================================================================*/
+/*			arch_spinlock_lock / unlock			     */
+/*===========================================================================*/
+/*
+ * void arch_spinlock_lock(atomic_t *sl);
+ * void arch_spinlock_unlock(atomic_t *sl);
+ *
+ * Atomic spinlock implementation for x86_64.
+ *
+ * arch_spinlock_lock:
+ *   Uses atomic xchg to try to set the lock value to 1.
+ *   If the old value was 0, we got the lock — proceed.
+ *   If the old value was 1, the lock is held — spin with
+ *   exponential backoff and pause hints.
+ *
+ * arch_spinlock_unlock:
+ *   Uses atomic xchg to set the lock value to 0, then
+ *   issues mfence for memory ordering.
+ *
+ * atomic_t is u32_t (4 bytes) on x86_64.
+ * Arguments (SysV AMD64 ABI):
+ *   1st arg (RDI) = pointer to atomic_t
+ */
+ENTRY(arch_spinlock_lock)
+	movq	%rdi, %rax		/* lock pointer */
+	movl	$1, %edx		/* initial backoff counter */
+
+2:	/* Try to acquire the lock */
+	movl	$1, %ecx
+	xchgl	%ecx, (%rax)		/* atomic exchange: try to write 1 */
+	testl	%ecx, %ecx
+	jz	0f			/* was 0 — we got the lock */
+
+	/* Lock was held — adaptive backoff */
+	cmpl	$(1 << 16), %edx
+	je	1f
+	shll	%edx			/* double the backoff period */
+1:
+	movl	%edx, %ecx		/* backoff count */
+3:	/* Spin loop with pause */
+	pause
+	subl	$1, %ecx
+	testl	%ecx, %ecx
+	jz	2b			/* backoff done — retry acquire */
+	jmp	3b			/* continue spinning */
+
+0:	/* Lock acquired — memory barrier */
+	mfence
+	ret
+
+ENTRY(arch_spinlock_unlock)
+	movq	%rdi, %rax		/* lock pointer */
+	movl	$0, %ecx
+	xchgl	%ecx, (%rax)		/* atomic exchange: write 0 to release */
+	mfence
+	ret
+
+/*===========================================================================*/
 /*				read_ebp				     */
 /*===========================================================================*/
 /*

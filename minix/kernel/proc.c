@@ -38,7 +38,7 @@
 #include "clock.h"
 #include "spinlock.h"
 #include "arch_proto.h"
-
+#include "sched_rt.h"
 #include <minix/syslib.h>
 
 /*
@@ -77,7 +77,7 @@ static void idle(void);
 static int mini_send(struct proc *caller_ptr, endpoint_t dst_e, message
 	*m_ptr, int flags);
 */
-static int mini_receive(struct proc *caller_ptr, endpoint_t src,
+int mini_receive(struct proc *caller_ptr, endpoint_t src,
 	message *m_buff_usr, int flags);
 static int mini_senda(struct proc *caller_ptr, asynmsg_t *table, size_t
 	size);
@@ -163,6 +163,9 @@ void proc_init(void)
 		rp->p_scheduler = NULL;		/* no user space scheduler */
 		rp->p_priority = 0;		/* no priority */
 		rp->p_quantum_size_ms = 0;	/* no quantum size */
+
+		/* RT scheduling init */
+		sched_rt_proc_init(rp);
 
 		/* arch-specific initialization */
 		arch_proc_reset(rp);
@@ -336,6 +339,9 @@ void switch_to_user(void)
 #endif
 
 	p = get_cpulocal_var(proc_ptr);
+
+
+
 	/*
 	 * if the current process is still runnable check the misc flags and let
 	 * it run unless it becomes not runnable in the meantime
@@ -375,7 +381,8 @@ not_runnable_pick_new:
 	if (p->p_misc_flags & MF_FLUSH_TLB && get_cpulocal_var(ptproc) == p)
 		tlb_must_refresh = 1;
 #endif
-	switch_address_space(p);
+	if (!p->p_kthread)
+	  switch_address_space(p);
 
 check_misc_flags:
 
@@ -991,7 +998,7 @@ int mini_send(
 /*===========================================================================*
  *				mini_receive				     * 
  *===========================================================================*/
-static int mini_receive(struct proc * caller_ptr,
+int mini_receive(struct proc * caller_ptr,
 			endpoint_t src_e, /* which message source is wanted */
 			message * m_buff_usr, /* pointer to message buffer */
 			const int flags)
@@ -1661,8 +1668,14 @@ void enqueue(
 	  struct proc * p;
 	  p = get_cpulocal_var(proc_ptr);
 	  assert(p);
-	  if((p->p_priority > rp->p_priority) &&
-			  (priv(p)->s_flags & PREEMPTIBLE))
+	  /* RT preemption check — RT processes preempt non-RT even if
+	   * the queue indices happen to be equal, and higher-prio RT
+	   * preempts lower-prio RT. sched_rt_may_preempt() handles all cases.
+	   * The current process must be preemptible for RT preemption too.
+	   */
+	  if ((priv(p)->s_flags & PREEMPTIBLE) &&
+	      (sched_rt_may_preempt(p, rp) ||
+	       (p->p_priority > rp->p_priority)))
 		  RTS_SET(p, RTS_PREEMPTED); /* calls dequeue() */
   }
 #ifdef CONFIG_SMP
@@ -1673,6 +1686,38 @@ void enqueue(
    */
   else if (get_cpu_var(rp->p_cpu, cpu_is_idle)) {
 	  smp_schedule(rp->p_cpu);
+  }
+  /*
+   * Cross-CPU RT preemption: if an RT process (SCHED_FIFO/SCHED_RR) is
+   * enqueued on a different, non-idle CPU, check whether it should
+   * preempt the process currently running on that CPU. If so, send an
+   * IPI via smp_schedule() to force a reschedule.
+   *
+   * The IPI handler (smp_ipi_sched_handler) sets RTS_PREEMPTED on the
+   * remote CPU's current process, which causes switch_to_user() to
+   * dequeue it and re-pick from the run queues — naturally selecting
+   * the higher-priority RT process.
+   *
+   * Safety: reading the remote CPU's proc_ptr is safe because BKL is
+   * held, so the remote CPU cannot be running kernel code concurrently.
+   * The remote CPU only modifies proc_ptr in switch_to_user() which is
+   * serialised by BKL.
+   */
+  else if (proc_is_rt(rp)) {
+	  struct proc *remote_cur = get_cpu_var(rp->p_cpu, proc_ptr);
+	  /*
+	   * Guard against the race where cpu_is_idle read as 0 above but
+	   * the remote CPU has since entered idle and halted. In that case
+	   * proc_ptr points to the IDLE process (which is not PREEMPTIBLE),
+	   * so we must check explicitly and send the IPI unconditionally
+	   * to wake the halted CPU.
+	   */
+	  if (remote_cur->p_endpoint == IDLE) {
+		  smp_schedule(rp->p_cpu);
+	  } else if ((priv(remote_cur)->s_flags & PREEMPTIBLE) &&
+	             sched_rt_may_preempt(remote_cur, rp)) {
+		  smp_schedule(rp->p_cpu);
+	  }
   }
 #endif
 
@@ -1919,6 +1964,10 @@ static void notify_scheduler(struct proc *p)
 
 void proc_no_time(struct proc * p)
 {
+	/* RT processes: handle quantum renewal (no SCHED notification). */
+	if (sched_rt_handle_quantum(p))
+		return;
+
 	if (!proc_kernel_scheduler(p) && priv(p)->s_flags & PREEMPTIBLE) {
 		/* this dequeues the process */
 		notify_scheduler(p);
