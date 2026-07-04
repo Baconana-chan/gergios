@@ -43,6 +43,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
 
@@ -53,10 +54,53 @@
 #include "acdebug.h"
 
 #include <minix/driver.h>
+#include <minix/syslib.h>
+#include <minix/sysutil.h>
 #include <machine/pci_intel.h>
+
+/* Maximum number of deferred execution callbacks */
+#define ACPI_OS_EXECUTE_QUEUE_MAX 32
+
+/* ACPI semaphore struct — counting semaphore */
+struct acpi_semaphore {
+	int		initialized;
+	u32_t		counter;
+	u32_t		max_units;
+};
+
+/* Deferred execution queue item */
+struct acpi_exec_item {
+	ACPI_OSD_EXEC_CALLBACK	function;
+	void			*context;
+};
+
+/* ACPI SCI interrupt state */
+static int acpi_sci_irq = -1;
+static int acpi_sci_hook_id = -1;
+static ACPI_OSD_HANDLER acpi_sci_handler = NULL;
+static void *acpi_sci_context = NULL;
+
+/* Deferred execution queue */
+static struct acpi_exec_item acpi_exec_queue[ACPI_OS_EXECUTE_QUEUE_MAX];
+static int acpi_exec_head = 0;
+static int acpi_exec_tail = 0;
+
+/* Simple spinlock for semaphore ops (userspace — no real kernel spinlock needed) */
+static int acpi_lock = 0;
 
 extern struct machine machine;
 
+
+static void acpi_spin_lock(void)
+{
+	while (__sync_lock_test_and_set(&acpi_lock, 1))
+		usleep(1);
+}
+
+static void acpi_spin_unlock(void)
+{
+	__sync_lock_release(&acpi_lock);
+}
 
 static u32_t pci_inb(u16_t port) {
 	u32_t value;
@@ -460,43 +504,37 @@ AcpiOsCreateSemaphore (
     UINT32              InitialUnits,
     ACPI_HANDLE         *OutHandle)
 {
-	*OutHandle = NULL;
+	struct acpi_semaphore *sem;
+
+	if (!OutHandle)
+		return AE_BAD_PARAMETER;
+
+	sem = AcpiOsAllocate(sizeof(struct acpi_semaphore));
+	if (!sem)
+		return AE_NO_MEMORY;
+
+	sem->initialized = 1;
+	sem->counter = InitialUnits;
+	sem->max_units = MaxUnits;
+	sem->blocked_endpoint = NONE;
+
+	*OutHandle = (ACPI_HANDLE)sem;
 	return AE_OK;
 }
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsDeleteSemaphore
- *
- * PARAMETERS:  Handle              - Handle returned by AcpiOsCreateSemaphore
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Delete an OS semaphore
- *
- *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsDeleteSemaphore (
     ACPI_HANDLE         Handle)
 {
+	struct acpi_semaphore *sem = (struct acpi_semaphore *)Handle;
+
+	if (!sem || !sem->initialized)
+		return AE_BAD_PARAMETER;
+
+	sem->initialized = 0;
+	AcpiOsFree(sem);
 	return AE_OK;
 }
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsWaitSemaphore
- *
- * PARAMETERS:  Handle              - Handle returned by AcpiOsCreateSemaphore
- *              Units               - How many units to wait for
- *              Timeout             - How long to wait
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Wait for units
- *
- *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsWaitSemaphore (
@@ -504,28 +542,53 @@ AcpiOsWaitSemaphore (
     UINT32              Units,
     UINT16              Timeout)
 {
-	return AE_OK;
+	struct acpi_semaphore *sem = (struct acpi_semaphore *)Handle;
+	int timed_out = 0;
+	int total_us = 0;
+	int timeout_us;
+
+	if (!sem || !sem->initialized || Units == 0)
+		return AE_BAD_PARAMETER;
+
+	timeout_us = (Timeout == ACPI_NO_UNIT_LIMIT) ?
+	    -1 : (int)Timeout * 1000;
+
+	for (;;) {
+		acpi_spin_lock();
+		if (sem->counter >= Units) {
+			sem->counter -= Units;
+			acpi_spin_unlock();
+			return AE_OK;
+		}
+		acpi_spin_unlock();
+
+		if (timed_out)
+			return AE_TIME;
+
+		usleep(1000);
+		total_us += 1000;
+		if (timeout_us >= 0 && total_us >= timeout_us)
+			timed_out = 1;
+	}
 }
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsSignalSemaphore
- *
- * PARAMETERS:  Handle              - Handle returned by AcpiOsCreateSemaphore
- *              Units               - Number of units to send
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Send units
- *
- *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsSignalSemaphore (
     ACPI_HANDLE         Handle,
     UINT32              Units)
 {
+	struct acpi_semaphore *sem = (struct acpi_semaphore *)Handle;
+
+	if (!sem || !sem->initialized)
+		return AE_BAD_PARAMETER;
+
+	acpi_spin_lock();
+	if (sem->counter + Units <= sem->max_units)
+		sem->counter += Units;
+	else
+		sem->counter = sem->max_units;
+	acpi_spin_unlock();
+
 	return AE_OK;
 }
 
@@ -576,36 +639,116 @@ AcpiOsReleaseLock (
  *
  *****************************************************************************/
 
+/*
+ * Tell the main loop to dispatch the SCI when a HARDWARE notification arrives.
+ * The ACPICA handler is called from the main loop context, not from interrupt
+ * context (MINIX userspace drivers cannot call arbitrary code in ring 0).
+ */
 UINT32
 AcpiOsInstallInterruptHandler (
     UINT32                  InterruptNumber,
     ACPI_OSD_HANDLER        ServiceRoutine,
     void                    *Context)
 {
-	printf("ACPI: no support for power interrupt yet\n");
+	int r;
+
+	if (acpi_sci_irq >= 0) {
+		printf("ACPI: SCI interrupt already installed on IRQ %d\n",
+		    acpi_sci_irq);
+		return AE_ALREADY_EXISTS;
+	}
+
+	acpi_sci_handler = ServiceRoutine;
+	acpi_sci_context = Context;
+	acpi_sci_irq = InterruptNumber;
+
+	/*
+	 * Register for the SCI interrupt. The kernel will send a HARDWARE
+	 * notification via the standard MINIX IRQ mechanism. The main loop
+	 * in acpi.c dispatches notifications by calling acpi_dispatch_sci().
+	 */
+	r = sys_irqsetpolicy(InterruptNumber, 0, &acpi_sci_hook_id);
+	if (r != OK) {
+		printf("ACPI: sys_irqsetpolicy(IRQ %d) failed: %d\n",
+		    InterruptNumber, r);
+		acpi_sci_irq = -1;
+		return AE_ERROR;
+	}
+
+	r = sys_irqenable(&acpi_sci_hook_id);
+	if (r != OK) {
+		printf("ACPI: sys_irqenable(IRQ %d) failed: %d\n",
+		    InterruptNumber, r);
+		sys_irqrmpolicy(&acpi_sci_hook_id);
+		acpi_sci_irq = -1;
+		return AE_ERROR;
+	}
+
+	/* SCI is critical system event — SCHED_FIFO 98 (just below timer 99) */
+	sys_irqthread_priority(InterruptNumber, 98);
+
+	printf("ACPI: SCI interrupt handler installed on IRQ %d\n",
+	    InterruptNumber);
 	return AE_OK;
 }
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsRemoveInterruptHandler
- *
- * PARAMETERS:  Handle              Returned when handler was installed
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Uninstalls an interrupt handler.
- *
- *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsRemoveInterruptHandler (
     UINT32                  InterruptNumber,
     ACPI_OSD_HANDLER        ServiceRoutine)
 {
-	printf("ACPI: no support for power interrupt yet\n");
+	int r;
+
+	if (acpi_sci_irq != (int)InterruptNumber) {
+		printf("ACPI: SCI IRQ %d mismatch with installed %d\n",
+		    InterruptNumber, acpi_sci_irq);
+		return AE_NOT_EXIST;
+	}
+
+	r = sys_irqrmpolicy(&acpi_sci_hook_id);
+	if (r != OK) {
+		printf("ACPI: sys_irqrmpolicy failed: %d\n", r);
+		return AE_ERROR;
+	}
+
+	acpi_sci_handler = NULL;
+	acpi_sci_context = NULL;
+	acpi_sci_irq = -1;
+	acpi_sci_hook_id = -1;
+
 	return AE_OK;
+}
+
+/* Called from acpi.c main loop when HARDWARE notification arrives */
+void acpi_dispatch_sci(void)
+{
+	if (acpi_sci_handler) {
+		acpi_sci_handler(acpi_sci_context);
+	} else {
+		printf("ACPI: SCI received but no handler registered\n");
+	}
+}
+
+/* Called from acpi.c main loop to process deferred execution queue */
+int acpi_os_process_exec_queue(void)
+{
+	int processed = 0;
+
+	while (acpi_exec_head != acpi_exec_tail && processed < 16) {
+		acpi_spin_lock();
+		int idx = acpi_exec_head;
+		acpi_exec_head = (acpi_exec_head + 1) % ACPI_OS_EXECUTE_QUEUE_MAX;
+		acpi_spin_unlock();
+
+		struct acpi_exec_item *item = &acpi_exec_queue[idx];
+		if (item->function) {
+			item->function(item->context);
+			memset(item, 0, sizeof(*item));
+		}
+		processed++;
+	}
+
+	return processed;
 }
 
 
@@ -629,7 +772,27 @@ AcpiOsExecute (
     ACPI_OSD_EXEC_CALLBACK  Function,
     void                    *Context)
 {
-	panic("NOTIMPLEMENTED %s\n", __func__);
+	int next;
+
+	if (!Function)
+		return AE_BAD_PARAMETER;
+
+	acpi_spin_lock();
+	next = (acpi_exec_tail + 1) % ACPI_OS_EXECUTE_QUEUE_MAX;
+
+	if (next == acpi_exec_head) {
+		/* Queue full — fall back to direct execution */
+		acpi_spin_unlock();
+		printf("ACPI: execute queue full, running directly\n");
+		Function(Context);
+		return AE_OK;
+	}
+
+	acpi_exec_queue[acpi_exec_tail].function = Function;
+	acpi_exec_queue[acpi_exec_tail].context = Context;
+	acpi_exec_tail = next;
+	acpi_spin_unlock();
+
 	return AE_OK;
 }
 
@@ -847,32 +1010,75 @@ AcpiOsWritePort (
  *
  *****************************************************************************/
 
+/* Cache for the last mapped MMIO region (AcpiOsReadMemory/WriteMemory) */
+static struct {
+	ACPI_PHYSICAL_ADDRESS	phys_base;
+	volatile void		*virt_addr;
+	ACPI_SIZE		length;
+} acpi_mmio_cache;
+
+/* Map physical memory for MMIO read/write, using a simple cache */
+static volatile void *acpi_map_mmio(ACPI_PHYSICAL_ADDRESS addr, ACPI_SIZE width)
+{
+	ACPI_PHYSICAL_ADDRESS page_base = addr & ~(ACPI_PHYSICAL_ADDRESS)0xFFF;
+	ACPI_SIZE map_len = width + (addr - page_base);
+
+	/* Hit in cache? */
+	if (acpi_mmio_cache.virt_addr &&
+	    addr >= acpi_mmio_cache.phys_base &&
+	    addr + width <= acpi_mmio_cache.phys_base + acpi_mmio_cache.length) {
+		return acpi_mmio_cache.virt_addr + (addr - acpi_mmio_cache.phys_base);
+	}
+
+	/* Unmap old, map new */
+	if (acpi_mmio_cache.virt_addr)
+		AcpiOsUnmapMemory((void *)acpi_mmio_cache.virt_addr,
+		    acpi_mmio_cache.length);
+
+	acpi_mmio_cache.virt_addr = AcpiOsMapMemory(page_base, map_len);
+	if (!acpi_mmio_cache.virt_addr)
+		return NULL;
+
+	acpi_mmio_cache.phys_base = page_base;
+	acpi_mmio_cache.length = map_len;
+
+	return acpi_mmio_cache.virt_addr + (addr - acpi_mmio_cache.phys_base);
+}
+
 ACPI_STATUS
 AcpiOsReadMemory (
     ACPI_PHYSICAL_ADDRESS   Address,
     UINT64                  *Value,
     UINT32                  Width)
 {
-	/* FIXME this operation is ignored */
-	*Value = 0;
+	volatile void *ptr;
 
-	return (AE_OK);
+	if (!Value)
+		return AE_BAD_PARAMETER;
+
+	ptr = acpi_map_mmio(Address, Width / 8);
+	if (!ptr)
+		return AE_NO_MEMORY;
+
+	switch (Width) {
+	case 8:
+		*Value = *(volatile u8_t *)ptr;
+		break;
+	case 16:
+		*Value = *(volatile u16_t *)ptr;
+		break;
+	case 32:
+		*Value = *(volatile u32_t *)ptr;
+		break;
+	case 64:
+		*Value = *(volatile u64_t *)ptr;
+		break;
+	default:
+		return AE_BAD_PARAMETER;
+	}
+
+	return AE_OK;
 }
-
-
-/******************************************************************************
- *
- * FUNCTION:    AcpiOsWriteMemory
- *
- * PARAMETERS:  Address             Physical Memory Address to write
- *              Value               Value to write
- *              Width               Number of bits
- *
- * RETURN:      None
- *
- * DESCRIPTION: Write data to a physical memory address
- *
- *****************************************************************************/
 
 ACPI_STATUS
 AcpiOsWriteMemory (
@@ -880,8 +1086,30 @@ AcpiOsWriteMemory (
     UINT64                  Value,
     UINT32                  Width)
 {
-	/* FIXME this operation is ignored */
-	return (AE_OK);
+	volatile void *ptr;
+
+	ptr = acpi_map_mmio(Address, Width / 8);
+	if (!ptr)
+		return AE_NO_MEMORY;
+
+	switch (Width) {
+	case 8:
+		*(volatile u8_t *)ptr = (u8_t)Value;
+		break;
+	case 16:
+		*(volatile u16_t *)ptr = (u16_t)Value;
+		break;
+	case 32:
+		*(volatile u32_t *)ptr = (u32_t)Value;
+		break;
+	case 64:
+		*(volatile u64_t *)ptr = (u64_t)Value;
+		break;
+	default:
+		return AE_BAD_PARAMETER;
+	}
+
+	return AE_OK;
 }
 
 

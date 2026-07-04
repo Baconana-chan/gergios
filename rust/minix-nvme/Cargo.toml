@@ -1,0 +1,16 @@
+[package]
+name = "minix-nvme"
+version = "0.1.0"
+edition = "2024"
+description = "NVMe (NVM Express) SSD driver for MINIX — native Rust implementation"
+
+[lib]
+name = "minix_nvme"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

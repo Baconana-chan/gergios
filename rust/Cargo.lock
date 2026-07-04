@@ -677,6 +677,21 @@ name = "minix-driver"
 version = "0.1.0"
 
 [[package]]
+name = "minix-hda"
+version = "0.1.0"
+dependencies = [
+ "audio-buf",
+ "minix-driver",
+]
+
+[[package]]
+name = "minix-nvme"
+version = "0.1.0"
+dependencies = [
+ "minix-driver",
+]
+
+[[package]]
 name = "minix-pci"
 version = "0.1.0"
 dependencies = [
@@ -686,6 +701,13 @@ dependencies = [
 [[package]]
 name = "minix-rs"
 version = "0.1.0"
+
+[[package]]
+name = "minix-xhci"
+version = "0.1.0"
+dependencies = [
+ "minix-driver",
+]
 
 [[package]]
 name = "miniz_oxide"

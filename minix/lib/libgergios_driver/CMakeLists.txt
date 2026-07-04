@@ -23,6 +23,7 @@ add_minix_library(gergios_driver
         iommu_vtd.c
         pm.c
         hotplug.c
+        elf_loader.c
     INSTALL_DIR /usr/lib
 )
 
@@ -39,5 +40,6 @@ install(FILES
     iommu.h
     pm.h
     hotplug.h
+    elf_loader.h
     DESTINATION /usr/include/minix
 )

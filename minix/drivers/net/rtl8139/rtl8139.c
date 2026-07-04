@@ -373,6 +373,8 @@ static void rl_init_hw(re_t *rep, netdriver_addr_t *addr,
 	rep->re_hook_id = rep->re_irq;
 	if ((s=sys_irqsetpolicy(rep->re_irq, 0, &rep->re_hook_id)) != OK)
 		printf("RTL8139: error, couldn't set IRQ policy: %d\n", s);
+	if ((s = sys_irqthread_priority(rep->re_irq, 40)) != OK)
+		printf("RTL8139: error, couldn't set IRQ thread priority: %d\n", s);
 
 	rl_reset_hw(rep);
 

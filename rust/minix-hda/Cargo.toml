@@ -1,0 +1,17 @@
+[package]
+name = "minix-hda"
+version = "0.1.0"
+edition = "2024"
+description = "Intel HDA (High Definition Audio) driver for MINIX — native Rust implementation"
+
+[lib]
+name = "minix_hda"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+audio-buf = { path = "../audio-buf" }
+
+[features]
+default = []
+sanitize = []

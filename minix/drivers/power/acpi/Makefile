@@ -4,7 +4,10 @@ PROG=	acpi
 SRCS= \
 	acpi.c \
 	pci.c \
-	osminixxf.c
+	osminixxf.c \
+	enumerate.c \
+	gpe.c \
+	hotplug.c
 
 ACPICA_SRCS= \
 	dsargs.c \

@@ -460,6 +460,8 @@ static void fxp_init_hw(fxp_t *fp, netdriver_addr_t *addr,
 	r= sys_irqsetpolicy(fp->fxp_irq, 0, &fp->fxp_hook);
 	if (r != OK)
 		panic("sys_irqsetpolicy failed: %d", r);
+	if ((r = sys_irqthread_priority(fp->fxp_irq, 44)) != OK)
+		panic("sys_irqthread_priority failed: %d", r);
 
 	fxp_reset_hw(fp);
 

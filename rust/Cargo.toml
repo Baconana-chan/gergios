@@ -144,6 +144,9 @@ members = [
     "ext4-core",
     "virtio-blk",
     "e1000",
+    "minix-nvme",
+    "minix-xhci",
+    "minix-hda",
 ]
 
 # Global profile: panic=abort for no_std drivers and other workspace members

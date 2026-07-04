@@ -416,10 +416,12 @@ static void dp_init(dpeth_t *dep, unsigned int instance)
 	/* Set the interrupt handler and policy. Do not automatically 
 	 * reenable interrupts. Return the IRQ line number on interrupts.
  	 */
- 	dep->de_hook = dep->de_irq;
+	dep->de_hook = dep->de_irq;
 	r= sys_irqsetpolicy(dep->de_irq, 0, &dep->de_hook);
 	if (r != OK)
 		panic("sys_irqsetpolicy failed: %d", r);
+	if ((r = sys_irqthread_priority(dep->de_irq, 36)) != OK)
+		panic("sys_irqthread_priority failed: %d", r);
 
 	r= sys_irqenable(&dep->de_hook);
 	if (r != OK)

@@ -823,10 +823,11 @@ static void lance_init_hw(ether_card_t *ec, netdriver_addr_t *addr,
    /* ----- start when init done. ----- */
    ec_reinit(ec);
 
-   /* Set the interrupt handler */
-   ec->ec_hook = ec->ec_irq;
-   if ((r=sys_irqsetpolicy(ec->ec_irq, 0, &ec->ec_hook)) != OK)
-      panic("couldn't set IRQ policy: %d", r);
+   /* Set the interrupt handler */	ec->ec_hook = ec->ec_irq;
+	if ((r=sys_irqsetpolicy(ec->ec_irq, 0, &ec->ec_hook)) != OK)
+		panic("couldn't set IRQ policy: %d", r);
+	if ((r = sys_irqthread_priority(ec->ec_irq, 38)) != OK)
+		panic("couldn't set IRQ thread priority: %d", r);
    if ((r = sys_irqenable(&ec->ec_hook)) != OK)
       panic("couldn't enable interrupt: %d", r);
 

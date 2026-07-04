@@ -1,0 +1,16 @@
+[package]
+name = "minix-xhci"
+version = "0.1.0"
+edition = "2024"
+description = "xHCI (eXtensible Host Controller Interface) USB 3.0 driver for MINIX — native Rust implementation"
+
+[lib]
+name = "minix_xhci"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

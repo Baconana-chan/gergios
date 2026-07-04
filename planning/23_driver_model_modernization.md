@@ -1,6 +1,7 @@
-# Driver Model Modernization — GergiOS 1.0+/1.1
+# Driver Model Modernization — GergiOS 1.0+
 
-> **Статус**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅, Phase 5 🆕, Phase 6 🆕
+> **Статус**: Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅, Phase 5 🆕, Phase 6 🆕, Phase 7 ✅ (7.1-7.5 completed)
+> **Затронутые roadmap-пункты**: Linux Compatibility (§6 roadmap) — рекомендован сдвиг с 1.1 → 1.0 для LKM compat driver manager (Phase 7)
 > **Связанные**: `planning/03_migration_roadmap.md` §5, `planning/09_c_language_modernization.md` §Phase 5 (minix-driver), `planning/17_remaining_tasks.md`
 > **Зависимости**: Build System Migration ✅, C Language Modernization (C17 + Rust) ✅, Architecture Migration (x86_64 ✅, ARM64 🟡)
 > **SMP Status**: APIC ✅, SMP Boot ✅, BKL+Spinlocks ✅, IRQ Load Balancing ✅, NMI Watchdog ✅, Per-CPU drvqueue ✅ — см. `planning/07_x86_64_migration_plan.md` §SMP
@@ -348,7 +349,7 @@ struct gergios_pm_ops {
 
 ---
 
-## 5. План реализации (6 фаз)
+## 5. План реализации (7 фаз)
 
 ### Phase 1: Foundation — Unified Driver Core 🎯 **✅ COMPLETED** (July 2026)
 
@@ -609,12 +610,17 @@ struct gergios_pm_ops {
       - irq_thread_set_mmio() — on-demand page table creation via alloc_pagetable(), PTE remap via pg_remap_page()
       - irq_thread_device_handler() reads AHCI_HBA_IS at vaddr+8, writes back to clear (write-1-to-clear)
       - pg_remap_page() in pg_utils.c — modifies PTE (uncacheable: PWT|PCD), INVLPG flush
+      - pg_unmap_page() in pg_utils.c — clears PTE + invlpg, called from irq_thread_unregister()
+      - irq_thread_unregister() — очищает handler/registered/MMIO mapping, вызывается при IRQ_RMPOLICY
       - do_irqctl.c: IRQ_THREAD_SET_MMIO (request 10) — регистрирует MMIO phys addr для fast-ack
+      - do_irqctl.c: IRQ_RMPOLICY вызывает irq_thread_unregister() — очистка MMIO PTE при откреплении драйвера
       - ahci.c: sys_irqthread_mmio(hba_state.irq, hba_base_phys) — передаёт HBA BAR в ядро
       - com.h: IRQ_THREAD_SET_MMIO 10
       - syslib.h: sys_irqthread_mmio() macro
-    - [ ] Integration with virtio-blk C shim
-    - [ ] Integration with e1000 C shim
+    - [x] Integration with virtio-blk C shim — virtio_set_irq_thread_priority(blk_dev, 85), SCHED_FIFO 85
+    - [x] Integration with virtio-net C shim — virtio_set_irq_thread_priority(net_dev, 50), SCHED_FIFO 50
+    - [x] Integration with e1000 C shim — sys_irqthread_priority(e->irq, 45), SCHED_FIFO 45
+    - [x] pg_unmap_page() + irq_thread_unregister() — MMIO PTE cleanup при IRQ_RMPOLICY, без утечки page table entries
 
 ### irqtop(1) — deferred improvements 🔮
 
@@ -682,6 +688,341 @@ ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
 
 **Dependencies**: Phase 5, Architecture Migration (SMP)
 
+### Phase 7: New Hardware Drivers + Extensible Driver Manager ✅ 7.1-7.4 completed, 7.5-7.8 🆕 8-12 weeks
+**Цель**: Добавить native драйверы для современного hardware (NVMe, xHCI, Intel HDA, ACPI modernization) и создать Extensible Driver Manager с LKM compat слоем для внешних Linux-драйверов.
+
+**Обоснование**: Linux Compatibility (из roadmap §6) сдвинут с 1.1 на 1.0 — без LKM compat слоя GergiOS не может использовать WiFi (ath9k/iwlwifi), GPU (i915/amdgpu) и enterprise NIC драйверы. Driver Manager — единственный практичный путь для поддержки hardware, который невозможно переписать native (сотни тысяч LOC).
+
+#### 7.1 ACPI Modernization 🆕 2-3 weeks — ✅ **PHASE 1 COMPLETED** (core OS layer + PM)
+
+**Цель**: Превратить существующий ACPICA-совместимый драйвер (`drivers/power/acpi/`) в полноценный ACPI 5.0+ сервис с работающим SCI interrupt handling, device power management, sleep state query и GPE routing.
+
+**Отправная точка**: Драйвер уже содержит полную ACPICA (ACPI Component Architecture): AML parser, namespace, event system, table management, hardware access. ~140 source files.
+
+**Phase 1 completed (current session)**:
+
+**OS Layer fixes (`osminixxf.c`)**:
+- [x] **Counting semaphores** — `AcpiOsCreateSemaphore`/`Delete`/`Wait`/`Signal` с real counter, max_units, spin+usleep wait
+- [x] **SCI interrupt handler** — `AcpiOsInstallInterruptHandler`/`Remove`: `sys_irqsetpolicy()` + `sys_irqenable()` для SCI IRQ, `sys_irqthread_priority(IRQ, 98)` — SCHED_FIFO 98 (just below timer)
+- [x] **MMIO access** — `AcpiOsReadMemory`/`WriteMemory`: реализованы через `vm_map_phys` с page-aligned кэшем
+- [x] **Deferred execution** — `AcpiOsExecute`: 32-slot FIFO queue с spinlock, main loop drain (max 16 per iteration), fallback to direct execution when full
+- [x] **Main loop API** — `acpi_dispatch_sci()`, `acpi_os_process_exec_queue()`
+
+**Power Management (`acpi.c`)**:
+- [x] **`_PS0/_PS3` device power control** — `acpi_power_on_device()` / `acpi_power_off_device()` через `AcpiEvaluateObject()`
+- [x] **Sleep state query** — `acpi_query_sleep_states()`: `AcpiEvaluateObject()` for `_S0`/`_S1`/`_S2`/`_S3`/`_S4` objects
+- [x] **IPC request handlers** — `ACPI_REQ_POWER_ON` (3), `ACPI_REQ_POWER_OFF` (4), `ACPI_REQ_GET_SLEEP_STATES` (5)
+- [x] **SCI dispatch in main loop** — `is_notify(ipc_status) && m.m_source == HARDWARE` → `acpi_dispatch_sci()`
+
+**Public API (`minix/include/minix/acpi.h`)**:
+- [x] `acpi_power_req`/`acpi_power_resp`, `acpi_sleep_states_resp` structs
+- [x] `acpi_power_on_device(ACPI_HANDLE)`, `acpi_power_off_device(ACPI_HANDLE)` — public API
+
+**All sub-sections completed**:
+- [x] **Device Enumeration (`enumerate.c/h`)** — `AcpiWalkNamespace()` callback, PCI root bridge detection, _BBN, _STA filtering, IPC pagination
+- [x] **GPE Routing (`gpe.c/h`)** — `AcpiInstallFixedEventHandler()` (power/sleep/RTC), `AcpiInstallGlobalEventHandler()`, `AcpiEnableAllRuntimeGpes()`, `AcpiUpdateAllGpes()`
+- [x] **PCI Hot-Plug (`hotplug.c/h`)** — `AcpiGetDevices("PNP0A03"/"PNP0A08")` → `AcpiInstallNotifyHandler()` (ACPI_SYSTEM_NOTIFY), BUS_CHECK/DEVICE_CHECK/EJECT_REQUEST dispatch → `pci_scan_devices()`, listener API (`register/unregister`)
+- **LOC**: ~800 C added (Phase 1 total ~1,200 of ~3,000 planned)
+- **Deferred** (ждёт libgergios_driver на диске): ACPI enumeration → `gergios_device` creation, `gergios_hotplug_event()` call
+
+#### 7.2 NVMe Driver 🆕 2-3 weeks — ✅ **BASE CRATE COMPLETED**
+
+**Цель**: Native NVMe драйвер на Rust — современная замена AHCI.
+
+**Implementation Summary**:
+
+Создан `rust/minix-nvme/` crate (~3,000 Rust LOC, 5 source files):
+
+| Файл | LOC | Назначение |
+|------|-----|-----------|
+| **`Cargo.toml`** | 14 | Crate config, workspace member, dependency on `minix-driver` |
+| **`ffi.rs`** | ~380 | MINIX C FFI bindings: PCI (`pci_init/first_dev/get_bar`), MMIO (`vm_map_phys/interrupt`), MSI-X (`sys_msix_alloc/setpolicy`), IRQ (`sys_irqsetpolicy/enable/rmpolicy`), DMA (`alloc_contig`), blockdriver (`blockdriver_mt_task/announce`), SEF lifecycle, errno constants, `IoVec`, `read32_raw`/`write32_raw` MMIO primitives. Dual-platform: real MINIX externs + host stubs for `cargo test` |
+| **`registers.rs`** | ~450 | Full NVMe 1.4 register offsets (CAP, VS, CC, CSTS, AQA, ASQ, ACQ, doorbells), bitfield modules inside `regs` (`cap`, `cc`, `csts`), command opcodes (IDENTIFY, CREATE_IO_SQ/CQ, READ/WRITE, FLUSH, SET_FEATURES), CNS values, feature IDs, status codes. Data structures: `SqEntry` (64B — 16 dwords with set_cmd/nsid/prp1/2/cdw10-15), `CqEntry` (16B — status/cid/phase/is_success), `IdentifyController` (4KB), `IdentifyNamespace` (4KB + LBA Format), `QueueMem` (phys-contiguous DMA memory descriptor with manual Clone). Unit tests for entry sizes, sq operations, cq status, LBA format, doorbell offsets |
+| **`controller.rs`** | ~800 | Full NVMe controller state machine: `NvmeController` stores MMIO region, PCI devind/IRQ, admin queue state (SQ/CQ mem + tail/head/phase), up to 8 I/O queues ([IoQueue;8]), doorbell stride, page size, MDTS, 32 namespaces (block_size, block_count). Methods: `r32/w32/r64/w64` register access, `sq_doorbell/cq_doorbell` (DSTRD-based offset), `wait_ready(rdy)` (CAP.TO timeout polling), `alloc_dma/free_dma` (contiguous DMA), PCI probe (`pci_first_dev+class check 0x010802`), `init()` — full sequence: BAR0 mapping → version read → CAP parse → admin queue allocation → CC disable/enable → MSI-X/legacy IRQ → Identify Controller + Namespaces → I/O queue creation. Admin commands: `admin_identify<T>()` via PRP DMA, `submit_admin_cmd()` (volatile sq write + fence + doorbell), `poll_admin_cq()` (phase tag + CID match + head doorbell). I/O: `io_transfer()` (read/write DMA PRP, poll completion), `io_flush()`. Create I/O CQ/SQ with correct NVMe CDW10/CDW11 layout (PC/IEN in CDW11). `stop()` — disable + free all + unmap. Vendor table (Intel/Samsung/Micron/WD/SK Hynix/Toshiba/Realtek/Phison/InnoGrit) |
+| **`lib.rs`** | ~400 | MINIX blockdriver table (`BDR_TABLE`): `nvme_open/close/transfer/ioctl/part/intr/alarm/device`. DMA-safe transfer via `sys_safecopyto/from` + pre-allocated contiguous buffer (64KB). SEF lifecycle: `sef_init_fresh` (probe+init → announce), `sef_signal_handler` (SIGTERM → cleanup). NSID → minor mapping, partition table (4 primary + 4 subpartitions per drive). `nvme_rust_main()` entry point. Panic handler. 7 unit tests |
+
+- [x] **NVMe register set**: CAP, VS, CC, CSTS, AQA, ASQ, ACQ, INTMS/INTMC, doorbells (registers.rs)
+- [x] **Admin queue**: Submission/Completion queue with poll-based completion, Identify controller + namespace + active NS list, Set Features (number of queues)
+- [x] **I/O queue**: Create I/O CQ/SQ with correct CDW10/CDW11 layout, PRP1-based transfers, poll completion with phase tag
+- [x] **Block driver**: Full `bdr_open/close/transfer/ioctl/part/intr/alarm/device`, safecopy to/from user, DIOCFLUSH, DIOCOPENCT
+- [x] **MSI-X support**: `setup_msix_single()` with `pci_msix_parse` + `sys_msix_alloc` + `sys_msix_setpolicy`, fallback to legacy IRQ
+- [x] **PRP list support**: `PrpList` struct with DMA alloc/free/build. Handles 1-page (PRP2=0), 2-page (PRP2=page1), 3+ pages (PRP list in 4KB DMA buffer, 512 entry × 8 bytes). Fallback to single page when no DMA buffer. Integrated in `io_transfer()`
+- [x] **MSI-X per-queue vectors**: `setup_msix_multi()` allocates 1 admin + N I/O queue vectors via `msix_alloc_irq`/`setup`. Per-queue irq/hook_id stored in `IoQueue`. Single-vector fallback (`setup_msix_single()`) uses vector 0 for all queues. Create I/O CQ CDW11 bits 31:16 = vector index (qid for multi, 0 for single). `process_all_queues()` drains completions with pre-calculated doorbell offsets. `nvme_intr()` → `process_all_queues()` interrupt-driven completion
+- [x] **Power management**: APST (Autonomous Power State Transition) — `PowerStateDescriptor` struct (32 bytes), parsing from Identify Controller data, APST enable via Set Features FID=0x0C
+- [x] **PCI D-state control**: PCI PM capability (cap_id=0x01) detection, PMCSR read/write for D0–D3hot, `set_d_state()`, `get_d_state()`, `enable_pme()` for wake signaling, D3hot entry in `stop()`, D0 restore in `init()`
+- [x] **Controller reset recovery**: `controller_reset()` — full NVMe reset sequence (CC.EN=0 → reprogram admin queues → CC.EN=1 → re-identify → re-create I/O queues → re-enable APST). `in_reset` guard prevents recursion. `is_fatal_error()`/`shutdown_notify()` public API. `io_transfer`/`io_flush` retry with reset on timeout (max 3 resets)
+- **LOC**: ~3,750 Rust (5 source files + Cargo.toml, + ~450 LOC for PRP list + MSI-X per-queue + APST + D-state + reset recovery)
+- **Dependencies**: Phase 5 (Rust infrastructure), Phase 6 (MSI-X kernel support — MSI-X pool, sys_msix_alloc/free/setpolicy)
+- **Приоритет**: P0 — современные SSD только NVMe
+- **Status**: `cargo check --lib -p minix-nvme` — 0 errors ✅ (PRP list + MSI-X per-queue ✅, APST ✅, D-state ✅, Controller reset recovery ✅, Get Log Page ✅)
+
+#### 7.3 xHCI (USB 3.0) Controller Driver 🆕 4-6 weeks — ✅ **BASE CRATE COMPLETED**
+
+**Цель**: Native xHCI драйвер для USB 3.0 — клавиатуры, мыши, флешки, хабы.
+
+**Implementation Summary**:
+
+Создан `rust/minix-xhci/` crate (~2,500 Rust LOC, 6 source files + Cargo.toml):
+
+| Файл | LOC | Назначение |
+|------|-----|-----------|
+| **`registers.rs`** | ~500 | Complete xHCI 1.2 register definitions (CAP/OP/RT/DB/Extended), TRB structures (16-byte Trb with 22+ builders), Device Context (Slot/Endpoint/Input/Device), ErstEntry, ScratchpadEntry, USB speed mappings, CompletionCode. ~20 unit tests |
+| **`ring.rs`** | ~350 | RingMem DMA allocation (non-Clone!), TrbRing (producer-consumer with Link TRB on wrap), EventRing (consumer-only, single segment ERST). Proper ERST entry tracking with erst_virt for leak-free teardown. Unit tests for ring alloc/free/wrap |
+| **`xhci.rs`** | ~450 | XhciController: PCI probe (class 0x0C0330), init (HC reset/start, Command/Event Ring, DCBAA, scratchpad, MSI-X/legacy IRQ), port management (power, reset, speed), command ring ops, device slot management (EnableSlot, AddressDevice) |
+| **`ffi.rs`** | ~380 | MINIX C FFI bindings (PCI, MMIO, MSI-X, IRQ, DMA, SEF) + host stubs for cargo test |
+| **`lib.rs`** | ~220 | no_std entry point, blockdriver callbacks (transfer/ioctl/intr/alarm), SEF lifecycle, panic handler |
+| **`Cargo.toml`** | ~15 | Workspace member, staticlib+lib, minix-driver dependency |
+
+**Key design decisions**:
+- `RingMem` intentionally does NOT derive `Clone` — DMA buffer ownership must be unique (use-after-free risk)
+- `EventRing` tracks `erst_virt` for proper DMA free — no memory leak on teardown
+- All `static mut` accesses use `core::ptr::addr_of_mut!()` pattern for Rust 2024 compliance
+- `printf` FFI uses consistent 2-arg signature (MINIX extern matches host stubs)
+- `init_slots()` uses `core::array::from_fn()` instead of 64 repeated calls
+
+**Completion status**: `cargo check --lib -p minix-xhci` — 0 errors ✅
+
+**Remaining for production** (Phase 7.3+):
+- Transfer ring integration for bulk/interrupt/isochronous endpoints
+- USB device descriptor parsing (GET_DESCRIPTOR) — control transfers
+- USB Mass Storage class support (BOT protocol)
+- USB HID class support (keyboard, mouse)
+- Hub support with TT for USB 1.0/2.0
+- Interrupt-driven event processing (currently poll-based)
+- Driver interface: chardev or blockdev for USB clients
+
+- [x] **xHCI register set**: CAPLENGTH/HCSPARAMS1-2, HCCPARAMS1-2, DBOFF, RTSOFF, USBCMD/USBSTS, CRCR, DCBAAP, CONFIG, PORTSC (PORT_BASE/PORT_SIZE), Runtime (IMAN, IMOD, ERSTSZ, ERSTBA, ERDP), Doorbell, Extended Capabilities
+- [x] **Device Slot management**: Enable/Disable Slot, Address Device command, Input/Device context structures, Slot/Endpoint context with field helpers
+- [x] **Transfer management**: TRB builders (Normal, Setup, Data, Status, Link, No-Op), TRB ring (producer-consumer with Link TRB on wrap, cycle toggle), Event Ring (ERST single segment, dequeue advancing)
+- [x] **Port management**: PORTSC register access (CCS, PED, PP, PLS, PR, CSC, Speed), power initialization, port reset, connect status detection
+
+- [x] **Hub support** ✅ **IMPLEMENTED** (Phase 7.3a)
+  - [x] Hub descriptor struct, port feature constants, TT info
+  - [x] Hub port init/reset/power management with SetPortFeature/ClearPortFeature
+  - [x] Hub interrupt endpoint polling
+  - [x] Port status change handling for downstream device enumeration
+  - [x] Transaction Translator (TT) support for USB 1.0/2.0 behind USB 3.0 hub
+
+- [x] **USB Device Framework** ✅ **IMPLEMENTED** (Phase 7.3a)
+  - [x] UsbDeviceType enum (MSC, Hub, HID, etc.)
+  - [x] UsbDevice struct with common device info and descriptor cache
+  - [x] UsbClassDriver trait for class driver registration
+  - [x] Device enumeration pipeline with class-specific probe
+
+- [x] **Driver Interface** ✅ **IMPLEMENTED** (Phase 7.3a)
+  - [x] Urb abstraction for USB transfers (control, bulk, interrupt)
+  - [x] UsbCharacterDevice — chardev interface for USB client drivers
+  - [x] Class driver registration API (register/deregister per class code)
+  - [x] Device-to-driver dispatch via class and protocol matching
+
+- **LOC**: ~2,500 Rust (6 source files + Cargo.toml)
+- **Dependencies**: Phase 5 (Rust infrastructure), Phase 6 (MSI-X, IRQ threads)
+- **Приоритет**: P1 — USB необходим для ввода/устройств хранения на bare metal
+
+#### 7.4 Intel HDA Audio Driver ✅ **BASE IMPLEMENTED** (July 2026)
+
+**Цель**: Native Intel HDA аудио драйвер с ALSA-like userspace API (NetBSD audioio.h).
+
+**Implementation Summary**:
+
+Создан `rust/minix-hda/` crate (~2,700 Rust LOC, 6 source files + Cargo.toml):
+
+| Файл | LOC | Назначение |
+|------|-----|-----------|
+| **`Cargo.toml`** | ~15 | Workspace member, staticlib+lib, minix-driver + audio-buf зависимости |
+| **`registers.rs`** | ~440 | Full HDA register set: GCAP/VMIN/VMAJ/STATESTS, GCTL/INTCTL, CORB/RIRB (0x40-0x5F), Stream Descriptors (SDn — 0x80+0x20n), BDL entry, Format builder (48kHz/44.1kHz, 8/16/20/24/32-bit, 1-16ch), CodecCmd/CodecResp (CORB/RIRB communication), verb IDs (GET/SET_PARAM, SET_POWER_STATE, SET_CONVERTER_FORMAT, SET_AMP_GAIN_MUTE, SET_PIN_WIDGET_CTRL, GET_CONFIG_DEFAULT), param IDs (VENDOR_ID, REVISION_ID, SUBORDINATE_NODE_COUNT, AW_CAPS, PIN_CAPS), pin cfg_default parsing, power states, widget types. ~20 unit tests |
+| **`ffi.rs`** | ~440 | Dual-platform FFI: PCI (`pci_init/first_dev/next_dev/get_bar/attr_r8/r16/r32`), MMIO (`vm_map_phys/unmap_phys`), DMA (`alloc_contig/free_contig`), IRQ (`sys_irqsetpolicy/enable/rmpolicy`, MSI-X `msix_alloc/setup`), chardriver (`Chardriver` struct, `cdr_task/announce/terminate`), SEF lifecycle. Host stubs for `cargo test` |
+| **`controller.rs`** | ~520 | PCI probe (class 0x0403 — multimedia HDA), BAR0 MMIO mapping via MmioRegion, controller reset (GCTL.CRST), capabilities parsing (GCAP), CORB/RIRB setup (base addr + DMA enable + size=256 entries, RIRB interrupt every response), MSI-X/legacy IRQ with hook id management, stream alloc/free/start/stop with BDL setup (double-buffer, IOC per entry), interrupt handler (buffer completion + RIRB status), DMA alloc (`alloc_contig`), STATESTS codec mask detection |
+| **`codec.rs`** | ~340 | Codec enumeration: Vendor ID (NID0, param 0x00), Revision ID, Subordinate Node Count, AFG discovery (function group type 0x01), AFG capabilities, widget enumeration (AW_CAPS, PCM/format support, amp caps, connection list, pin caps + config default via GET_CONFIG_DEFAULT_BYTE0-3), pin categorization (output/input capable), default DAC/ADC detection. Volume/mute control via SET_AMP_GAIN_MUTE, converter setup (SET_CONVERTER_STREAM_CHAN + SET_CONVERTER_FORMAT), pin control (SET_PIN_WIDGET_CTRL), power state D0 setup for AFG + all widgets |
+| **`stream.rs`** | ~300 | BDL DMA management: fragment-based audio transfer (8KB fragments), AudioStream with DMA + extra ring buffers, `write_user_data()` (playback — safecopyfrom + copy to DMA buffer), `read_user_data()` (capture — copy from DMA + safecopyto), buffer completion handler, initial fill with silence, underrun/overrun tracking. StreamManager: up to 4 concurrent streams, find_by_tag/alloc_slot/free_by_tag |
+| **`lib.rs`** | ~600 | Chardev `/dev/audio`, `/dev/audioctl`, `/dev/mixer` с NetBSD audioio.h API. AUDIO_GETINFO/SETINFO (sample rate, channels, precision, encoding slinear_le, gain, pause/play, buffer size=4×8KB fragments), AUDIO_GETDEV, AUDIO_GETENC, AUDIO_GETPROPS (full-duplex+playback+capture), AUDIO_FLUSH, AUDIO_DRAIN. Mixer ioctls: AUDIO_MIXER_READ/WRITE (volume 0-255, stereo), AUDIO_MIXER_DEVINFO. SEF lifecycle: `sef_init_fresh` (probe + init + codec enumeration + announce), `sef_signal_handler` (SIGTERM → graceful stop). Global state: HdaController, HdaCodec, StreamManager. C entry point: `hda_rust_main()`. Panic handler. 8 unit tests |
+
+- [x] **HDA register set**: GCAP (OSS, ISS, BSS), VMIN/VMAJ (version), STATESTS, CORB/RIRB (command/response ring buffers), DPIB/LPIB (position buffers), WALCLK — все определены в registers.rs с битовыми масками и helper functions
+- [x] **Codec enumeration**: CORB/RIRB command dispatch (`send_corb_command()`, `read_param()`, `send_verb()`), codec discovery via NID 0 (Vendor ID, Revision ID), AFG/SFG parsing с widget walk (AW_CAPS, widget type, PCM/format, pin caps + cfg_default, amp caps, connection list)
+- [x] **DMA engine**: Stream Descriptor DMA с BDL (Buffer Descriptor List — 2-entry double-buffer), cyclic/periodic interrupt (IOC per entry), FIFO size, LPIB position tracking, linked list of buffer entries
+- [x] **PCM audio**: Playback (16/20/24/32-bit, 44.1k/48k/96k/192k, mono-stereo-multich), Capture, Volume/Mute controls (SET_AMP_GAIN_MUTE с left/right gain), Converter format setup, Pin widget output enable
+- [x] **Codec quirks**: Pin widget configuration (output/input capable, cfg_default parsing — port/device/location/conn/color/def_assoc), GPIO count (from AFG caps), Jack detection (presence detect bit), Default Pin Configuration Defaults parsing
+- [x] **DMA buffer management**: `alloc_contig` для DMA coherent memory (audio buffers + BDL entries), 64KB per stream, double-buffer with page_size fragments
+
+- **LOC**: ~2,700 Rust (6 source files + Cargo.toml) — **vs ~3,000 estimated**
+- **Dependencies**: Phase 5 (Rust infrastructure), minix-driver (MmioRegion), audio-buf (RingPos/DmaMode/try_transfer)
+- **Status**: `cargo check --lib -p minix-hda` — **0 errors** ✅ (30 compilation errors fixed)
+- **Приоритет**: P2 — звук не критичен для серверной работы, но важен для desktop
+
+#### 7.5 Legacy NIC C shims (rtl8139, rtl8169, fxp, lance, dp8390) ✅ **COMPLETED**
+
+**Цель**: Добавление `sys_irqthread_priority()` для остальных network драйверов.
+
+**Implementation**:
+
+| Драйвер | Файл | Приоритет | Обработка ошибок |
+|---------|------|-----------|-----------------|
+| **rtl8139** | `minix/drivers/net/rtl8139/rtl8139.c` | SCHED_FIFO 40 | `printf()` — совпадает со стилем существующего `sys_irqsetpolicy` |
+| **rtl8169** | `minix/drivers/net/rtl8169/rtl8169.c` | SCHED_FIFO 40 | `printf()` — совпадает со стилем существующего `sys_irqsetpolicy` |
+| **fxp** | `minix/drivers/net/fxp/fxp.c` | SCHED_FIFO 44 | `panic()` — совпадает со стилем существующего `sys_irqsetpolicy` |
+| **lance** | `minix/drivers/net/lance/lance.c` | SCHED_FIFO 38 | `panic()` — совпадает со стилем существующего `sys_irqsetpolicy` |
+| **dp8390** | `minix/drivers/net/dp8390/dp8390.c` | SCHED_FIFO 36 | `panic()` — совпадает со стилем существующего `sys_irqsetpolicy` |
+
+- **LOC**: ~5 строк на драйвер (один `sys_irqthread_priority()` вызов после `sys_irqsetpolicy()`)
+- **Dependencies**: Phase 6 (IRQ thread framework)
+
+#### 7.6 Driver Manager + Linux LKM Compat Layer 🆕 6-8 weeks
+
+**Цель**: Создать Extensible Driver Manager, способный загружать как native `.so` драйверы, так и Linux `.ko` модули через LKM compat слой.
+
+**Архитектура**:
+
+```
+driver_manager (userspace сервис)
+│
+├── Built-in native drivers
+│   ├── AHCI, NVMe, virtio-blk      → storage class
+│   ├── e1000, virtio-net           → net class
+│   ├── xHCI, Intel HDA             → new (Phase 7)
+│   └── PCI, ACPI                   → bus class
+│
+├── Dynamic .so loader
+│   ├── ELF pars + symbol resolution
+│   ├── gergios_driver_ops binding
+│   └── Plugin: любой native driver (.so, Rust/C/Go)
+│
+├── LKM compat layer 🆕
+│   ├── ELF `.ko` loader           → загрузка Linux kernel module (ELF32/64, .modinfo секция)
+│   ├── Kernel API shim:           → ~50 эмулируемых Linux API функций
+│   │   ├── pci_register_driver()  → gergios_pci_probe() binding
+│   │   ├── request_irq()          → IRQ thread + handler
+│   │   ├── ioremap()/iounmap()    → pg_remap_page() / pg_unmap_page()
+│   │   ├── dma_alloc_coherent()   → gergios_dma_alloc_coherent()
+│   │   ├── readl()/writel()       → MMIO volatile access
+│   │   ├── printk()               → kputc() / syslog
+│   │   ├── dev_err/info/warn()    → DS debug, syslog
+│   │   ├── mdelay()/udelay()      → timer/sleep
+│   │   ├── spin_lock()/mutex_lock → mthread/spinlock wrappers
+│   │   └── module_init()/exit()   → lifecycle hooks
+│   └── GPL-only protection: EXPORT_SYMBOL_GPL символы → GPL license check
+│
+└── Binding Policy Engine
+    ├── modprobe.d-style: vendor:device → driver mapping
+    ├── ACPI PNP ID matching
+    ├── Module autoloading (watch PCI/ACPI hotplug)
+    └── Firmware loader: .fw files from /lib/firmware/
+```
+
+**Что реализовать**:
+
+- [ ] **ELF loader** — userspace ELF parser (32-bit + 64-bit), section loading, symbol resolution (`.symtab`/`.strtab`), `.modinfo` section parsing (vermagic, license, depends, firmware, parm, description). Позиция: base address по size_hint, NOEXEC stack, R_AMD64_COPY/RELATIVE/GLOB_DAT/JMP_SLOT relocations.
+- [ ] **Kernel API shim** — ~50 Linux kernel API функций с маппингом на GergiOS аналоги. Каждая функция — тонкая обёртка, не более 10-20 LOC. Приоритет: PCI (pci_register_driver, pci_enable_device, pci_set_master), DMA (dma_alloc_coherent, dma_map_single), IRQ (request_irq, free_irq, enable_irq_wake), MMIO (ioremap_nocache, readl/writel), de/allocation (kmalloc/kfree), synchronization (spin_lock_irqsave, mutex_lock/ unlock, wait_event, complete), timer (schedule_timeout, mod_timer, jiffies), logging (printk, dev_err/warn/info).
+- [ ] **Binding Policy Engine** — configuration-based (JSON/Toml): device matching (PCI vendor:device → driver path), alias resolution (PCI alias → `pci:v0000XXXXd0000XXXXsv0000XXXXsd0000XXXXbcXXscXXiXX`), module parameters (`options` file), firmware path. Modprobe-like: `modprobe iwlwifi` or `modprobe -a /path/to/ath9k.ko`.
+- [ ] **Firmware loader** — `request_firmware()` backend: поиск .fw по `MODULE_FIRMWARE` в `/lib/firmware/`, `request_firmware_nowait()` async fallback.
+- [ ] **GPL license check** — EXPORT_SYMBOL_GPL символы доступны только .ko с `MODULE_LICENSE("GPL")`.
+- **LOC**: ~3,500 C (ELF loader ~800, Kernel API shim ~1,200, Binding Policy ~500, Firmware loader ~400, Integration glue ~600)
+- **Dependencies**: Phase 1-6 (вся driver инфраструктура), Phase 7.1 (ACPI — для ACPI PNP ID matching)
+- **Приоритет**: P0 — без LKM compat слоя WiFi/GPU не работают
+
+**Deferred (Phase 8+)**:
+- `module_init()` parallel loading (SMP)
+- Livepatch / module reload via `fin_wait` / `__flush_module`
+- Module dependencies auto-load (`depmod`-style)
+- Rust `ko` loader (memory-safe ELF parser)
+
+#### 7.7 Driver Build & Distribution
+
+- [ ] **`.ko` packaging** — GergiOS LKM toolchain (kernel headers for each release), `Kbuild` → ko.mk → native `.ko` format
+- [ ] **`/lib/modules/` hierarchy** — `$(uname -r)/kernel/drivers/{net,block,usb,audio,etc}`
+- [ ] **`depmod`-equivalent** — module dependency resolution + alias map generation
+- [ ] **`modprobe` frontend** — `modprobe <driver>` (name or PCI alias), auto-deps
+- [ ] **`lsmod` frontend** — `lsmod` command, `/proc/modules`-like output
+
+**LOC**: ~1,500 C (packaging tools + userspace frontends)
+
+#### 7.8 Bluetooth (HCI USB Transport + BlueZ Userspace Port) 🆕 6-10 weeks
+
+**Цель**: Обеспечить поддержку Bluetooth: HCI USB транспорт — native (Rust), а весь host stack (L2CAP, RFCOMM, GATT, A2DP) — через порт BlueZ как userspace сервис.
+
+**Ключевое архитектурное решение**: Bluetooth не идёт через LKM compat (хотя технически можно загрузить `hci_usb.ko`). Причина:
+- HCI USB транспорт — это **простой драйвер** (USB bulk endpoints, command/event/ACL/SCO packets, ~3k LOC). Его можно написать native на Rust с полным контролем безопасности и производительности.
+- BlueZ host stack (~300k LOC) — это **userspace daemon**, а не kernel module. Его можно портировать как MINUX сервис без LKM compat, через `/dev/hci0` chardev интерфейс.
+- Это даёт: полный контроль над HCI транспортом + готовый BlueZ стек без эмуляции Linux kernel API.
+
+**Архитектура**:
+
+```
+┌────────────────────────────────────────────────────┐
+│                 Пользователь                        │
+│  bluetoothctl │ a2dp-play │ hid-keyboard │ pairing  │
+└──────────────────┬───────────────────────────────-─┘
+                   │ D-Bus
+┌──────────────────┴──────────────────────────────────┐
+│              BlueZ (userspace daemon)                 │
+│  L2CAP │ RFCOMM │ SDP │ GATT │ A2DP │ AVRCP │ HID   │
+│  SMP │ Advertising │ Scanning │ Mesh                 │
+│  ~300k LOC — портирован как MINIX сервис             │
+└──────────────────┬──────────────────────────────────┘
+                   │ HCI socket (/dev/hci0)
+┌──────────────────┴──────────────────────────────────┐
+│         HCI USB Transport (native, Rust)             │
+│  ┌─────────────────────────────────────────────┐    │
+│  │ hci_usb: HCI cmd/event/ACL/SCO over USB     │    │
+│  │ - USB bulk IN (events, ACL, SCO)             │    │
+│  │ - USB bulk OUT (commands, ACL, SCO)          │    │
+│  │ - USB interrupt (events — alt)               │    │
+│  │ - ISO data for LE Audio (BT 5.2+)            │    │
+│  │ - /dev/hci0 character device                 │    │
+│  │ - IRQ thread SCHED_FIFO 55                   │    │
+│  │ - DMA buffer: coherent для USB transfers     │    │
+│  └─────────────────────────────────────────────┘    │
+└──────────────────┬──────────────────────────────────┘
+                   │ USB URB
+┌──────────────────┴──────────────────────────────────┐
+│            xHCI (USB 3.0) — Phase 7.3               │
+└─────────────────────────────────────────────────────┘
+```
+
+**Что реализовать**:
+
+- [ ] **HCI USB transport (native Rust)** — `drivers/bluetooth/hci_usb/`:
+  - USB device probe: BT class (0xE0), subclass (0x01), protocol (0x01 for HCI USB)
+  - Interface descriptors: voice/data/isochronous endpoints parsing
+  - HCI command → USB bulk OUT endpoint
+  - HCI event → USB bulk IN endpoint (interrupt endpoint as alt)
+  - ACL data → USB bulk IN/OUT
+  - SCO/eSCO data → USB isochronous IN/OUT
+  - `/dev/hci0` chardev interface: read (events+ACL+SCO), write (commands+ACL+SCO), ioctl (HCIDEVUP, HCIDEVDOWN, HCIGETDEVLIST, HCIGETDEVINFO)
+  - Device IDs table: CSR, Broadcom (BCM20702), Intel (AX200/210), Realtek (RTL8761, RTL8822), Qualcomm (WCN399x), MediaTek (MT7921)
+  - Power management: BT radio on/off via USB suspend/resume
+  - IRQ thread: SCHED_FIFO 55 (выше network 45-50, ниже storage 85)
+
+- [ ] **HCI UART transport (future, optional)** — для combo WiFi+BT карт (Intel AX200/210 через UART):
+  - H4 (BCM), H5 (3-wire), MSBC (Intel) протоколы
+  - Отложено: только если будет конкретная необходимость
+
+- [ ] **BlueZ userspace port** — не переписывание, а адаптация существующего BlueZ 5.x:
+  - Адаптация IPC: D-Bus → MINIX IPC или D-Bus over MINIX sockets
+  - Адаптация HCI socket: `/dev/hci0` chardev read/write/ioctl вместо `SOCK_HCI`
+  - Адаптация системных вызовов: poll/select, timer, socket, scheduler
+  - Адаптация файловой системы: `/sys/class/bluetooth/`, `/sys/kernel/debug/bluetooth/` → stub или procfs
+  - Адаптация GLib → mini-GLib (event loop, main context, async I/O)
+  - Профили: A2DP (audio sink + source), HID (keyboard, mouse), GATT (BLE), PAN (network), HSP/HFP (headset)
+  - Аудио: интеграция с Intel HDA (Phase 7.4) через ALSA или напрямую через PCM
+
+- **LOC**:
+  - HCI USB native: ~3,000 Rust
+  - BlueZ port: ~0 LOC нового кода (портирование, не переписывание), ~5,000 LOC adapter shim (IPC, HCI socket, syscall wrappers)
+  - HCI UART: ~5,000 C (отложено)
+- **Dependencies**: Phase 7.3 (xHCI — USB transport), Phase 6 (IRQ threads — для SCHED_FIFO 55)
+- **Приоритет**: P3 — BT не критичен для загрузки/работы системы, но важен для desktop/peripherals
+
+#### Phase 7 RISKS
+
+| Риск | Impact | Mitigation |
+|------|--------|------------|
+| **AML interpreter сложность** | High | Начать с минимального: scope + device + method invocation без If/Else. Наращивать постепенно |
+| **xHCI context array размер** | Medium | 4KB device context × 256 slots = 1MB — DMA память, использовать `gergios_dma_alloc_coherent()` |
+| **HDA codec quirks** | Medium | Blacklist-based: известные codecs работают, неизвестные — fallback на generic |
+| **LKM GPL violation risk** | High | EXPORT_SYMBOL_GPL guard, license check при загрузке, GPL-only API по классу лицензии. Юридическая консультация обязательна |
+| **LKM API surface неполный** | Medium | Постепенное расширение: .ko загружается → сообщает о недостающих символах → добавляем |
+| **Firmware blobs размер** | Low | Для ath9k: ~30KB. Для iwlwifi: ~1-5MB. LZMA сжатие + lazy loading |
+
 ---
 
 ## 6. LOC Estimation
@@ -714,7 +1055,18 @@ ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
 | `virtio-blk` crate | ~1,200 | Rust | ✅ Production |
 | `e1000` crate | ~1,800 | Rust | ✅ Production |
 | **Phase 6: Multi-Queue** | ~2,000 | C + Rust | 🆕 |
-| **Итого** | **~17,500** | | |
+| **Phase 7: New Hardware + Driver Manager** | ~19,500 | C + Rust | 🆕 |
+| `7.1 ACPI Modernization` | ~3,000 | C | 🆕 |
+| `7.2 NVMe Driver` | ~2,500 | Rust | 🆕 |
+| `7.3 xHCI (USB 3.0)` | ~4,000 | Rust | 🆕 |
+| `7.4 Intel HDA Audio` | ~2,700 / ~3,000 | Rust | ✅ |
+| `7.5 Legacy NIC C shims` | ~0.025 | C | ✅ |
+| `7.6 Driver Manager + LKM compat` | ~3,500 | C | 🆕 |
+| `7.7 Driver Build & Distribution` | ~1,500 | C | 🆕 |
+| `7.8 Bluetooth HCI USB (native Rust)` | ~3,000 | Rust | 🆕 |
+| `7.8 BlueZ port (adapter shim, не переписывание)` | ~5,000 | C | 🆕 |
+| `Legacy NIC C shims (rtl8139, rtl8169, fxp, etc.)` | ~0.025 | C | 🆕 |
+| **Итого** | **~45,000** | | |
 
 ### Что уже сделано (не входит в оценку)
 
@@ -740,10 +1092,16 @@ ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
 | **P1** | AHCI | Phase 5, Rust | Основной storage |
 | **P1** | virtio_blk | Phase 5, Rust | Тестирование в QEMU |
 | **P1** | e1000 | Phase 5, Rust | Основной сетевой |
+| **P0** | NVMe | Phase 7, Rust | Современные SSD — без него не грузится |
+| **P0** | Driver Manager + LKM compat | Phase 7, C | Доступ к Linux драйверам (WiFi, GPU) |
+| **P1** | ACPI Modernization | Phase 7, C | AML enum, power mgmt, hot-plug |
+| **P1** | xHCI (USB 3.0) | Phase 7, Rust | USB клавиатуры/мыши/флешки |
+| **P2** | Intel HDA Audio | Phase 7 ✅ | Rust native, ~2,700 LOC |
+| **P2** | Legacy NIC C shims (rtl8139, rtl8169, fxp, lance, dp8390) | Phase 7.5 ✅ | `sys_irqthread_priority()` — 5 C files |
 | **P2** | TTY | Phase 6 | Console — низкий risk |
-| **P2** | rtl8139, fxp | Phase 6 | Популярные net |
+| **P2** | rtl8139, rtl8169, fxp, lance, dp8390 | Phase 7.5 ✅ | NIC C shims для IRQ priority — 5 файлов |
+| **P3** | Bluetooth (HCI USB + BlueZ port) | Phase 7.8 | Desktop/peripherals — P3, только после xHCI |
 | **P3** | Остальные net | Phase 6 | Legacy |
-| **P3** | Audio | — | Отложено |
 | **P4** | Sensors, printer | — | Только если нужно |
 
 ### Стратегия миграции
@@ -792,13 +1150,20 @@ Phase 1-2 (C)                    Phase 5 (Rust)
 |---------|---------|--------|
 | **PCI probing code duplication** | ~30× одинаковые блоки → **~0** (Phase 2) | 0 (централизовано) |
 | **Driver types** | 3 (block/char/net) | 1 (unified gergios_driver) |
-| **Hot-plug support** | ❌ No | ✅ PCIe + ACPI |
-| **Power management** | ❌ No → **✅ Core framework** (Phase 4) | ✅ S3 + runtime PM |
+| **Hot-plug support** | ❌ No | ✅ PCIe + ACPI (Phase 7.1) |
+| **Power management** | ❌ No → **✅ Core framework** (Phase 4) | ✅ S3 + runtime PM + ACPI _PS0/_PS3 (Phase 7.1) |
 | **DMA API** | ❌ Manual → **✅ Core API** (Phase 3) | ✅ IOMMU-backed |
-| **Rust drivers** | 0 | 3 production (virtio-blk, e1000, ahci) |
+| **Rust drivers** | 0 | 5 production (+ NVMe, xHCI Phase 7) |
 | **MMIO safety** | raw `#define` macros | `MmioRegion` (bounds-checked) |
 | **AHCI driver LOC** | ~3,500 C | ~1,700 Rust |
 | **Multi-queue (NCQ)** | Single queue | Per-CPU queues |
+| **NVMe support** | ❌ No | ✅ Native NVMe (Phase 7.2) |
+| **USB 3.0 support** | ❌ No | ✅ Native xHCI (Phase 7.3) |
+| **Audio support** | 🟡 Legacy PCI audio → ✅ Intel HDA (Phase 7.4) | Rust native ~2,700 LOC |
+| **WiFi support** | ❌ No | ✅ LKM compat → ath9k/iwlwifi (Phase 7.6) |
+| **GPU support** | ❌ Basic framebuffer | ✅ LKM compat → i915/amdgpu (Phase 7.6) |
+| **Linux driver reuse** | ❌ Not possible | ✅ LKM compat ~50 kernel API shim (Phase 7.6) |
+| **External firmware** | ❌ No loader | ✅ request_firmware() (Phase 7.6) |
 
 ---
 
