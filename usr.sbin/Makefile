@@ -13,8 +13,13 @@ SUBDIR= arp \
 	\
 	i2cscan inetd installboot \
 	\
+	depmod \
+	\
+	klkm \
 	\
 	link \
+	\
+	lsmod \
 	makefs \
 	mtree \
 	\

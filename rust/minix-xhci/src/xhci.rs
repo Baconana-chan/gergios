@@ -27,6 +27,9 @@ const MAX_SLOTS: usize = 64;
 /// Size of the Device Context Base Address Array (DCBAA) in entries.
 const DCBAA_SIZE: usize = MAX_SLOTS + 1; // Slot 0 unused, slots 1..MAX_SLOTS
 
+/// Maximum data payload per Normal TRB (17-bit transfer length field = 2^17 - 1).
+pub const MAX_TRB_DATA_LEN: u32 = 131071; // 128 KB - 1B per TRB (0x1FFFF)
+
 /// xHCI Controller state.
 pub struct XhciController {
     /// MMIO virtual base address (BAR0).
@@ -75,6 +78,14 @@ pub struct XhciController {
     pub msc_devices: [MscDevice; MAX_MSC_DEVICES],
     /// USB device registry (class driver dispatch).
     pub device_registry: UsbDeviceRegistry,
+    /// Set to true when a Transfer Event arrives via interrupt.
+    pub tx_completed: bool,
+    /// Completion code from the latest Transfer Event.
+    pub tx_cc: u8,
+    /// Set to true when a Command Completion Event arrives via interrupt.
+    pub cmd_completed: bool,
+    /// Completion code from the latest Command Completion Event.
+    pub cmd_cc: u8,
 }
 
 /// Scratchpad buffer management.
@@ -278,6 +289,10 @@ impl XhciController {
             slots: Self::init_slots(),
             device_registry: UsbDeviceRegistry::new(),
             msc_devices: core::array::from_fn(|_| MscDevice::new()),
+            tx_completed: false,
+            tx_cc: 0,
+            cmd_completed: false,
+            cmd_cc: 0,
             verbose,
         };
 
@@ -411,6 +426,8 @@ impl XhciController {
                 self.hook_id = hook;
                 self.msix_available = true;
                 if self.verbose >= 1 { ffi::print(b"xHCI: MSI-X enabled\0"); }
+                // Set IRQ thread priority (SCHED_FIFO 55 for USB controllers)
+                ffi::irq_set_priority(irq, 55);
                 return true;
             }
         }
@@ -424,6 +441,8 @@ impl XhciController {
         self.hook_id = hook_id;
         self.msix_available = false;
         if self.verbose >= 1 { ffi::print(b"xHCI: using legacy IRQ\0"); }
+        // Set IRQ thread priority (SCHED_FIFO 55 for USB controllers)
+        ffi::irq_set_priority(self.irq, 55);
         true
     }
 
@@ -477,6 +496,65 @@ impl XhciController {
         false
     }
 
+    /// Suspend a port by transitioning it to U3 (selective suspend).
+    /// Per xHCI spec Rev 1.2 §4.15.1.1.2:
+    /// - Write PLS = U3 with LWS=1 to initiate link state transition
+    /// - The controller sends LGO_Ux to the device
+    pub fn port_suspend(&self, port: u8) {
+        let mut sc = self.portsc(port);
+        sc &= !(op::portsc::PLS_MASK << op::portsc::PLS_SHIFT);
+        sc |= (op::portsc::PLS_U3 << op::portsc::PLS_SHIFT);
+        sc |= op::portsc::LWS; // Link Write Strobe — commit the PLS change
+        self.set_portsc(port, sc);
+        // Wait for U3 state to take effect
+        let timeout_us = 100_000u32;
+        let step_us = 100;
+        for _ in 0..(timeout_us / step_us) {
+            if self.port_link_state(port) == op::portsc::PLS_U3 { return; }
+            ffi::udelay(step_us);
+        }
+        if self.verbose >= 1 {
+            ffi::print(b"xHCI: port suspend timeout\0");
+        }
+    }
+
+    /// Resume a port from U3 back to U0.
+    /// Per xHCI spec Rev 1.2 §4.15.2.1:
+    /// - Write PLS = U0 with LWS=1 to initiate resume signalling
+    /// - Wait for port to transition to U0
+    pub fn port_resume(&self, port: u8) -> bool {
+        let mut sc = self.portsc(port);
+        sc &= !(op::portsc::PLS_MASK << op::portsc::PLS_SHIFT);
+        sc |= (op::portsc::PLS_U0 << op::portsc::PLS_SHIFT);
+        sc |= op::portsc::LWS; // Commit the U0 transition
+        self.set_portsc(port, sc);
+        // Wait for U0 state
+        let timeout_us = 200_000u32;
+        let step_us = 100;
+        for _ in 0..(timeout_us / step_us) {
+            let pls = self.port_link_state(port);
+            if pls == op::portsc::PLS_U0 { return true; }
+            if pls == op::portsc::PLS_POLLING || pls == op::portsc::PLS_RX_DETECT {
+                // Still connecting — keep waiting
+            }
+            ffi::udelay(step_us);
+        }
+        if self.verbose >= 1 {
+            ffi::print(b"xHCI: port resume timeout\0");
+        }
+        false
+    }
+
+    /// Find the root hub port for a given device slot.
+    pub fn slot_port(&self, slot_id: u8) -> u8 {
+        let idx = slot_id as usize;
+        if idx < self.slots.len() && self.slots[idx].assigned {
+            self.slots[idx].port
+        } else {
+            0
+        }
+    }
+
     // ========================================================================
     // Command Ring Operations
     // ========================================================================
@@ -494,43 +572,74 @@ impl XhciController {
         }
     }
 
+    /// Poll the event ring for a Command Completion Event.
+    /// Uses interrupt-driven completion if available (xhci_intr sets cmd_completed).
+    /// Falls back to poll-based with udelay if interrupt hasn't arrived yet.
     fn poll_event_ring(&mut self) -> bool {
         let timeout_us = 5_000_000u32;
         let step_us = 100;
-        for _ in 0..(timeout_us / step_us) {
-            while let Some(event) = self.event_ring.next_event() {
-                match event.trb_type() {
-                    Some(TrbType::CommandCompletionEvent) => {
-                        let cc_val = (event.status[0] as u16) | ((event.status[1] as u16) << 8);
-                        let cc = cc_val & 0xFF;
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                        return cc == 1;
-                    }
-                    Some(TrbType::PortStatusChangeEvent) => {
-                        let port_id = event.flags[3];
-                        if self.verbose >= 1 { ffi::print(b"xHCI: port status change\0"); }
-                        if port_id > 0 && port_id <= self.max_ports {
-                            let sc = self.portsc(port_id);
-                            self.set_portsc(port_id, sc | op::portsc::CSC);
-                        }
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                    }
-                    Some(TrbType::TransferEvent) => {
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                    }
-                    _ => {
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                    }
-                }
-            }
-            ffi::udelay(step_us);
+
+        // First, drain any events that may have arrived before we started waiting
+        // (the interrupt handler or a previous poll may not have caught everything)
+        self.drain_event_ring();
+
+        // Check if a Command Completion Event has already arrived via interrupt
+        if self.cmd_completed {
+            let cc_ok = self.cmd_cc == 1;
+            self.cmd_completed = false;
+            self.cmd_cc = 0;
+            return cc_ok;
         }
+
+        // Fallback: poll with udelay and drain events
+        for _ in 0..(timeout_us / step_us) {
+            ffi::udelay(step_us);
+            self.drain_event_ring();
+
+            if self.cmd_completed {
+                let cc_ok = self.cmd_cc == 1;
+                self.cmd_completed = false;
+                self.cmd_cc = 0;
+                return cc_ok;
+            }
+        }
+
         if self.verbose >= 1 { ffi::print(b"xHCI: command timeout\0"); }
         false
+    }
+
+    /// Drain all currently available events from the event ring.
+    /// Dispatches them to the appropriate completion flags.
+    fn drain_event_ring(&mut self) {
+        while let Some(event) = self.event_ring.next_event() {
+            match event.trb_type() {
+                Some(TrbType::CommandCompletionEvent) => {
+                    let cc_val = (event.status[0] as u16) | ((event.status[1] as u16) << 8);
+                    let cc = (cc_val & 0xFF) as u8;
+                    self.cmd_completed = true;
+                    self.cmd_cc = cc;
+                }
+                Some(TrbType::TransferEvent) => {
+                    let cc_val = (event.status[0] as u16) | ((event.status[1] as u16) << 8);
+                    let cc = (cc_val & 0xFF) as u8;
+                    self.tx_completed = true;
+                    self.tx_cc = cc;
+                }
+                Some(TrbType::PortStatusChangeEvent) => {
+                    let port_id = event.flags[3];
+                    if self.verbose >= 1 { ffi::print(b"xHCI: port status change\0"); }
+                    if port_id > 0 && port_id <= self.max_ports {
+                        let sc = self.portsc(port_id);
+                        self.set_portsc(port_id, sc | op::portsc::CSC);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Update ERDP to acknowledge all drained events
+        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
+        self.rt_w64(0, rt::ERDP, erdp);
     }
 
     // ========================================================================
@@ -757,8 +866,14 @@ impl XhciController {
     /// `ep_num` — endpoint number (1..15, use 0 for EP0 with care).
     /// `dir_in` — true for IN (device→host), false for OUT (host→device).
     /// `data_phys` — physical address of the DMA data buffer.
-    /// `data_len` — transfer length in bytes (max 65535 per Normal TRB).
+    /// `data_len` — transfer length in bytes (max 131071 per Normal TRB).
     /// `ioc` — interrupt on completion (set true to get a Transfer Event).
+    ///
+    /// For transfers exceeding `MAX_TRB_DATA_LEN` (128KB), the buffer is automatically
+    /// split into multiple CHAIN-linked Normal TRBs:
+    /// - The first N-1 TRBs have CHAIN=1 (more data follows)
+    /// - The last TRB has CHAIN=0, IOC set per `ioc` parameter
+    /// - All TRBs written atomically before ringing the doorbell once
     pub fn queue_bulk_transfer(&mut self, slot_id: u8, ep_num: u8, dir_in: bool,
         data_phys: u64, data_len: u32, ioc: bool) -> bool
     {
@@ -772,27 +887,66 @@ impl XhciController {
         let slot = &mut self.slots[idx];
         let ring = match &mut slot.transfer_rings[ep_idx] {
             Some(r) => r,
-            None => return false, // Endpoint not configured — use configure_endpoint first
+            None => return false,
         };
 
-        // Build a Normal transfer TRB
-        let trb = build_normal_transfer_trb(
-            ring.cycle, data_phys, data_len, 0, 0, false, ioc
-        );
+        let max_per_trb = MAX_TRB_DATA_LEN;
+        let num_trbs = ((data_len + max_per_trb - 1) / max_per_trb) as usize;
 
-        // Reserve slot and write to ring
-        match ring.reserve() {
-            Some(ptr) => {
-                unsafe { ptr::write_volatile(ptr, trb); }
-                ring.commit();
+        // Check that we have enough room in the ring (need num_trbs + 1 for wrap gap)
+        // A TrbRing with RING_SIZE=256 and 1-slot gap means max 255 available.
+        let space_needed = num_trbs + 1;
+        let ring_avail = ring.num_trbs - 1; // 1-slot gap
+        if space_needed > ring_avail {
+            if self.verbose >= 1 {
+                ffi::print(b"xHCI: ring full for multi-TRB transfer\0");
             }
-            None => return false,
+            return false;
         }
 
-        // Ring doorbell to notify the xHC
+        let mut remaining = data_len;
+        let mut offset: u64 = 0;
+        let mut trbs_written = 0usize;
+
+        for i in 0..num_trbs {
+            let seg_len = if remaining > max_per_trb { max_per_trb } else { remaining };
+            let is_last = i == num_trbs - 1;
+            let is_chain = !is_last; // All but last have CHAIN=1
+            let seg_ioc = if is_last { ioc } else { false }; // Only last has IOC
+
+            let seg_phys = data_phys + offset;
+
+            match ring.reserve() {
+                Some(ptr) => {
+                    let trb = build_normal_transfer_trb(
+                        ring.cycle, seg_phys, seg_len, 0, 0, is_chain, seg_ioc
+                    );
+                    unsafe { ptr::write_volatile(ptr, trb); }
+                    trbs_written += 1;
+                }
+                None => {
+                    // Should not happen since we checked space_needed
+                    if self.verbose >= 1 {
+                        ffi::print(b"xHCI: multi-TRB reserve failed\0");
+                    }
+                    return false;
+                }
+            }
+
+            remaining -= seg_len;
+            offset += seg_len as u64;
+        }
+
+        if trbs_written == 0 {
+            return false;
+        }
+
+        // Commit all TRBs atomically, then ring doorbell once
+        ring.commit();
         self.ring_doorbell(slot_id, dci);
+
         if self.verbose >= 2 {
-            ffi::print(b"xHCI: bulk transfer queued\0");
+            ffi::print(b"xHCI: multi-TRB bulk transfer queued\0");
         }
         true
     }
@@ -864,49 +1018,42 @@ impl XhciController {
         true
     }
 
-    /// Poll the event ring for a Transfer Event from a specific endpoint.
-    /// Returns true if a Transfer Event with Success completion code was seen.
-    /// Timeout: `timeout_us` microseconds.
+    /// Poll for a Transfer Event completion.
+    /// Uses interrupt-driven completion if available (xhci_intr sets tx_completed).
+    /// Falls back to poll-based with udelay as a safety net.
+    /// Timeout: `timeout_us` microseconds (0 = poll once).
     pub fn poll_transfer_event(&mut self, timeout_us: u32) -> bool {
+        // First, drain any events already in the ring (interrupt may have
+        // arrived and set tx_completed, or events accumulated between checks)
+        self.drain_event_ring();
+
+        // Check if a Transfer Event has already arrived via interrupt
+        if self.tx_completed {
+            let cc_ok = self.tx_cc == 1;
+            self.tx_completed = false;
+            self.tx_cc = 0;
+            return cc_ok;
+        }
+
+        if timeout_us == 0 {
+            return false; // Non-blocking: already checked
+        }
+
+        // Fallback: short poll with udelay
         let step_us = 100u32;
-        let iterations = if timeout_us == 0 { 1 } else { timeout_us / step_us };
+        let iterations = timeout_us / step_us;
         for _ in 0..iterations {
-            while let Some(event) = self.event_ring.next_event() {
-                match event.trb_type() {
-                    Some(TrbType::TransferEvent) => {
-                        // Check completion code (status[0..1])
-                        let cc = (event.status[0] as u16 | ((event.status[1] as u16) << 8)) & 0xFF;
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                        return cc == 1; // Success
-                    }
-                    Some(TrbType::CommandCompletionEvent) => {
-                        let cc = (event.status[0] as u16 | ((event.status[1] as u16) << 8)) & 0xFF;
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                        // Don't return — keep polling for Transfer Event
-                    }
-                    Some(TrbType::PortStatusChangeEvent) => {
-                        let port_id = event.flags[3];
-                        if port_id > 0 && port_id <= self.max_ports {
-                            let sc = self.portsc(port_id);
-                            self.set_portsc(port_id, sc | op::portsc::CSC);
-                        }
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                    }
-                    _ => {
-                        let erdp = self.event_ring.dequeue_phys() | rt::erdp::EHB;
-                        self.rt_w64(0, rt::ERDP, erdp);
-                    }
-                }
-            }
-            if timeout_us > 0 {
-                ffi::udelay(step_us);
-            } else {
-                break; // No timeout = poll once
+            ffi::udelay(step_us);
+            self.drain_event_ring();
+
+            if self.tx_completed {
+                let cc_ok = self.tx_cc == 1;
+                self.tx_completed = false;
+                self.tx_cc = 0;
+                return cc_ok;
             }
         }
+
         false
     }
 

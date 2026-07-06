@@ -562,105 +562,14 @@ For full details, see:
 ### 5. Driver Model Modernization
 
 #### Current State
-- Legacy driver interfaces (block/char/net — 3 separate `struct`)
-- Monolithic driver structure
-- Poor hot-plug support
-- Rust driver pilots: virtio-blk ✅ (production), e1000 ✅ (production), ahci ✅ (pilot)
-- **Новая модель**: `libgergios_driver` с unified driver struct (~1,100 LOC C) — ✅ Завершено
-- **DMA & IOMMU**: AMD-Vi + Intel VT-d backends (~1,700 LOC C) — ✅ Завершено
-- **Power Management**: ACPI S3 + runtime PM + PCI D-state (~530 LOC C) — ✅ Завершено
+- **Phase 1-4** (Driver Core, Hot-Plug, DMA/IOMMU, PM) — ✅ **COMPLETED**
+- **Phase 5** (Rust Migration) — ✅ **COMPLETED** (PCI, AHCI, virtio-blk, e1000 pilots)
+- **Phase 6** (Multi-Queue & Performance) — ✅ **COMPLETED** (NCQ, MSI-X, IRQ threads, RT scheduler)
+- **Phase 7** (New Hardware + Driver Manager) — ✅ **7.1–7.8 COMPLETED** (incl. HCI UART + fw loading)
+- **Phase 8** (BlueZ Userspace Port) — 🆕 **NOT STARTED**
 
-#### Target State
-- Modern driver framework (`struct gergios_driver` unified)
-- Modular driver structure
-- Hot-plug support
-- Rust-based drivers for critical components
-- DMA API (IOMMU-backed: AMD-Vi + Intel VT-d + direct + bounce)
-- Power Management (ACPI S3, runtime PM, PCI D-state)
-
-#### Migration Steps
-
-**Phase 1: Foundation — Unified Driver Core ✅**
-- [x] Design Rust-C FFI interface standards (minix-driver crate)
-- [x] Evaluate existing MINIX driver models (chardriver, blockdriver)
-- [x] Create `add_rust_library()` CMake function for Rust staticlib integration
-- [x] **`libgergios_driver`** (7 файлов, ~1,100 LOC C):
-  - `gergios_driver.h` — unified driver struct с type-specific union (block/char/net)
-  - `gergios_device.h` — device abstraction с 6-state machine + resource descriptors
-  - `core.c` — driver register/announce/main IPC loop, dispatch (block/char/net)
-  - `match.c` — device ID matching with wildcards
-  - `compat.c` — adapter functions for legacy block/char/net drivers
-  - `device.c` — device lifecycle (create, destroy, refcount, state machine)
-  - `CMakeLists.txt` — `add_minix_library()`, headers install
-
-**Phase 2: Hot-Plug & Device Discovery ✅**
-- [x] **`pci_scan.c/h`** (~350 LOC C):
-  - `gergios_pci_probe()` — сканирование всех PCI устройств
-  - BAR discovery (MMIO/port I/O/IRQ через `pci_get_bar()`)
-  - Device matching через `gergios_device_match()` с wildcard поддержкой
-  - Hot-plug: `gergios_hotplug_register/unregister()` с callback
-  - `gergios_hotplug_event()` — типы ADDED/REMOVED/RESCAN
-  - Валидация BAR address, pci_reserve, обработка ошибок
-
-**Phase 3: DMA & IOMMU ✅**
-- [x] **DMA API** (`dma.h/c`, ~620 LOC C):
-  - `gergios_dma_ops` — alloc_coherent, map_single, map_sg, sync, set_mask
-  - **Direct DMA** — alloc_contig + sys_umap_remote + vm_adddma/deldma
-  - **Bounce buffer** — пул из 16 буферов в low memory (для устройств без 64-bit DMA)
-  - **IOMMU-backed** — per-device domain, маршрутизация через iommu backend
-- [x] **AMD-Vi backend** (`iommu_amd.c`, ~420 LOC):
-  - IVRS ACPI table parsing, DEV_BASE/CR/CMDBUF регистры, device table (65536×16B)
-  - Domain alloc (level-3 page table), IOTLB invalidation через command buffer
-- [x] **Intel VT-d backend** (`iommu_vtd.c`, ~450 LOC):
-  - DMAR ACPI table parsing, root table (256×8B), context table (per-bus)
-  - Queued invalidation (512-entry ring), GCMD/TE enable
-- [x] **Shared ACPI scanning** (`iommu.c`, ~180 LOC):
-  - `acpi_find_rsdp()` (BIOS 0xE0000-0xFFFFF), `acpi_find_table()` (RSDT/XSDT)
-  - Priority-ordered backend list (VT-d first, then AMD-Vi)
-
-**Phase 4: Power Management ✅**
-- [x] **PM framework** (`pm.h/c`, ~530 LOC C):
-  - `gergios_pm_device` — dev, d_state, pm_state, idle_count/threshold, usage_count
-  - System sleep states (S0-S5), PCI D-states (D0-D3cold) с полными PMCSR битовыми масками
-  - **ACPI weak stubs** — `__attribute__((weak))` для AcpiEnterSleepState/Prep/GetSleepTypeData
-  - **PCI PM capability walking** — CAP_PTR → linked list search
-  - **Device suspend** — reverse-registration leaf→root, PCI D3hot
-  - **Device resume** — PCI D0 restore + drv->ops.pm->resume
-  - **Runtime PM** — idle_count at 1 Hz tick, auto-D3hot при threshold + usage_count==0
-  - Debug: `pm_dump()` всех PM состояний
-
-**Phase 5: Rust Driver Migration 🆕**
-- [x] Rust AHCI driver pilot (`rust/minix-ahci/`, ~1,700 LOC Rust) — PCI probe, HBA, ATA commands
-- [x] Rust PCI bus driver (`rust/minix-pci/`, pilot) — chardriver, IPC, ACL
-- [x] **Rust virtio-blk** (`rust/virtio-blk/`, ✅ production) — lock-free virtqueue, MT-safe, LU/geometry
-- [x] **Rust e1000** (`rust/e1000/`, ✅ production) — PCI probe, MMIO, TX/RX rings, jumbo frames, netdriver
-- [ ] Migrate block drivers to Rust (AHCI → SATA, NVMe)
-- [ ] Migrate character drivers to Rust
-- [ ] Migrate network drivers to Rust
-- [ ] Migrate other drivers
-
-**Phase 6: Multi-Queue & Performance 🆕**
-- [x] **Multi-queue AHCI** — NCQ depth=32, FPDMA, per-slot PRDT, SACT polling
-- [x] **Multi-queue virtio** — VIRTIO_BLK_F_MQ negotiation, queue_for_tid() round-robin
-- [x] **MSI-X support** — ядро (IRQ alloc 48-63 pool), PCI MSI-X cap parsing, AHCI/virtio/e1000 vectors
-- [x] **Threaded IRQ handlers** — `WorkQueue` lock-free SPSC ring buffer, top-half/bottom-half
-- [x] **Priority-based scheduling for IRQ threads** ✅ — RT scheduler (SCHED_FIFO/SCHED_RR) + ring 0 kernel thread per-IRQ
-- [ ] Interrupt load balancing (future: SMP)
-- [ ] Per-CPU command queue (future: SMP)
-
-#### Dependencies
-- Architecture migration
-- C language modernization (Rust toolchain ✅)
-- Build system migration (CMake ✅)
-
-#### Risks
-- Complex driver interfaces
-- Hardware availability for testing
-- Rust FFI safety (panic across FFI boundary)
-- Staticlib link order with unresolved symbols
-- Performance overhead
-
-**Подробнее**: `planning/23_driver_model_modernization.md` — полная документация, LOC breakdown, инвентаризация драйверов
+#### Подробнее
+`planning/23_driver_model_modernization.md` — полная документация, LOC breakdown, инвентаризация драйверов
 
 
 ---

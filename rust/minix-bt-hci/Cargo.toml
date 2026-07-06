@@ -1,0 +1,17 @@
+[package]
+name = "minix-bt-hci"
+version = "0.1.0"
+edition = "2021"
+description = "Bluetooth HCI USB Transport driver for MINIX — native Rust implementation for /dev/hci0"
+
+[lib]
+name = "minix_bt_hci"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+std = []
+sanitize = []

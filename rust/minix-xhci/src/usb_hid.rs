@@ -60,6 +60,7 @@ pub const MAX_KEYS: usize = 6;
 pub enum HidDeviceKind {
     Keyboard,
     Mouse,
+    Gamepad,
     Other,
 }
 
@@ -154,9 +155,10 @@ struct HidParserState {
     report_id: u8,
     /// Current bit offset in the report being built.
     bit_offset: u16,
-    /// Whether we are inside a keyboard or mouse application collection.
+    /// Whether we are inside a keyboard, mouse, or gamepad application collection.
     in_keyboard: bool,
     in_mouse: bool,
+    in_gamepad: bool,
     /// Parsed layouts built so far.
     layout: HidReportLayout,
 }
@@ -170,7 +172,7 @@ impl HidParserState {
             usage_min: 0, usage_max: 0, has_usage_minmax: false,
             report_size: 0, report_count: 0, report_id: 0,
             bit_offset: 0,
-            in_keyboard: false, in_mouse: false,
+            in_keyboard: false, in_mouse: false, in_gamepad: false,
             layout: HidReportLayout::new(),
         }
     }
@@ -307,6 +309,10 @@ fn parse_report_descriptor(desc: &[u8]) -> HidReportLayout {
                                     } else if usage == hid_generic_desktop::MOUSE {
                                         state.in_mouse = true;
                                         state.bit_offset = 0;
+                                    } else if usage == hid_generic_desktop::GAMEPAD ||
+                                              usage == hid_generic_desktop::JOYSTICK {
+                                        state.in_gamepad = true;
+                                        state.bit_offset = 0;
                                     }
                                 }
                             }
@@ -321,10 +327,11 @@ fn parse_report_descriptor(desc: &[u8]) -> HidReportLayout {
                                 // Reset for potential next application
                             }
                         }
-                        // After closing collection, check if we were in keyboard/mouse
+                        // After closing collection, check if we were in keyboard/mouse/gamepad
                         if collection_depth == 0 {
                             state.in_keyboard = false;
                             state.in_mouse = false;
+                            state.in_gamepad = false;
                         }
                     }
                     hid_item::TAG_INPUT => {
@@ -538,6 +545,55 @@ impl MouseState {
 }
 
 // ============================================================================
+// Gamepad State
+// ============================================================================
+
+/// Represents the current state of a USB HID gamepad / joystick.
+///
+/// Supports up to 32 buttons, 6 analog axes (X, Y, Z, Rx, Ry, Rz),
+/// and a HAT switch (directional pad).
+#[derive(Clone, Copy, Debug)]
+pub struct GamepadState {
+    /// Bitmask of pressed buttons (bit 0 = Button 1).
+    pub buttons: u32,
+    /// X-axis value (signed, typically -32768..32767).
+    pub x: i16,
+    /// Y-axis value.
+    pub y: i16,
+    /// Z-axis value.
+    pub z: i16,
+    /// Rx-axis value (rotation X).
+    pub rx: i16,
+    /// Ry-axis value (rotation Y).
+    pub ry: i16,
+    /// Rz-axis value (rotation Z).
+    pub rz: i16,
+    /// HAT switch position: 0-7 for 8 directions (N, NE, E, SE, S, SW, W, NW),
+    /// 0x0F = centered/released.
+    pub hat: i8,
+    /// Whether any value changed since last poll.
+    pub has_changed: bool,
+}
+
+impl GamepadState {
+    fn new() -> Self {
+        Self {
+            buttons: 0, x: 0, y: 0, z: 0,
+            rx: 0, ry: 0, rz: 0,
+            hat: 0x0F, has_changed: false,
+        }
+    }
+
+    pub const fn new_static() -> Self {
+        Self {
+            buttons: 0, x: 0, y: 0, z: 0,
+            rx: 0, ry: 0, rz: 0,
+            hat: 0x0F, has_changed: false,
+        }
+    }
+}
+
+// ============================================================================
 // HID Device State
 // ============================================================================
 
@@ -561,6 +617,8 @@ pub struct HidDevice {
     pub prev_keyboard: KeyboardState,
     /// Current mouse state (valid if kind == Mouse).
     pub mouse: MouseState,
+    /// Current gamepad state (valid if kind == Gamepad).
+    pub gamepad: GamepadState,
 }
 
 impl HidDevice {
@@ -573,6 +631,7 @@ impl HidDevice {
             keyboard: KeyboardState::new(),
             prev_keyboard: KeyboardState::new(),
             mouse: MouseState::new(),
+            gamepad: GamepadState::new(),
         }
     }
 
@@ -586,6 +645,7 @@ impl HidDevice {
             keyboard: KeyboardState::new_static(),
             prev_keyboard: KeyboardState::new_static(),
             mouse: MouseState::new_static(),
+            gamepad: GamepadState::new_static(),
         }
     }
 }
@@ -595,11 +655,12 @@ impl HidDevice {
 // ============================================================================
 
 /// Parse the raw HID report bytes using the parsed layout.
-/// Fills in keyboard or mouse state accordingly.
+/// Fills in keyboard, mouse, or gamepad state accordingly.
 fn parse_hid_report(dev: &mut HidDevice, report_data: &[u8]) {
     match dev.kind {
         HidDeviceKind::Keyboard => parse_keyboard_report(dev, report_data),
         HidDeviceKind::Mouse => parse_mouse_report(dev, report_data),
+        HidDeviceKind::Gamepad => parse_gamepad_report(dev, report_data),
         HidDeviceKind::Other => {}
     }
 }
@@ -748,6 +809,97 @@ fn parse_mouse_report(dev: &mut HidDevice, data: &[u8]) {
 
     let buttons_changed = buttons != prev_buttons;
     dev.mouse = MouseState { buttons, x, y, wheel, has_moved, buttons_changed };
+}
+
+// ============================================================================
+// Gamepad Report Parser
+// ============================================================================
+
+/// Parse a gamepad/joystick HID report using the layout fields.
+/// Extracts axes (X, Y, Z, Rx, Ry, Rz), buttons, and HAT switch.
+fn parse_gamepad_report(dev: &mut HidDevice, data: &[u8]) {
+    let prev_buttons = dev.gamepad.buttons;
+    let mut buttons: u32 = 0;
+    let mut x: i16 = 0;
+    let mut y: i16 = 0;
+    let mut z: i16 = 0;
+    let mut rx: i16 = 0;
+    let mut ry: i16 = 0;
+    let mut rz: i16 = 0;
+    let mut hat: i8 = 0x0F;
+
+    for i in 0..dev.layout.num_fields as usize {
+        let field = &dev.layout.fields[i];
+        if field.is_constant {
+            continue;
+        }
+
+        let byte_idx = field.byte_offset as usize;
+        if byte_idx >= data.len() {
+            continue;
+        }
+
+        match field.usage_page as u16 {
+            pg if pg == hid_usage_page::BUTTON => {
+                // Extract up to 32 buttons from variable-style button fields
+                let max_buttons = core::cmp::min(field.report_count, 32);
+                for b in 0..max_buttons {
+                    let bit_pos = (field.bit_offset as u16) + b as u16 * (field.bit_size as u16);
+                    let byte_pos = byte_idx + (bit_pos / 8) as usize;
+                    let bit_in_byte = (bit_pos % 8) as u8;
+                    if byte_pos < data.len() {
+                        if (data[byte_pos] >> bit_in_byte) & 1 != 0 {
+                            buttons |= 1 << b;
+                        }
+                    }
+                }
+            }
+            pg if pg == hid_usage_page::GENERIC_DESKTOP => {
+                let val = extract_signed_value(data, byte_idx,
+                    field.bit_offset as u16, field.bit_size as u16);
+
+                if field.usage_min <= hid_generic_desktop::X &&
+                   field.usage_max >= hid_generic_desktop::X {
+                    x = val;
+                }
+                if field.usage_min <= hid_generic_desktop::Y &&
+                   field.usage_max >= hid_generic_desktop::Y {
+                    y = val;
+                }
+                if field.usage_min <= hid_generic_desktop::Z &&
+                   field.usage_max >= hid_generic_desktop::Z {
+                    z = val;
+                }
+                if field.usage_min <= hid_generic_desktop::RX &&
+                   field.usage_max >= hid_generic_desktop::RX {
+                    rx = val;
+                }
+                if field.usage_min <= hid_generic_desktop::RY &&
+                   field.usage_max >= hid_generic_desktop::RY {
+                    ry = val;
+                }
+                if field.usage_min <= hid_generic_desktop::RZ &&
+                   field.usage_max >= hid_generic_desktop::RZ {
+                    rz = val;
+                }
+                if field.usage_min <= hid_generic_desktop::HAT_SWITCH &&
+                   field.usage_max >= hid_generic_desktop::HAT_SWITCH {
+                    hat = val as i8;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let has_changed = buttons != prev_buttons
+        || x != dev.gamepad.x || y != dev.gamepad.y
+        || z != dev.gamepad.z || rx != dev.gamepad.rx
+        || ry != dev.gamepad.ry || rz != dev.gamepad.rz
+        || hat != dev.gamepad.hat;
+
+    dev.gamepad = GamepadState {
+        buttons, x, y, z, rx, ry, rz, hat, has_changed,
+    };
 }
 
 /// Extract a signed value from data at the given byte offset and bit position.
@@ -941,7 +1093,7 @@ impl HidDriver {
 
     /// Poll the HID device's interrupt endpoint for a new report.
     /// Returns true if a report was received.
-    fn poll_interrupt(dev: &mut HidDevice, xhc: &mut XhciController) -> bool {
+    pub(crate) fn poll_interrupt(dev: &mut HidDevice, xhc: &mut XhciController) -> bool {
         if dev.ep_in == 0 {
             return false;
         }
@@ -1127,8 +1279,9 @@ impl UsbClassDriver for HidDriver {
 
                 // Allocate interrupt buffer based on protocol defaults
                 let intr_size = match device_kind {
-                    HidDeviceKind::Keyboard => 8,  // Standard keyboard report
-                    HidDeviceKind::Mouse => 8,      // Standard mouse report
+                    HidDeviceKind::Keyboard => 8,   // Standard keyboard report
+                    HidDeviceKind::Mouse => 8,       // Standard mouse report
+                    HidDeviceKind::Gamepad => 16,    // Extended gamepad report
                     HidDeviceKind::Other => mps as usize,
                 };
                 let mut intr_buf = match RingMem::alloc(core::cmp::max(64, intr_size.next_power_of_two())) {
@@ -1196,6 +1349,28 @@ impl UsbClassDriver for HidDriver {
                     }
                 }
             }
+            if device_kind == HidDeviceKind::Other {
+                for i in 0..layout.num_fields as usize {
+                    let f = &layout.fields[i];
+                    if f.usage_page == hid_usage_page::GENERIC_DESKTOP as u16 &&
+                       (f.usage_min <= hid_generic_desktop::GAMEPAD &&
+                        f.usage_max >= hid_generic_desktop::GAMEPAD) {
+                        device_kind = HidDeviceKind::Gamepad;
+                        break;
+                    }
+                }
+            }
+            if device_kind == HidDeviceKind::Other {
+                for i in 0..layout.num_fields as usize {
+                    let f = &layout.fields[i];
+                    if f.usage_page == hid_usage_page::GENERIC_DESKTOP as u16 &&
+                       (f.usage_min <= hid_generic_desktop::JOYSTICK &&
+                        f.usage_max >= hid_generic_desktop::JOYSTICK) {
+                        device_kind = HidDeviceKind::Gamepad;
+                        break;
+                    }
+                }
+            }
         }
 
         // Step 4: Configure interrupt endpoint
@@ -1223,6 +1398,7 @@ impl UsbClassDriver for HidDriver {
         self.devices[dev_idx].keyboard = KeyboardState::new();
         self.devices[dev_idx].prev_keyboard = KeyboardState::new();
         self.devices[dev_idx].mouse = MouseState::new();
+        self.devices[dev_idx].gamepad = GamepadState::new();
         self.num_devices += 1;
 
         if self.verbose >= 1 {

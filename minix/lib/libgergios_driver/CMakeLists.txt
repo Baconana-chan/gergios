@@ -24,6 +24,11 @@ add_minix_library(gergios_driver
         pm.c
         hotplug.c
         elf_loader.c
+        kernel_shim.c
+        kernel_shim_syms.c
+        modprobe.c
+        drvmanager.c
+        drvmanager_pool.c
     INSTALL_DIR /usr/lib
 )
 
@@ -41,5 +46,9 @@ install(FILES
     pm.h
     hotplug.h
     elf_loader.h
+    kernel_shim.h
+    modprobe.h
+    drvmanager.h
+    drvmanager_pool.h
     DESTINATION /usr/include/minix
 )

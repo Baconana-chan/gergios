@@ -10,6 +10,7 @@ crate-type = ["staticlib", "lib"]
 
 [dependencies]
 minix-driver = { path = "../minix-driver" }
+minix-bt-hci = { path = "../minix-bt-hci" }
 
 [features]
 default = []

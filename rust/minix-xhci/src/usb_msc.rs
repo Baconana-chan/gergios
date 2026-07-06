@@ -16,9 +16,10 @@ use crate::ffi;
 use crate::ring::{RingMem, RING_SIZE};
 use crate::registers::{
     self, EndpointDescriptor, InterfaceDescriptor, usb_descriptor,
-    usb_class, usb_xfer_type, Cbw, Csw,
+    usb_class, usb_xfer_type, Cbw, Csw, ScsiSenseData,
     build_read10_cdb, build_write10_cdb, build_read_capacity10_cdb,
-    build_inquiry_cdb, build_test_unit_ready_cdb, ReadCapacity10,
+    build_inquiry_cdb, build_test_unit_ready_cdb, build_request_sense_cdb,
+    ReadCapacity10,
 };
 use crate::xhci::XhciController;
 
@@ -47,6 +48,10 @@ pub struct MscDevice {
     pub cbw_buf: Option<RingMem>,
     /// DMA buffer for CSW (13 bytes).
     pub csw_buf: Option<RingMem>,
+    /// DMA data buffer for BOT bulk data transfers (256KB max).
+    pub data_buf: Option<RingMem>,
+    /// Last SCSI sense data from automatic Request Sense on error.
+    pub last_sense: ScsiSenseData,
 }
 
 impl MscDevice {
@@ -61,19 +66,23 @@ impl MscDevice {
             ready: false,
             cbw_buf: None,
             csw_buf: None,
+            data_buf: None,
+            last_sense: ScsiSenseData::zeroed(),
         }
     }
 
-    /// Allocate DMA buffers for CBW and CSW.
+    /// Allocate DMA buffers for CBW, CSW, and data (256KB).
     fn alloc_buffers(&mut self) -> bool {
         self.cbw_buf = RingMem::alloc(64); // 64 bytes (31 + padding)
         self.csw_buf = RingMem::alloc(64); // 64 bytes (13 + padding)
-        self.cbw_buf.is_some() && self.csw_buf.is_some()
+        self.data_buf = RingMem::alloc(262144); // 256KB for bulk data (up to 2× MAX_TRB_DATA_LEN)
+        self.cbw_buf.is_some() && self.csw_buf.is_some() && self.data_buf.is_some()
     }
 
     fn free_buffers(&mut self) {
         if let Some(b) = &mut self.cbw_buf { b.free(); self.cbw_buf = None; }
         if let Some(b) = &mut self.csw_buf { b.free(); self.csw_buf = None; }
+        if let Some(b) = &mut self.data_buf { b.free(); self.data_buf = None; }
     }
 }
 
@@ -237,7 +246,15 @@ pub fn bot_transport(xhc: &mut XhciController, slot_id: u8,
     // Parse CSW
     let csw_data = unsafe { core::slice::from_raw_parts(csw_virt as *const u8, 13) };
     match Csw::parse(csw_data) {
-        Some(csw) => csw.is_ok(),
+        Some(csw) => {
+            if csw.is_ok() {
+                true
+            } else {
+                // CSW indicates failure — auto-sense to capture error details
+                let _ = auto_sense(xhc, dev_idx);
+                false
+            }
+        }
         None => false,
     }
 }
@@ -311,6 +328,106 @@ pub fn scsi_write10(xhc: &mut XhciController, dev_idx: usize,
     let cdb = build_write10_cdb(lba, num_blocks);
     bot_transport(xhc, dev.slot_id, dev.ep_out, dev.ep_in,
         5, 0, false, data_phys, data_len, &cdb)
+}
+
+// ============================================================================
+// SCSI Request Sense + Auto-sense (Autoparam)
+// ============================================================================
+
+/// Issue SCSI REQUEST SENSE to get error details after a failed command.
+/// Stores sense data in the device's `last_sense` field.
+/// Returns true if sense data was retrieved successfully.
+pub fn scsi_request_sense(xhc: &mut XhciController, dev_idx: usize,
+    data_phys: u64, data_virt: *mut u8
+) -> bool {
+    if dev_idx >= MAX_MSC_DEVICES || !xhc.msc_devices[dev_idx].ready {
+        return false;
+    }
+    let dev = &xhc.msc_devices[dev_idx];
+    let cdb = build_request_sense_cdb(18);
+    if !bot_transport(xhc, dev.slot_id, dev.ep_out, dev.ep_in,
+        6, 0, true, data_phys, 18, &cdb)
+    {
+        return false;
+    }
+    // Parse sense data from the data buffer
+    let data = unsafe { core::slice::from_raw_parts(data_virt as *const u8, 18) };
+    match ScsiSenseData::parse(data) {
+        Some(sense) => {
+            xhc.msc_devices[dev_idx].last_sense = sense;
+            true
+        }
+        None => false,
+    }
+}
+
+/// Auto-sense helper: called when a SCSI command fails.
+/// Issues REQUEST SENSE and logs the sense key + ASC/ASCQ via ffi::print.
+/// Returns true if sense was retrieved (regardless of log level).
+pub fn auto_sense(xhc: &mut XhciController, dev_idx: usize) -> bool {
+    // Use the device's data buffer for sense data (small — 18 bytes)
+    let data_buf = match &xhc.msc_devices[dev_idx].data_buf {
+        Some(buf) => buf,
+        None => return false,
+    };
+
+    if !scsi_request_sense(xhc, dev_idx, data_buf.phys, data_buf.virt) {
+        return false;
+    }
+
+    let sense = xhc.msc_devices[dev_idx].last_sense;
+    if xhc.verbose >= 1 {
+        // Log: "MSC: sense_key=SK ASC=XX ASCQ=XX"
+        let msg1 = b"MSC: sense_key=";
+        let msg2 = b" ASC=";
+        let msg3 = b" ASCQ=";
+        let sk = sense.sense_key_val();
+        let asc_val = sense.asc;
+        let ascq_val = sense.ascq;
+        log_sense(msg1, sk, msg2, asc_val, msg3, ascq_val);
+    }
+    true
+}
+
+/// Format and print sense info via ffi::print.
+fn log_sense(prefix: &[u8], sk: u8, mid1: &[u8], asc_val: u8,
+    mid2: &[u8], ascq_val: u8)
+{
+    let mut buf = [0u8; 40];
+    let mut pos = 0;
+
+    // Copy prefix
+    buf[pos..pos+prefix.len()].copy_from_slice(prefix);
+    pos += prefix.len();
+
+    // SK hex
+    buf[pos] = hex_char(sk >> 4); pos += 1;
+    buf[pos] = hex_char(sk & 0x0F); pos += 1;
+
+    // mid1
+    buf[pos..pos+mid1.len()].copy_from_slice(mid1);
+    pos += mid1.len();
+
+    // ASC hex
+    buf[pos] = hex_char(asc_val >> 4); pos += 1;
+    buf[pos] = hex_char(asc_val & 0x0F); pos += 1;
+
+    // mid2
+    buf[pos..pos+mid2.len()].copy_from_slice(mid2);
+    pos += mid2.len();
+
+    // ASCQ hex
+    buf[pos] = hex_char(ascq_val >> 4); pos += 1;
+    buf[pos] = hex_char(ascq_val & 0x0F); pos += 1;
+
+    // Null-terminate for ffi::print
+    buf[pos] = 0;
+    ffi::print(&buf[..=pos]);
+}
+
+fn hex_char(v: u8) -> u8 {
+    let nib = v & 0x0F;
+    if nib < 10 { b'0' + nib } else { b'A' + nib - 10 }
 }
 
 // ============================================================================

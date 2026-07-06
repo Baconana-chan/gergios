@@ -673,6 +673,13 @@ name = "minix-alloc"
 version = "0.1.0"
 
 [[package]]
+name = "minix-bt-hci"
+version = "0.1.0"
+dependencies = [
+ "minix-driver",
+]
+
+[[package]]
 name = "minix-driver"
 version = "0.1.0"
 
@@ -683,6 +690,10 @@ dependencies = [
  "audio-buf",
  "minix-driver",
 ]
+
+[[package]]
+name = "minix-ko-loader"
+version = "0.1.0"
 
 [[package]]
 name = "minix-nvme"
@@ -706,6 +717,7 @@ version = "0.1.0"
 name = "minix-xhci"
 version = "0.1.0"
 dependencies = [
+ "minix-bt-hci",
  "minix-driver",
 ]
 

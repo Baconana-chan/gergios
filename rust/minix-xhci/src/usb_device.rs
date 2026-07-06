@@ -34,6 +34,8 @@ pub enum UsbDeviceType {
     Comm,
     /// Printer (class 0x07)
     Printer,
+    /// Bluetooth (class 0xE0, subclass 0x01 — Wireless Controller)
+    Bluetooth,
     /// Vendor-specific or unknown
     Other,
 }
@@ -49,13 +51,14 @@ impl UsbDeviceType {
             usb_class::VIDEO => UsbDeviceType::Video,
             usb_class::COMMUNICATIONS => UsbDeviceType::Comm,
             usb_class::PRINTER => UsbDeviceType::Printer,
+            usb_class::WIRELESS => UsbDeviceType::Bluetooth,
             _ => UsbDeviceType::Other,
         }
     }
 
     /// Check if this device type has a registered class driver.
     pub fn has_driver(&self) -> bool {
-        matches!(self, UsbDeviceType::MassStorage | UsbDeviceType::Hub | UsbDeviceType::Hid)
+        matches!(self, UsbDeviceType::MassStorage | UsbDeviceType::Hub | UsbDeviceType::Hid | UsbDeviceType::Bluetooth)
     }
 }
 

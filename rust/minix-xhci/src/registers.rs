@@ -1302,6 +1302,163 @@ pub fn build_request_sense_cdb(alloc_len: u8) -> [u8; 6] {
 }
 
 // ============================================================================
+// SCSI Sense Data — Fixed Format (18 bytes)
+// ============================================================================
+
+/// SCSI Fixed Format Sense Data (18 bytes).
+/// Per SPC-4 §4.5, Table 119.
+#[repr(C, packed)]
+#[derive(Clone, Copy)]
+pub struct ScsiSenseData {
+    /// Byte 0: Response code & Valid bit.
+    pub response_code: u8,
+    /// Byte 1: Obsolete / Segment Number.
+    pub obsolete: u8,
+    /// Byte 2: Sense Key (bits 3:0).
+    pub sense_key: u8,
+    /// Byte 3: Information field (MSB).
+    pub info_msb: u8,
+    /// Bytes 4-6: Information field (cont).
+    pub info_3: [u8; 3],
+    /// Byte 7: Additional sense length (n-7).
+    pub additional_sense_length: u8,
+    /// Byte 8: Command-specific information (MSB).
+    pub cmd_spec_info_msb: u8,
+    /// Bytes 9-11: Command-specific information (cont).
+    pub cmd_spec_info: [u8; 3],
+    /// Byte 12: Additional Sense Code (ASC).
+    pub asc: u8,
+    /// Byte 13: Additional Sense Code Qualifier (ASCQ).
+    pub ascq: u8,
+    /// Byte 14: Field Replaceable Unit Code.
+    pub fru_code: u8,
+    /// Byte 15: Sense Key Specific (MSB).
+    pub sks_msb: u8,
+    /// Bytes 16-17: Sense Key Specific (cont).
+    pub sks: [u8; 2],
+}
+
+impl ScsiSenseData {
+    pub fn zeroed() -> Self {
+        Self {
+            response_code: 0, obsolete: 0, sense_key: 0,
+            info_msb: 0, info_3: [0; 3], additional_sense_length: 0,
+            cmd_spec_info_msb: 0, cmd_spec_info: [0; 3],
+            asc: 0, ascq: 0, fru_code: 0,
+            sks_msb: 0, sks: [0; 2],
+        }
+    }
+
+    pub fn parse(data: &[u8]) -> Option<Self> {
+        if data.len() < 18 { return None; }
+        Some(unsafe { core::ptr::read_unaligned(data.as_ptr() as *const Self) })
+    }
+
+    /// Response code (bits 6:0).
+    pub fn response_code_val(&self) -> u8 { self.response_code & 0x7F }
+
+    /// Valid bit (bit 7).
+    pub fn valid(&self) -> bool { (self.response_code & 0x80) != 0 }
+
+    /// Sense Key (bits 3:0 of byte 2).
+    pub fn sense_key_val(&self) -> u8 { self.sense_key & 0x0F }
+
+    /// Filemark / EOM / ILI (bits 7:5 of byte 2).
+    pub fn filemark(&self) -> bool { (self.sense_key & 0x80) != 0 }
+    pub fn eom(&self) -> bool { (self.sense_key & 0x40) != 0 }
+    pub fn ili(&self) -> bool { (self.sense_key & 0x20) != 0 }
+
+    /// Human-readable name for the sense key.
+    pub fn sense_key_name(&self) -> &'static str {
+        match self.sense_key_val() {
+            0 => "NO SENSE",
+            1 => "RECOVERED ERROR",
+            2 => "NOT READY",
+            3 => "MEDIUM ERROR",
+            4 => "HARDWARE ERROR",
+            5 => "ILLEGAL REQUEST",
+            6 => "UNIT ATTENTION",
+            7 => "DATA PROTECT",
+            8 => "BLANK CHECK",
+            9 => "VENDOR SPECIFIC",
+            10 => "COPY ABORTED",
+            11 => "ABORTED COMMAND",
+            12 => "OBSOLETE (VOLUME OVERFLOW)",
+            13 => "MISCOMPARE",
+            14 => "COMPLETED",
+            15 => "OBSOLETE (reserved)",
+            _ => "UNKNOWN",
+        }
+    }
+
+    /// Check if the sense key indicates a retryable condition.
+    pub fn is_retryable(&self) -> bool {
+        match self.sense_key_val() {
+            2 | 6 | 11 => true,  // NOT READY, UNIT ATTENTION, ABORTED COMMAND
+            _ => false,
+        }
+    }
+
+    /// Check if sense indicates a fatal error (non-retryable).
+    pub fn is_fatal(&self) -> bool {
+        match self.sense_key_val() {
+            3 | 4 | 7 | 10 | 13 => true,  // MEDIUM/HARDWARE/DATA PROTECT/COPY ABORTED/MISCOMPARE
+            _ => false,
+        }
+    }
+
+    /// Format sense info as a byte slice for debug logging.
+    pub fn as_bytes(&self) -> &[u8; 18] {
+        unsafe { &*(self as *const Self as *const [u8; 18]) }
+    }
+}
+
+/// SCSI Sense Key constants.
+pub mod sense_key {
+    pub const NO_SENSE: u8 = 0x00;
+    pub const RECOVERED_ERROR: u8 = 0x01;
+    pub const NOT_READY: u8 = 0x02;
+    pub const MEDIUM_ERROR: u8 = 0x03;
+    pub const HARDWARE_ERROR: u8 = 0x04;
+    pub const ILLEGAL_REQUEST: u8 = 0x05;
+    pub const UNIT_ATTENTION: u8 = 0x06;
+    pub const DATA_PROTECT: u8 = 0x07;
+    pub const BLANK_CHECK: u8 = 0x08;
+    pub const VENDOR_SPECIFIC: u8 = 0x09;
+    pub const COPY_ABORTED: u8 = 0x0A;
+    pub const ABORTED_COMMAND: u8 = 0x0B;
+    pub const VOLUME_OVERFLOW: u8 = 0x0D;
+    pub const MISCOMPARE: u8 = 0x0E;
+    pub const COMPLETED: u8 = 0x0F;
+}
+
+/// Common ASC/ASCQ (Additional Sense Code / Qualifier) values.
+pub mod asc {
+    pub const NO_ADDITIONAL_SENSE_INFO: u8 = 0x00;
+    pub const LUN_NOT_READY_CAUSE_NOT_REPORTABLE: u8 = 0x04;
+    pub const LOGICAL_UNIT_NOT_READY_INIT_REQ: u8 = 0x04;
+    pub const LOGICAL_UNIT_NOT_READY_FORMAT: u8 = 0x04;
+    pub const LOGICAL_UNIT_NOT_READY_IN_PROGRESS: u8 = 0x04;
+    pub const LOGICAL_UNIT_COMMUNICATION_FAILURE: u8 = 0x08;
+    pub const UNRECOVERED_READ_ERROR: u8 = 0x11;
+    pub const MISCOMPARE_IN_DATA: u8 = 0x1D;
+    pub const INVALID_COMMAND_OPCODE: u8 = 0x20;
+    pub const MEDIA_CHANGE: u8 = 0x28;
+    pub const MEDIUM_NOT_PRESENT: u8 = 0x3A;
+    pub const POWER_ON_RESET: u8 = 0x29;
+    pub const MEDIUM_REMOVAL_PREVENTED: u8 = 0x53;
+}
+
+pub mod ascq {
+    pub const NO_ADDITIONAL_SENSE: u8 = 0x00;
+    pub const LUN_NOT_READY_INIT_REQ: u8 = 0x02;
+    pub const LUN_NOT_READY_FORMAT: u8 = 0x04;
+    pub const LUN_NOT_READY_IN_PROGRESS: u8 = 0x01;
+    pub const MEDIUM_NOT_PRESENT_TRAY_CLOSED: u8 = 0x02;
+    pub const MEDIUM_NOT_PRESENT_TRAY_OPEN: u8 = 0x01;
+}
+
+// ============================================================================
 // SCSI Read Capacity 10 Response (8 bytes)
 // ============================================================================
 

@@ -147,6 +147,8 @@ members = [
     "minix-nvme",
     "minix-xhci",
     "minix-hda",
+    "minix-ko-loader",
+    "minix-bt-hci",
 ]
 
 # Global profile: panic=abort for no_std drivers and other workspace members

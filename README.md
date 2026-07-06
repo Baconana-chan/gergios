@@ -60,7 +60,8 @@ GergiOS is in **active development**. The 1.0 "Aurora" release (target: Q3 2026)
 - ✅ pkgsrc integration foundations
 - 🟡 ext4 filesystem foundation
 - 🟡 Wayland / GUI stack (display server + NetSurf WebView)
-- 🟡 Driver framework, USB, security design
+- ✅ Driver framework & USB (Phase 7: NVMe, xHCI, HDA, Bluetooth HCI, Driver Manager w/ LKM compat)
+- 🟡 Security design, BlueZ userspace port
 - 🟡 IPv6, network stack evaluation
 - 🟡 UEFI bootloader
 

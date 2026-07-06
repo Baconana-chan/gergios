@@ -201,8 +201,8 @@
 ### T21. Filesystem Migration ❌
 **Статус**: ❌ Не начато
 
-### T22. Driver Model Modernization ❌
-**Статус**: ❌ Не начато
+### T22. Driver Model Modernization ✅ **COMPLETED**
+**Статус**: ✅ **Phases 1–7 complete** (см. planning/23). Phase 8 (BlueZ port) 🆕 оставлен как отдельная задача.
 
 ### T23. Security Model Modernization ❌
 **Статус**: ❌ Не начато

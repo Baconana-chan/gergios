@@ -91,14 +91,24 @@ This document provides a concrete action plan for modernizing Minix in 2026, foc
 - [ ] Implement ext4-specific features (extents, delayed allocation)
 - [ ] Create ext4 test suite and validation
 
-### 2.3 USB Stack Modernization
-- [ ] Evaluate Linux USB stack for porting
-- [ ] Design USB driver architecture for Minix
-- [ ] Create USB core driver framework
-- [ ] Implement USB host controller drivers (EHCI, xHCI)
-- [ ] Port USB mass storage driver from Linux
+### 2.3 USB Stack Modernization ✅ **COMPLETED** (Phase 7.3)
+- [x] **Native xHCI driver** (Rust, `minix-xhci` crate) — PCI probe, hub support, MSC/HID/Bluetooth class drivers
+- [x] **USB Mass Storage** (BOT protocol, SCSI READ10/WRITE10, DMA bounce buffer)
+- [x] **USB HID** (keyboard, mouse, gamepad — chardev `/dev/kbd0`, `/dev/mouse0`, `/dev/gamepad0`)
+- [x] **USB Hub** with Transaction Translator (TT) for USB 1.0/2.0
+- [x] **USB Device Framework** — `UsbClassDriver` trait, class driver registration
 
-### 2.4 VFS Performance Improvements
+### 2.4 Bluetooth Stack ✅ **COMPLETED** (Phase 7.8)
+- [x] **HCI USB transport** — native Rust (bulk IN/OUT, cmd/event/ACL/SCO)
+- [x] **HCI UART transport** — H4/H5 protocol, SLIP, CRC-16, OOB GPIO wake
+- [x] **Intel firmware loading** — .sfi/.ddc from /lib/firmware/intel/
+- [x] **Broadcom .hcd patchram loading** — HCD record parser
+- [x] **Qualcomm (QCA) NVM/.bin loading** — EDL TLV protocol
+- [x] **xHCI integration** — BT as class driver inside xHCI crate
+- [x] **/dev/hci0 chardev** — BlueZ-compatible ioctls (HCIDEVUP/DOWN/GDEVINFO)
+- [ ] **BlueZ userspace port** (Phase 8) — D-Bus, HCI socket, GLib
+
+### 2.5 VFS Performance Improvements
 - [ ] Replace O(n) loop in smap.c with hash table
 - [ ] Implement modern async I/O patterns
 - [ ] Add lock-free data structures where appropriate

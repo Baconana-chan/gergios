@@ -1,0 +1,17 @@
+[package]
+name = "minix-ko-loader"
+version = "0.1.0"
+edition = "2021"
+description = "Memory-safe ELF .ko loader for GergiOS LKM compat layer"
+
+[lib]
+name = "minix_ko_loader"
+# staticlib for linking into C drivers, lib for Rust consumers
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+# no external dependencies — pure Rust ELF parsing
+
+[features]
+default = ["std"]
+std = []
