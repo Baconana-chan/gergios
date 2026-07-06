@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <errno.h>
 #include <minix/driver.h>
 #include <acpi.h>
 #include <assert.h>
@@ -11,6 +12,7 @@
 #include "enumerate.h"
 #include "gpe.h"
 #include "hotplug.h"
+#include "acpi_gergios.h"
 
 int acpi_enabled;
 struct machine machine;
@@ -120,6 +122,184 @@ static void do_get_sleep_states(message *m)
 		resp->supported[i] = acpi_sleep_states[i];
 }
 
+/*
+ * IPC handler: ACPI_REQ_WAKEUP_ENABLE — query _PRW and enable GPE wake mask
+ */
+static void do_wakeup_enable(message *m)
+{
+	struct acpi_wakeup_req *req = (struct acpi_wakeup_req *)m;
+	struct acpi_wakeup_resp *resp = (struct acpi_wakeup_resp *)m;
+	ACPI_HANDLE device = req->device_handle;
+	ACPI_STATUS status;
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *pkg;
+	ACPI_OBJECT *gpe_obj;
+	UINT32 gpe_number = 0;
+	int ret = -1;
+
+	/* Query _PRW object under the device */
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	buf.Pointer = NULL;
+	status = AcpiEvaluateObject(device, (ACPI_STRING)"_PRW", NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+		printf("ACPI: no _PRW for device %p\n", (void *)device);
+		resp->err = -ENODEV;
+		return;
+	}
+
+	pkg = (ACPI_OBJECT *)buf.Pointer;
+
+	/* _PRW returns a package: { GPE_number, Sx_state } or
+	 * { Package{...}, GPE_number, Sx_state } or
+	 * { GPE_number, Sx_state, ... }.
+	 * The first element is either an integer (GPE number) or
+	 * a package (for devices with multiple power resources). */
+	if (pkg->Type == ACPI_TYPE_PACKAGE && pkg->Package.Count >= 2) {
+		gpe_obj = &pkg->Package.Elements[0];
+
+		if (gpe_obj->Type == ACPI_TYPE_INTEGER) {
+			gpe_number = (UINT32)gpe_obj->Integer.Value;
+		} else {
+			/* First element is a package containing power resource
+			 * refs; the GPE number is the second element of the
+			 * outer package. */
+			if (pkg->Package.Count >= 2 &&
+			    pkg->Package.Elements[1].Type == ACPI_TYPE_INTEGER) {
+				gpe_number = (UINT32)
+				    pkg->Package.Elements[1].Integer.Value;
+			} else {
+				goto done;
+			}
+		}
+
+		printf("ACPI: wakeup enable for device %p, GPE=%u\n",
+		    (void *)device, gpe_number);
+
+		/* Enable the GPE wake mask — tell ACPICA to keep this GPE
+		 * enabled during sleep states so it can wake the system */
+		status = AcpiSetGpeWakeMask(NULL, gpe_number,
+		    ACPI_GPE_ENABLE);
+		if (ACPI_FAILURE(status)) {
+			printf("ACPI: AcpiSetGpeWakeMask(enable) failed: %d\n",
+			    status);
+		} else {
+			ret = 0;
+		}	/* Update all GPEs so ACPICA synchronizes enable masks
+	 * with hardware (wake GPEs must stay enabled during sleep). */
+		status = AcpiUpdateAllGpes();
+		if (ACPI_FAILURE(status)) {
+			printf("ACPI: AcpiUpdateAllGpes() failed: %d\n",
+			    status);
+		}
+	}
+
+done:
+	ACPI_FREE(buf.Pointer);
+	resp->err = ret;
+}
+
+/*
+ * IPC handler: ACPI_REQ_WAKEUP_DISABLE — disable GPE wake mask
+ */
+static void do_wakeup_disable(message *m)
+{
+	struct acpi_wakeup_req *req = (struct acpi_wakeup_req *)m;
+	struct acpi_wakeup_resp *resp = (struct acpi_wakeup_resp *)m;
+	ACPI_HANDLE device = req->device_handle;
+	ACPI_STATUS status;
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *pkg;
+	UINT32 gpe_number;
+	int ret = -1;
+
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	buf.Pointer = NULL;
+	status = AcpiEvaluateObject(device, (ACPI_STRING)"_PRW", NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+		resp->err = -ENODEV;
+		return;
+	}
+
+	pkg = (ACPI_OBJECT *)buf.Pointer;
+
+	if (pkg->Type == ACPI_TYPE_PACKAGE && pkg->Package.Count >= 2) {
+		ACPI_OBJECT *gpe_obj = &pkg->Package.Elements[0];
+
+		if (gpe_obj->Type == ACPI_TYPE_INTEGER) {
+			gpe_number = (UINT32)gpe_obj->Integer.Value;
+		} else {
+			/* First element is a power resource package;
+			 * GPE is the second element. */
+			if (pkg->Package.Count >= 2 &&
+			    pkg->Package.Elements[1].Type == ACPI_TYPE_INTEGER) {
+				gpe_number = (UINT32)
+				    pkg->Package.Elements[1].Integer.Value;
+			} else {
+				goto done_disable;
+			}
+		}
+
+		printf("ACPI: wakeup disable for device %p, GPE=%u\n",
+		    (void *)device, gpe_number);
+
+		/* Disable the GPE wake mask */
+		status = AcpiSetGpeWakeMask(NULL, gpe_number,
+		    ACPI_GPE_DISABLE);
+		if (ACPI_FAILURE(status)) {
+			printf("ACPI: AcpiSetGpeWakeMask(disable) failed: %d\n",
+			    status);
+		} else {
+			ret = 0;
+		}
+	}
+
+done_disable:
+	ACPI_FREE(buf.Pointer);
+	resp->err = ret;
+}
+
+/*
+ * IPC handler: ACPI_REQ_WAKEUP_GPE — query the _PRW GPE number
+ */
+static void do_wakeup_gpe(message *m)
+{
+	struct acpi_wakeup_gpe_req *req = (struct acpi_wakeup_gpe_req *)m;
+	struct acpi_wakeup_gpe_resp *resp = (struct acpi_wakeup_gpe_resp *)m;
+	ACPI_HANDLE device = req->device_handle;
+	ACPI_STATUS status;
+	ACPI_BUFFER buf;
+	ACPI_OBJECT *pkg;
+	int gpe = -1;
+
+	buf.Length = ACPI_ALLOCATE_BUFFER;
+	buf.Pointer = NULL;
+	status = AcpiEvaluateObject(device, (ACPI_STRING)"_PRW", NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+		resp->gpe_number = -ENODEV;
+		return;
+	}
+
+	pkg = (ACPI_OBJECT *)buf.Pointer;
+
+	if (pkg->Type == ACPI_TYPE_PACKAGE && pkg->Package.Count >= 2) {
+		ACPI_OBJECT *gpe_obj = &pkg->Package.Elements[0];
+
+		if (gpe_obj->Type == ACPI_TYPE_INTEGER) {
+			gpe = (int)gpe_obj->Integer.Value;
+		} else {
+			/* First element is a power resource package;
+			 * GPE is the second element. */
+			if (pkg->Package.Count >= 2 &&
+			    pkg->Package.Elements[1].Type == ACPI_TYPE_INTEGER) {
+				gpe = (int)pkg->Package.Elements[1].Integer.Value;
+			}
+		}
+	}
+
+	ACPI_FREE(buf.Pointer);
+	resp->gpe_number = gpe;
+}
+
 /* don't know where ACPI tables are, we may need to access any memory */
 static int init_mem_priv(void)
 {
@@ -196,6 +376,11 @@ static ACPI_STATUS init_acpica(void)
 	 */
 	acpi_hotplug_init();
 
+	/* Integrate with gergios driver model: create gergios_device
+	 * instances for enumerated PCI devices and register hotplug
+	 * listener for driver autoloading */
+	acpi_gergios_init();
+
 	return AE_OK;
 }
 
@@ -261,6 +446,9 @@ static void sef_local_startup()
 static void do_power_on(message *m);
 static void do_power_off(message *m);
 static void do_get_sleep_states(message *m);
+static void do_wakeup_enable(message *m);
+static void do_wakeup_disable(message *m);
+static void do_wakeup_gpe(message *m);
 
 int main(void)
 {
@@ -313,7 +501,16 @@ int main(void)
 	case ACPI_REQ_ENUM_DEVICES:
 		do_enum_devices(&m);
 		break;
-	default:
+		case ACPI_REQ_WAKEUP_ENABLE:
+			do_wakeup_enable(&m);
+			break;
+		case ACPI_REQ_WAKEUP_DISABLE:
+			do_wakeup_disable(&m);
+			break;
+		case ACPI_REQ_WAKEUP_GPE:
+			do_wakeup_gpe(&m);
+			break;
+		default:
 			printf("ACPI: ignoring unsupported request %d "
 			    "from %d\n",
 			    ((struct acpi_request_hdr *)&m)->request,

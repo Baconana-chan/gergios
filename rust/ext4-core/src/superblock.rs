@@ -7,6 +7,60 @@
 
 use crate::types::*;
 
+/// Serialize an `Ext4Superblock` into a raw 1024-byte buffer for writing to disk.
+///
+/// Only fields that are set during `mkfs` are written; reserved/padding fields
+/// are left zeroed. `data` must be at least 1024 bytes.
+pub fn serialize_superblock(sb: &Ext4Superblock, data: &mut [u8]) {
+    if data.len() < 1024 {
+        return;
+    }
+    data.fill(0);
+    data[0..4].copy_from_slice(&sb.s_inodes_count.to_le_bytes());
+    data[4..8].copy_from_slice(&sb.s_blocks_count_lo.to_le_bytes());
+    data[12..16].copy_from_slice(&sb.s_free_blocks_count_lo.to_le_bytes());
+    data[16..20].copy_from_slice(&sb.s_free_inodes_count.to_le_bytes());
+    data[20..24].copy_from_slice(&sb.s_first_data_block.to_le_bytes());
+    data[24..28].copy_from_slice(&sb.s_log_block_size.to_le_bytes());
+    data[28..32].copy_from_slice(&sb.s_log_cluster_size.to_le_bytes());
+    data[32..36].copy_from_slice(&sb.s_blocks_per_group.to_le_bytes());
+    data[36..40].copy_from_slice(&sb.s_clusters_per_group.to_le_bytes());
+    data[40..44].copy_from_slice(&sb.s_inodes_per_group.to_le_bytes());
+    data[44..48].copy_from_slice(&sb.s_mtime.to_le_bytes());
+    data[48..52].copy_from_slice(&sb.s_wtime.to_le_bytes());
+    data[52..54].copy_from_slice(&sb.s_mnt_count.to_le_bytes());
+    data[54..56].copy_from_slice(&sb.s_max_mnt_count.to_le_bytes());
+    data[56..58].copy_from_slice(&EXT4_SUPER_MAGIC.to_le_bytes());
+    data[58..60].copy_from_slice(&sb.s_state.to_le_bytes());
+    data[60..62].copy_from_slice(&sb.s_errors.to_le_bytes());
+    data[64..68].copy_from_slice(&sb.s_lastcheck.to_le_bytes());
+    data[68..72].copy_from_slice(&sb.s_checkinterval.to_le_bytes());
+    data[72..76].copy_from_slice(&sb.s_creator_os.to_le_bytes());
+    data[76..80].copy_from_slice(&sb.s_rev_level.to_le_bytes());
+    data[80..82].copy_from_slice(&sb.s_def_resuid.to_le_bytes());
+    data[82..84].copy_from_slice(&sb.s_def_resgid.to_le_bytes());
+    data[84..88].copy_from_slice(&sb.s_first_ino.to_le_bytes());
+    data[88..90].copy_from_slice(&sb.s_inode_size.to_le_bytes());
+    data[90..92].copy_from_slice(&sb.s_block_group_nr.to_le_bytes());
+    data[92..96].copy_from_slice(&sb.s_feature_compat.to_le_bytes());
+    data[96..100].copy_from_slice(&sb.s_feature_incompat.to_le_bytes());
+    data[100..104].copy_from_slice(&sb.s_feature_ro_compat.to_le_bytes());
+    data[104..120].copy_from_slice(&sb.s_uuid);
+    data[120..136].copy_from_slice(&sb.s_volume_name);
+    data[286..288].copy_from_slice(&sb.s_desc_size.to_le_bytes());
+    data[288..292].copy_from_slice(&sb.s_default_mount_opts.to_le_bytes());
+    data[292..296].copy_from_slice(&sb.s_first_meta_bg.to_le_bytes());
+    data[296..300].copy_from_slice(&sb.s_mkfs_time.to_le_bytes());
+    data[368..372].copy_from_slice(&sb.s_blocks_count_hi.to_le_bytes());
+    data[372..376].copy_from_slice(&sb.s_inodes_count_hi.to_le_bytes());
+    data[376..380].copy_from_slice(&sb.s_free_blocks_count_hi.to_le_bytes());
+    data[380..384].copy_from_slice(&sb.s_free_inodes_count_hi.to_le_bytes());
+    data[384..386].copy_from_slice(&sb.s_minor_extra_isize.to_le_bytes());
+    data[386..388].copy_from_slice(&sb.s_want_extra_isize.to_le_bytes());
+    data[408..409].copy_from_slice(&[sb.s_log_groups_per_flex]);
+    data[409..410].copy_from_slice(&[sb.s_checksum_type]);
+}
+
 /// Parse and validate the ext4 superblock from a raw 1024-byte buffer.
 ///
 /// Returns `Ok(Ext4Superblock)` on success, or an `Ext4Error` describing

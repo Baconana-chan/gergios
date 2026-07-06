@@ -1,7 +1,7 @@
 # GergiOS Roadmap
 
 > **Version**: 1.0.0 "Nix" (MINIX 3.4.0)
-> **Updated**: 2026-06-29
+> **Updated**: 2026-07-06
 
 ---
 
@@ -44,169 +44,166 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 
 ## GergiOS 1.0 "Nix" — Q3 2026
 
-**Цель**: Первый стабильный релиз GergiOS. Заложить фундамент для всех
-ключевых направлений модернизации: 64-бита, криптография, графический стек,
-файловая система, драйверы, безопасность.
+**Цель**: Первый стабильный релиз GergiOS. Фундамент заложен:
+64-бита ✅, криптография ✅, файловая система ✅, драйверы ✅.
+Остаётся: графика, безопасность, сеть, тестирование, ARM64.
 
 ### ✅ Уже сделано
 
-#### Build System (planning/03 §1)
+#### Build System
 - [x] CMake build: kernel, servers, drivers, libs, userland, tests (Phases 1-4)
 - [x] CMakePresets.json, cmake-build.sh, dual-build infrastructure
 - [x] BSD Make сохранён для NetBSD compat layer
 
-#### Crypto (planning/03 §10)
+#### Crypto
 - [x] OpenSSL 0.9.8 → wolfSSL 5.9.1 (Phases 1-4)
 - [x] libhcrypto для heimdal (вместо OpenSSL)
 - [x] OpenSSL удалён из дерева сборки
 - [x] Все компоненты (syslogd, ftp, httpd, telnet, BIND, netpgp, libevent, …) на wolfSSL
 
-#### C Language & Rust (planning/03 §3)
+#### C Language & Rust
 - [x] C89 → C17 (gnu17, register keyword removed, _Noreturn, _Static_assert)
 - [x] Rust workspace: **132+ утилит** (весь usr.bin/ портирован)
 - [x] grep в Rust (Quick Search + regex + gzip + mmap)
 - [x] CI/CD + ASan/MSan/TSan + fuzzing + benchmarks + code coverage
-- [x] 6.4.3–6.4.6: 59 утилит (colrm, cal, mcookie, banner, lock, genassym и др.)
 
-#### Architecture (planning/03 §2)
-- [x] x86_64 migration: boot, memory, syscalls, signals, drivers (6 phases)
-- [x] i386 removal: arch code deleted, build system cleaned (Phase 4)
+#### Architecture
+- [x] **x86_64 migration**: boot, memory, syscalls, signals, drivers (6 phases)
+- [x] **i386 removal**: arch code deleted, build system cleaned
+- [x] **aarch64 kernel**: все 28 .o файлов компилируются, 0 ошибок
+- [x] **aarch64 sysroot + IPC ABI + libs**: libsys, libminc, libc
 
-#### Branding
+#### Branding & pkgsrc
 - [x] GergiOS branding: OS_NAME 1.0.0, boot menu, kernel announce, MOTD, shutdown
-- [x] Internal `__minix` defines и `minix/` directory preserved (macOS-модель)
+- [x] **18 MK* флагов**, ~255MB удалено (LLVM, BIND, DHCP, blacklistd)
+- [x] Rust utilities: **132+ утилиты** портированы
+- [x] Boot library cleanup: cd9660, dosfs, ext2fs, ffs, lfs, nfs, ufs — удалены
 
-#### pkgsrc Compatibility
-- [x] MKGAMES=no (игры через pkgsrc)
-- [x] MKLIBTELNET=no (telnet deprecated)
-- [x] MKLIBKVM=no (не используется MINIX)
-- [x] **18 MK* флагов** (less, tmux, top, nvi, bzip2, file, flex, byacc, LLVM и др.)
-- [x] **~255MB удалено** из дерева (LLVM, BIND, ISC DHCP, blacklistd)
+#### Файловая система
+- [x] **ext4 Rust core** (~7,600 LOC): superblock, extent tree r/w/trunc/merge/split,
+      htree directory, flex_bg alloc, jbd2 journal, metadata_csum, xattr, ACL, quota
+- [x] **ext4 C bridge**: 29/35 fsdriver callbacks, CMake integration
+- [x] **58 unit tests**, 19 benchmarks — все PASS
+- [x] VFS cleanup: lfs/, chfs/, ufs/, v7fs/ удалены (~11K строк)
+- [ ] **MINIX toolchain integration** — линковка ext4-core staticlib под MINIX
+      (ждёт cross-toolchain / DESTDIR / QEMU)
+
+#### Драйверы — полный стек (Phases 1-7)
+- [x] **Driver Core** — gergios_driver, gergios_device, dispatch, match, compat
+- [x] **PCI scanning** — централизованное pci_scan.c, hot-plug фреймворк
+- [x] **DMA API + IOMMU** — 3 backend (direct/bounce/IOMMU), AMD-Vi + Intel VT-d
+      с page tables, interrupt remap, per-device domain
+- [x] **PM Framework** — ACPI S3, runtime PM, PCI D-state, S4 hibernate (suspend-to-disk
+      с vm_map_phys memory image save/restore + PCI state + wake event config)
+- [x] **AHCI + e1000 DMA migration** — alloc_contig → gergios_dma_alloc_coherent
+- [x] **AHCI + e1000 runtime PM** — idle → D3hot, wake on I/O
+- [x] **Rust driver pilots** — minix-pci, minix-ahci, virtio-blk, e1000
+- [x] **Multi-queue + Performance** — NCQ (AHCI), MSI-X per-port/per-queue,
+      threaded IRQ handlers, SCHED_FIFO RT scheduler, per-CPU drvqueue
+- [x] **NVMe driver** (Rust) — admin/I/O queues, PRP list, MSI-X per-queue, APST, D-state
+- [x] **xHCI (USB 3.0)** (Rust) — MSC, HID (kbd/mouse/gamepad), Hub, device framework
+- [x] **Intel HDA Audio** (Rust) — PCM playback/capture, mixer, NetBSD audioio API
+- [x] **ACPI Modernization** — SCI, _PS0/_PS3, GPE routing, PCI hot-plug notify
+- [x] **Bluetooth HCI** (Rust) — USB transport, chardev, 45+ device IDs
+
+#### Driver Manager + Linux LKM Compat
+- [x] **ELF .ko loader** — 32/64-bit, RELA relocations, symbol resolution
+- [x] **Kernel API shim** — ~105 функций (PCI, MMIO, IRQ, DMA, timers, workqueues, sk_buff, firmware)
+- [x] **modprobe + drvmanager** — device→module binding, deps, .so loader, SMP pool
+- [x] **KLKM daemon** — modprobe/insmod/rmmod/lsmod CLI, IPC protocol
+- [x] **depmod** — dependency/alias/symbol generation
+- [x] **Driver build system** — ko.mk, ko_install.mk, /lib/modules/ hierarchy
+- [x] **Rust .ko loader** — memory-safe ELF parser (14 test cases)
+
+#### Hot-plug
+- [x] PCI hot-plug registration + ACPI Notify handler
+- [x] gergios_device creation + driver autoloading on ACPI enumeration
+
+#### Bootloader
+- [x] **Limine** — UEFI+BIOS bootloader migrated (make_limine_test_image.sh)
+- [x] GRUB fallback сохранён
+- [ ] Bootloader cleanup: удалить GRUB UEFI код, финализировать Limine
 
 ---
 
 ### 🟡 Планируется для 1.0
 
 #### x86_64: Финальная очистка
-- [x] **x86_64 shared code separation** — создан `arch/x86_64/` с 13 файлами (T3 ✅)
-- [x] **cmake/options.cmake** — ACPI/APIC/PCI/Watchdog для x86_64 (T6 ✅)
-- [x] **x86_64 kernel** — собран 0 ошибок (T5.6 ✅)
-- [x] **aarch64 kernel** — собран 0 ошибок (T2a ✅)
-- [x] **pre-existing errors** — 4 ошибки исправлены (T5.5 ✅)
-- [ ] **Ramdisk boot drivers** — восстановить для x86_64 (T7 🟡)
+- [ ] **Ramdisk boot drivers** — восстановить для x86_64 (T7)
 
-#### Файловая система (planning/03 §4)
-- [x] **VFS/filesystem audit** — очистка `sys/ufs/`, `sys/fs/` от неиспользуемого кода (T20 ✅)
-- [x] **Удалены:** `lfs/`, `chfs/`, `ufs/`, `v7fs/` (~11K строк)
-- [x] **Research & design** — ext4 архитектура спроектирована (`planning/19`)
-- [ ] **ext4 driver — Phase 1 (read-only)** — Rust ext4-core + C FFI bridge
-- [ ] **ext4 driver — Phase 2 (write)** — block alloc, extent split/merge
-- [ ] **ext4 driver — Phase 3 (journal)** — jbd2 recovery
-
-#### Графический стек / GUI (planning/03 §9 + planning/11)
+#### Графический стек / GUI
 - [ ] **Framebuffer driver** — современные видеорежимы
 - [ ] **Display server** — Wayland compositor для микроядерной архитектуры
 - [ ] **Input devices** — клавиатура, мышь
 - [ ] **Font rendering** — базовый 2D вывод
-- [ ] **NetSurf WebView** — интеграция [NetSurf](https://www.netsurf-browser.org/) (GPLv2, собственный layout engine на C) как Wayland-нативного WebView/browser
-      для конфигурационных интерфейсов, справки и базового веб-доступа
-      (через [visurf](https://drewdevault.com/blog/visurf-announcement/) или собственный Wayland frontend)
-- [ ] **Bootloader modernization** — UEFI support, GRUB2 или systemd-boot
-
-#### Драйверы (planning/03 §5)
-- [ ] **Driver framework — design** — современная модель драйверов
-- [ ] **USB stack — evaluation** — портирование Linux USB stack
-- [ ] **Hot-plug support** — основа (device insertion/removal)
-
-#### Безопасность (planning/03 §6)
-- [ ] **Capability-based security** — design and prototype
-- [ ] **MAC framework** — design (SELinux/AppArmor equivalent)
-- [ ] **Memory-safe IPC** — Rust-based validation layer
-
-#### Сеть (planning/03 §7)
-- [ ] **IPv6 support** — базовая реализация
-- [ ] **Network stack evaluation** — lwIP vs FreeBSD stack
-
-#### Boot library
-- [x] **Cleanup** — удалены неиспользуемые FS/протоколы из `sys/lib/libsa/` (T17/T19 ✅)
-      (cd9660, dosfs, ext2fs, ffsv1/2, lfsv1/2, nfs, ufs, ustarfs, nullfs)
-
-#### pkgsrc & Userland
-- [x] **Аудит `external/bsd/`** — 18 MK* флагов, ~255MB удалено (LLVM, BIND, DHCP)
-- [x] **Rust utilities** — **132+ утилиты** портированы (весь usr.bin/ + build-time)
-- [ ] **`lib/libwrap/`** — MK* флаг (tcp_wrappers deprecated)
-
-#### Тестирование
-- [ ] **QEMU test infrastructure** — automated boot tests for x86_64
-- [ ] **Testing framework migration** (planning/03 §8) — Google Test / Catch2
-
----
-
-## GergiOS 1.1 — Q1 2027
-
-**Цель**: Расширение заложенного в 1.0 фундамента. ARM64, полный ext4,
-зрелый графический стек, Linux совместимость.
-
-#### Architecture
-- [x] **ARM64 kernel источники** — 28 .o файлов, 0 ошибок компиляции (T2 ✅)
-- [x] **ARM64 sysroot** — кросс-компиляция (T1 ✅)
-- [x] **ARM64 IPC ABI** — LP64 message format (T8 ✅)
-- [x] **ARM64 libs** — libsys, libminc, libc (T9 ✅)
-- [ ] **ARM64 Platform + Drivers** — RPi 4 специфика (T10 🟡)
-- [ ] **x86_64 + ARM64** — обе архитектуры в CI/CD
-
-#### Filesystem
-- [x] **VFS cleanup** — LFS, CHFS, v7fs, UFS core удалены (T20 ✅)
-- [ ] **ext4 — полная поддержка** — journaling, extents, delayed allocation
-- [ ] **ext4 FS server** — полноценный сервер для MINIX VFS
-- [ ] **Minix FS → read-only legacy** — подготовка к удалению
-
-#### Graphics
+- [ ] **NetSurf WebView** — интеграция NetSurf как Wayland-нативного браузера
 - [ ] **Window manager** — композитинг, decoration, theming
 - [ ] **Multi-touch** — поддержка тачскринов
 - [ ] **Clipboard** — copy/paste между приложениями
 
-#### Drivers
-- [ ] **USB stack — port** — EHCI, xHCI, mass storage
-- [ ] **Driver migration** — block, char, network drivers на новом framework
+#### Безопасность
+- [ ] **Capability-based security** — design and implementation
+- [ ] **MAC framework** — SELinux/AppArmor equivalent
+- [ ] **Memory-safe IPC** — Rust-based validation layer
+- [ ] **Full security audit** — аудит всей кодовой базы перед 1.0 release
 
-#### Security
-- [ ] **Capability system — implementation** — IPC-level capabilities
-- [ ] **MAC — implementation** — mandatory access control
-- [ ] **Rust components** — memory-safe device drivers
+#### Сеть
+- [ ] **IPv6 support** — базовая адресация, SLAAC, DHCPv6
+- [ ] **Network stack evaluation** — lwIP vs FreeBSD TCP/IP stack
+- [ ] **Modern TCP/IP stack** — интеграция выбранного стека
 
-#### Network
-- [ ] **Modern TCP/IP stack** — интеграция lwIP или FreeBSD stack
-- [ ] **IPv6 — full** — адресация, SLAAC, DHCPv6
-
-#### Linux Compatibility
-- [ ] **Linux ABI layer** — LACC или аналог для запуска Linux бинарников
-- [ ] **Linux driver compat** — портирование драйверов через слой совместимости
+#### ARM64 Platform
+- [ ] **ARM64 Platform + Drivers** — RPi 4 специфика (T10)
+- [ ] **x86_64 + ARM64** — обе архитектуры в CI/CD
 
 #### Package Manager
 - [ ] **apk integration** — Alpine's package manager
 - [ ] **GergiOS package repository**
 - [ ] **pkgsrc → apk migration** (optional)
 
-#### Testing
+#### BlueZ Userspace Port (Phase 8)
+- [ ] **BlueZ adapter shim** — D-Bus, HCI socket, GLib для userspace Bluetooth стека
+
+#### Тестирование
+- [ ] **QEMU test infrastructure** — automated boot tests for x86_64
+- [ ] **Testing framework migration** — Google Test / Catch2
 - [ ] **ext4 test suite** — fsck, stress, производительность
 - [ ] **Fuzzing** — расширение на C-FFI слой
 - [ ] **Performance benchmarks** — сравнение с legacy
+- [ ] **Property-based testing** — для критических компонентов (ядро, IPC, FS)
+
+#### Остальное
+- [ ] **`lib/libwrap/`** — MK* флаг (tcp_wrappers deprecated)
+- [ ] **Minix FS → read-only legacy** — подготовка к удалению
+
+---
+
+## GergiOS 1.1 — Q1 2027
+
+**Цель**: Углубление функциональности после стабильного 1.0.
+
+#### Real-time
+- [ ] **Real-time extensions** — детерминированные IRQ latency, RT scheduling классы для userspace
+
+#### Прочее
+- [ ] Дополнительные улучшения по мере необходимости
 
 ---
 
 ## GergiOS 1.2+ — Future
 
-**Цель**: Доведение системы до production-качества.
+**Цель**: Доведение системы до production-качества с продвинутыми фичами.
 
-- [ ] **musl libc как альтернатива NetBSD libc** — не замена, а опция
-      для изолированных GergiOS-native компонентов (см. planning/10 §3.5)
-- [ ] **Собственная файловая система** (btrfs / ZFS)
-- [ ] **Distributed systems support**
-- [ ] **Real-time extensions**
-- [ ] **Cloud-native features** (container runtime)
-- [ ] **Full security audit**
-- [ ] **Property-based testing**
+#### Продвинутые функции
+- [ ] **Container runtime** — namespace-изоляция, cgroups, overlayfs
+- [ ] **ext4 enhancements** — надстройки над ext4: snapshot layer (COW на уровне
+      блоков), inline compression (zstd/lz4), RAID-подобная агрегация устройств
+      (всё реализуется как userspace-сервисы поверх VFS + существующего ext4)
+
+#### Избранное (по мере интереса)
+- [ ] **VMware/Guest additions** — паравиртуальные драйверы для виртуализации
+- [ ] **WiFi** — загрузка ath9k/iwlwifi через LKM compat
+- [ ] **GPU** — загрузка i915/amdgpu через LKM compat (
 
 ---
 
@@ -216,33 +213,33 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 |------|---------|
 | ✅ | Completed |
 | 🟡 | In progress / planned |
-| 🔮 | Future / aspirational |
 
 ---
 
 ## Dependencies Graph
 
 ```
-1.0 Build System (CMake) ✅
-1.0 Crypto (wolfSSL) ✅
-1.0 C17 + Rust (132 utils) ✅
-1.0 x86_64 (kernel ✅) ──> T7 Ramdisk 🟡
-1.0 aarch64 (kernel ✅) ──> T10 Platform 🟡
-1.0 i386 Removal ✅
-1.0 Branding ✅
-1.0 pkgsrc flags (18 MK*) ✅
-1.0 VFS Cleanup (T20) ✅
-1.0 Boot Library Cleanup (T17/T19) ✅
+1.0 Foundation (CMake, Crypto, C17+Rust, x86_64, Branding) ✅
     │
-    ├─> 1.0 ext4 design (planning/19) ──> ext4 Phase 1 (read) ──> ext4 Phase 2-3 (write+journal) ──> 1.1 ext4 full
-    ├─> 1.0 GUI (Wayland) ──> 1.1 Window Manager
-    ├─> 1.0 Driver framework ──> 1.1 USB + Driver migration
-    ├─> 1.0 Security design ──> 1.1 Cap/MAC implementation
-    ├─> 1.0 IPv6 + Network eval ──> 1.1 Modern TCP/IP
-    ├─> 1.0 Bootloader (UEFI) ──> 1.1 Linux ABI
-    └─> 1.0 Testing framework ──> 1.1 Full test suite
+    ├─> 1.0 Файловая система (ext4 ✅) — остаётся линковка под MINIX
+    ├─> 1.0 Драйверы (всё ✅) — Phases 1-7
+    │       ├─> Driver Manager + LKM compat (✅)
+    │       ├─> NVMe, xHCI, HDA, BT (✅)
+    │       └─> PM: S3, Runtime, S4, Wake config (✅)
+    ├─> 1.0 Hot-plug (✅)
+    ├─> 1.0 Bootloader (Limine 🟡) — остаётся GRUB cleanup
+    │
+    ├─> 1.0 GUI (Wayland 🟡) ──> Window Manager + Multi-touch + Clipboard
+    ├─> 1.0 Security (Cap + MAC + Audit 🟡)
+    ├─> 1.0 Network (IPv6 + Stack eval 🟡)
+    ├─> 1.0 ARM64 Platform 🟡
+    ├─> 1.0 Package Manager (apk 🟡)
+    ├─> 1.0 BlueZ Phase 8 🟡
+    ├─> 1.0 Testing (QEMU, framework, fuzzing, benchmarks 🟡)
+    └─> 1.0 Ramdisk + MinixFS legacy 🟡
                                   │
-                                  └─> 1.2+ musl, Production quality
+                                  └─> 1.1 Real-time extensions
+                                  └─> 1.2+ Container runtime + ext4 enhancements
 ```
 
 ---
@@ -250,10 +247,11 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 ## Related Documents
 
 - `planning/03_migration_roadmap.md` — component-by-component migration roadmaps
+- `planning/23_driver_model_modernization.md` — полная документация драйверов
 - `planning/10_netbsd_dependency_audit.md` — NetBSD compatibility strategy
 - `planning/15_crypto_migration.md` — OpenSSL → wolfSSL migration
 - `planning/09_c_language_modernization.md` — C17 + Rust migration
 - `planning/07_x86_64_migration_plan.md` — x86_64 migration
-- `planning/08_arm64_migration_plan.md` — ARM64 migration (planned)
-- `TODO.md` — detailed task list
+- `planning/08_arm64_migration_plan.md` — ARM64 migration
 - `planning/19_ext4_driver_architecture.md` — ext4 driver design
+- `planning/17_remaining_tasks.md` — remaining task list

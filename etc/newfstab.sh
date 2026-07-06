@@ -15,8 +15,8 @@ then	echo "\$root and \$usr not set in $fstab"
 	exit 1
 fi
 
-echo "$root	/	mfs	rw	0	2"
-echo "$usr	/usr	mfs	rw	0	1"
+echo "$root	/	ext4	rw	0	2"
+echo "$usr	/usr	ext4	rw	0	1"
 if [ -n "$home" ]
-then	echo "$home	/home	mfs	rw	0	1"
+then	echo "$home	/home	ext4	rw	0	1"
 fi

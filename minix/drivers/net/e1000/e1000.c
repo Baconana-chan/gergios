@@ -4,6 +4,12 @@
 #include <minix/netdriver.h>
 #include <machine/pci.h>
 #include <sys/mman.h>
+
+/* DMA API from libgergios_driver */
+#include "dma.h"
+#include "gergios_device.h"
+#include "pm.h"
+
 #include "assert.h"
 #include "e1000.h"
 #include "e1000_hw.h"
@@ -34,6 +40,29 @@ static int eeprom_ich_cycle(e1000_t *e, u32_t timeout);
 
 static int e1000_instance;
 static e1000_t e1000_state;
+
+/* GergiOS device for DMA API attachment */
+static struct gergios_device *e1000_gdev = NULL;
+
+/* PCI devind stored during probe for DMA attach */
+static int e1000_devind = -1;
+
+/* PM ops for runtime power management */
+static int e1000_runtime_suspend(struct gergios_device *dev);
+static int e1000_runtime_resume(struct gergios_device *dev);
+
+static const struct gergios_pm_ops e1000_pm_ops = {
+	.runtime_suspend	= e1000_runtime_suspend,
+	.runtime_resume		= e1000_runtime_resume,
+};
+
+static struct gergios_driver e1000_gergios_drv = {
+	.name	= "e1000",
+	.class	= GERGIOS_DRIVER_NET,
+	.ops	= {
+		.pm	= &e1000_pm_ops,
+	},
+};
 
 static const struct netdriver e1000_table = {
 	.ndr_name	= "em",
@@ -190,6 +219,9 @@ e1000_probe(e1000_t * e, int skip)
 		break;
 	}
 
+	/* Store the PCI device index for DMA API attachment */
+	e1000_devind = devind;
+
 	/* Inform the user about the new card. */
 	if (!(dname = pci_dev_name(vid, did)))
 		dname = "Intel Pro/1000 Gigabit Ethernet Card";
@@ -242,6 +274,85 @@ e1000_reset_hw(e1000_t * e)
 	micro_delay(16000);
 }
 
+/*===========================================================================*
+ *			Runtime PM callbacks				     *
+ *===========================================================================*/
+
+static int e1000_runtime_suspend(struct gergios_device *dev)
+{
+	e1000_t *e = &e1000_state;
+	(void)dev;
+
+	/* Mask interrupts.  The PM framework will set PCI D3hot after this
+	 * callback returns, which will further cut power to the device. */
+	e1000_reg_write(e, E1000_REG_IMS, 0);
+
+	/* Reset hardware to put it in a quiescent state */
+	e1000_reset_hw(e);
+
+	return 0;
+}
+
+static int e1000_runtime_resume(struct gergios_device *dev)
+{
+	e1000_t *e = &e1000_state;
+	int i;
+	(void)dev;
+
+	/* The PM framework has already restored PCI D0 before calling this.
+	 * Re-initialise the hardware registers (buffers stay allocated). */
+
+	/* Initialize control registers */
+	e1000_reg_set(e, E1000_REG_CTRL,
+	    E1000_REG_CTRL_ASDE | E1000_REG_CTRL_SLU);
+	e1000_reg_unset(e, E1000_REG_CTRL, E1000_REG_CTRL_LRST);
+	e1000_reg_unset(e, E1000_REG_CTRL, E1000_REG_CTRL_PHY_RST);
+	e1000_reg_unset(e, E1000_REG_CTRL, E1000_REG_CTRL_ILOS);
+
+	/* Flow control registers */
+	e1000_reg_write(e, E1000_REG_FCAL, 0);
+	e1000_reg_write(e, E1000_REG_FCAH, 0);
+	e1000_reg_write(e, E1000_REG_FCT, 0);
+	e1000_reg_write(e, E1000_REG_FCTTV, 0);
+	e1000_reg_unset(e, E1000_REG_CTRL, E1000_REG_CTRL_VME);
+
+	/* Clear Multicast Table Array (MTA) */
+	for (i = 0; i < 128; i++)
+		e1000_reg_write(e, E1000_REG_MTA + i * 4, 0);
+
+	/* Restore descriptor ring registers */
+	e1000_reg_write(e, E1000_REG_RDBAL, (u32_t)e->rx_desc_phys);
+	e1000_reg_write(e, E1000_REG_RDBAH, 0);
+	e1000_reg_write(e, E1000_REG_RDLEN,
+	    e->rx_desc_count * sizeof(e1000_rx_desc_t));
+	e1000_reg_write(e, E1000_REG_RDH, 0);
+	e1000_reg_write(e, E1000_REG_RDT, e->rx_desc_count - 1);
+	e1000_reg_unset(e, E1000_REG_RCTL, E1000_REG_RCTL_BSIZE);
+	e1000_reg_set(e, E1000_REG_RCTL, E1000_REG_RCTL_EN);
+
+	e1000_reg_write(e, E1000_REG_TDBAL, (u32_t)e->tx_desc_phys);
+	e1000_reg_write(e, E1000_REG_TDBAH, 0);
+	e1000_reg_write(e, E1000_REG_TDLEN,
+	    e->tx_desc_count * sizeof(e1000_tx_desc_t));
+	e1000_reg_write(e, E1000_REG_TDH, 0);
+	e1000_reg_write(e, E1000_REG_TDT, 0);
+	e1000_reg_set(e, E1000_REG_TCTL,
+	    E1000_REG_TCTL_EN | E1000_REG_TCTL_PSP);
+
+	/* Restore MAC address (RAL/RAH registers lost in D3hot) */
+	e1000_reg_write(e, E1000_REG_RAL,
+	    *(const u32_t *)(&e->mac_addr[0]));
+	e1000_reg_write(e, E1000_REG_RAH,
+	    *(const u16_t *)(&e->mac_addr[4]));
+	e1000_reg_set(e, E1000_REG_RAH, E1000_REG_RAH_AV);
+
+	/* Re-enable interrupts */
+	e1000_reg_set(e, E1000_REG_IMS, E1000_REG_IMS_LSC | E1000_REG_IMS_RXO |
+	    E1000_REG_IMS_RXT | E1000_REG_IMS_TXQE | E1000_REG_IMS_TXDW);
+
+	return 0;
+}
+
 /*
  * Initialize and return the card's ethernet address.
  */
@@ -273,6 +384,9 @@ e1000_init_addr(e1000_t * e, netdriver_addr_t * addr)
 		}
 	}
 
+	/* Cache MAC address for PM resume (RAL/RAH registers are lost in D3hot) */
+	memcpy(e->mac_addr, addr->na_addr, 6);
+
 	/* Set Receive Address. */
 	e1000_set_hwaddr(addr);
 
@@ -296,39 +410,85 @@ e1000_init_buf(e1000_t * e)
 	e->rx_desc_count = E1000_RXDESC_NR;
 	e->tx_desc_count = E1000_TXDESC_NR;
 
-	/* Allocate receive descriptors. */
-	if ((e->rx_desc = alloc_contig(sizeof(e1000_rx_desc_t) *
-	    e->rx_desc_count, AC_ALIGN4K, &rx_desc_p)) == NULL)
+	/* Allocate receive descriptors via DMA API or direct alloc_contig */
+	if (e1000_gdev) {
+		uint64_t dma_handle;
+		size_t rx_desc_size = sizeof(e1000_rx_desc_t) * e->rx_desc_count;
+		if (gergios_dma_alloc_coherent(e1000_gdev, rx_desc_size,
+		    (void **)&e->rx_desc, &dma_handle) == 0) {
+			rx_desc_p = (phys_bytes)dma_handle;
+		} else {
+			e->rx_desc = NULL;
+		}
+	} else {
+		e->rx_desc = alloc_contig(sizeof(e1000_rx_desc_t) *
+		    e->rx_desc_count, AC_ALIGN4K, &rx_desc_p);
+	}
+	e->rx_desc_phys = rx_desc_p;
+	if (e->rx_desc == NULL)
 		panic("failed to allocate RX descriptors");
-
 	memset(e->rx_desc, 0, sizeof(e1000_rx_desc_t) * e->rx_desc_count);
 
-	/* Allocate receive buffers. */
+	/* Allocate receive buffers via DMA API or direct alloc_contig */
 	e->rx_buffer_size = E1000_RXDESC_NR * E1000_IOBUF_SIZE;
-
-	if ((e->rx_buffer = alloc_contig(e->rx_buffer_size, AC_ALIGN4K,
-	    &rx_buff_p)) == NULL)
+	if (e1000_gdev) {
+		uint64_t dma_handle;
+		if (gergios_dma_alloc_coherent(e1000_gdev, e->rx_buffer_size,
+		    (void **)&e->rx_buffer, &dma_handle) == 0) {
+			rx_buff_p = (phys_bytes)dma_handle;
+		} else {
+			e->rx_buffer = NULL;
+		}
+	} else {
+		e->rx_buffer = alloc_contig(e->rx_buffer_size, AC_ALIGN4K,
+		    &rx_buff_p);
+	}
+	e->rx_buff_phys = rx_buff_p;
+	if (e->rx_buffer == NULL)
 		panic("failed to allocate RX buffers");
 
-	/* Set up receive descriptors. */
+	/* Set up receive descriptors */
 	for (i = 0; i < E1000_RXDESC_NR; i++)
 		e->rx_desc[i].buffer = rx_buff_p + i * E1000_IOBUF_SIZE;
 
-	/* Allocate transmit descriptors. */
-	if ((e->tx_desc = alloc_contig(sizeof(e1000_tx_desc_t) *
-	    e->tx_desc_count, AC_ALIGN4K, &tx_desc_p)) == NULL)
+	/* Allocate transmit descriptors via DMA API or direct alloc_contig */
+	if (e1000_gdev) {
+		uint64_t dma_handle;
+		size_t tx_desc_size = sizeof(e1000_tx_desc_t) * e->tx_desc_count;
+		if (gergios_dma_alloc_coherent(e1000_gdev, tx_desc_size,
+		    (void **)&e->tx_desc, &dma_handle) == 0) {
+			tx_desc_p = (phys_bytes)dma_handle;
+		} else {
+			e->tx_desc = NULL;
+		}
+	} else {
+		e->tx_desc = alloc_contig(sizeof(e1000_tx_desc_t) *
+		    e->tx_desc_count, AC_ALIGN4K, &tx_desc_p);
+	}
+	e->tx_desc_phys = tx_desc_p;
+	if (e->tx_desc == NULL)
 		panic("failed to allocate TX descriptors");
-
 	memset(e->tx_desc, 0, sizeof(e1000_tx_desc_t) * e->tx_desc_count);
 
-	/* Allocate transmit buffers. */
+	/* Allocate transmit buffers via DMA API or direct alloc_contig */
 	e->tx_buffer_size = E1000_TXDESC_NR * E1000_IOBUF_SIZE;
-
-	if ((e->tx_buffer = alloc_contig(e->tx_buffer_size, AC_ALIGN4K,
-	    &tx_buff_p)) == NULL)
+	if (e1000_gdev) {
+		uint64_t dma_handle;
+		if (gergios_dma_alloc_coherent(e1000_gdev, e->tx_buffer_size,
+		    (void **)&e->tx_buffer, &dma_handle) == 0) {
+			tx_buff_p = (phys_bytes)dma_handle;
+		} else {
+			e->tx_buffer = NULL;
+		}
+	} else {
+		e->tx_buffer = alloc_contig(e->tx_buffer_size, AC_ALIGN4K,
+		    &tx_buff_p);
+	}
+	e->tx_buff_phys = tx_buff_p;
+	if (e->tx_buffer == NULL)
 		panic("failed to allocate TX buffers");
 
-	/* Set up transmit descriptors. */
+	/* Set up transmit descriptors */
 	for (i = 0; i < E1000_TXDESC_NR; i++)
 		e->tx_desc[i].buffer = tx_buff_p + i * E1000_IOBUF_SIZE;
 
@@ -355,13 +515,42 @@ e1000_init_buf(e1000_t * e)
 
 /*
  * Initialize the hardware.  Return the ethernet address.
- */
-static void
-e1000_init_hw(e1000_t * e, netdriver_addr_t * addr)
+ */static void e1000_init_hw(e1000_t * e, netdriver_addr_t * addr)
 {
 	int r, i;
 
 	e->irq_hook = e->irq;
+
+	/* Initialise the DMA subsystem (idempotent — only first call matters) */
+	gergios_dma_init();
+
+	/* Create gergios_device for DMA API attachment */
+	if (e1000_devind >= 0) {
+		u16_t vid = pci_attr_r16(e1000_devind, 0x00);
+		u16_t did = pci_attr_r16(e1000_devind, 0x02);
+		u32_t class = pci_attr_r32(e1000_devind, 0x08) >> 8;
+
+		e1000_gdev = gergios_device_create(NULL,
+		    vid, did, 0xFFFF, 0xFFFF, class,
+		    (uint32_t)e1000_devind);
+		if (e1000_gdev) {
+			int dma_r = gergios_dma_attach_device(e1000_gdev);
+			if (dma_r == 0) {
+				gergios_dma_set_mask(e1000_gdev, 0xFFFFFFFFULL);
+				printf("e1000: DMA attached (backend=%d)\n",
+				    gergios_dma_get_backend());
+			} else {
+				printf("e1000: DMA attach failed (%d), "
+				    "falling back to direct alloc\n", dma_r);
+			}
+
+			/* Register with power management framework */
+			e1000_gdev->driver = &e1000_gergios_drv;
+			gergios_pm_register_device(e1000_gdev);
+			gergios_pm_runtime_enable(e1000_gdev, 1);
+			gergios_pm_set_idle_timeout(e1000_gdev, 10000); /* 10 s */
+		}
+	}
 
 	/*
 	 * Set the interrupt handler and policy.  Do not automatically
@@ -474,6 +663,10 @@ e1000_send(struct netdriver_data * data, size_t size)
 
 	e = &e1000_state;
 
+	/* Mark activity for runtime PM — reset idle timer */
+	if (e1000_gdev)
+		gergios_pm_mark_active(e1000_gdev);
+
 	if (size > E1000_IOBUF_SIZE)
 		panic("packet too large to send");
 
@@ -520,6 +713,10 @@ e1000_recv(struct netdriver_data * data, size_t max)
 	size_t size;
 
 	e = &e1000_state;
+
+	/* Mark activity for runtime PM — reset idle timer */
+	if (e1000_gdev)
+		gergios_pm_mark_active(e1000_gdev);
 
 	/* If the queue head and tail are equal, the queue is empty. */
 	head = e1000_reg_read(e, E1000_REG_RDH);
@@ -616,6 +813,10 @@ e1000_intr(unsigned int __unused mask)
 
 	e = &e1000_state;
 
+	/* Mark activity for runtime PM — reset idle timer */
+	if (e1000_gdev)
+		gergios_pm_mark_active(e1000_gdev);
+
 	/* Reenable interrupts. */
 	if (sys_irqenable(&e->irq_hook) != OK)
 		panic("failed to re-enable IRQ");
@@ -642,6 +843,10 @@ e1000_tick(void)
 	e1000_t *e;
 
 	e = &e1000_state;
+
+	/* Drive runtime PM idle detection */
+	if (e1000_gdev)
+		gergios_pm_tick();
 
 	/* Update statistics. */
 	netdriver_stat_ierror(e1000_reg_read(e, E1000_REG_RXERRC));

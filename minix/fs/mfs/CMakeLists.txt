@@ -23,4 +23,9 @@ add_minix_service(mfs
     LIBS minixfs fsdriver bdev sys
 )
 
-target_compile_definitions(mfs PRIVATE DEFAULT_NR_BUFS=1024)
+# MFS is in legacy mode: force read-only (ext4 is the primary FS for GergiOS).
+# Comment out MFS_READONLY to re-enable MFS write support.
+target_compile_definitions(mfs PRIVATE
+    DEFAULT_NR_BUFS=1024
+    MFS_READONLY
+)

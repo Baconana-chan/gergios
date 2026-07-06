@@ -22,6 +22,7 @@ add_minix_library(gergios_driver
         iommu_amd.c
         iommu_vtd.c
         pm.c
+        hibernate.c
         hotplug.c
         elf_loader.c
         kernel_shim.c
@@ -44,6 +45,7 @@ install(FILES
     dma.h
     iommu.h
     pm.h
+    hibernate.h
     hotplug.h
     elf_loader.h
     kernel_shim.h

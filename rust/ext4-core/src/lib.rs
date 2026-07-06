@@ -33,10 +33,11 @@ pub mod journal;
 pub mod xattr;
 pub mod acl;
 pub mod quota;
+pub mod mkfs;
 
 pub use types::*;
-pub use superblock::parse_superblock;
-pub use group_desc::parse_group_descriptors;
+pub use superblock::{parse_superblock, serialize_superblock};
+pub use group_desc::{parse_group_descriptors, serialize_group_descriptors, serialize_group_desc};
 pub use inode::{parse_inode, new_inode, serialize_inode, init_extent_tree,
     set_file_size, set_blocks_count, update_timestamps, update_timestamps_ns,
     set_symlink_target, get_symlink_target, inode_to_group, inode_to_group_index,

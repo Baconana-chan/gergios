@@ -142,6 +142,7 @@ members = [
     "xstr",
     "yes",
     "ext4-core",
+    "mkfs_ext4",
     "virtio-blk",
     "e1000",
     "minix-nvme",

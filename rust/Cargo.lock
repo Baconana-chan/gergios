@@ -355,6 +355,7 @@ name = "ext4-core"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "libc",
 ]
 
 [[package]]
@@ -752,6 +753,13 @@ name = "mkfifo"
 version = "1.0.0"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "mkfs-ext4"
+version = "0.1.0"
+dependencies = [
+ "ext4-core",
 ]
 
 [[package]]

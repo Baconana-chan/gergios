@@ -428,6 +428,229 @@ static void amd_invalidate_pages(struct amd_iommu_unit *unit,
 }
 
 /*===========================================================================*
+ *		Page table management (levels 1-3)			     *
+ *===========================================================================*/
+
+/* Page table entry bit definitions */
+#define AMD_PTE_PRESENT		(1ULL << 0)
+#define AMD_PTE_RW		(1ULL << 1)
+#define AMD_PTE_USER		(1ULL << 8)
+#define AMD_PTE_PCD		(1ULL << 6)
+#define AMD_PTE_PWT		(1ULL << 7)
+#define AMD_PTE_NX		(1ULL << 63)
+#define AMD_PTE_PS		(1ULL << 8)	/* Page size (huge page indicator, level 2/3) */
+#define AMD_PTE_GLB		(1ULL << 9)	/* Global page */
+#define AMD_PTE_ADDR_MASK	0x000FFFFFFFFFFFF0ULL	/* bits 10-51 */
+
+/* AMD-Vi page table levels and their coverage */
+enum amd_pt_level {
+	AMD_PT_L1 = 1,	/* 512 × 4KB = 2MB */
+	AMD_PT_L2 = 2,	/* 512 × 2MB = 1GB */
+	AMD_PT_L3 = 3,	/* 512 × 1GB = 512GB */
+};
+
+#define AMD_PT_ENTRIES		512
+#define AMD_PT_INDEX(addr, level)	(((addr) >> (12 + 9 * ((level) - 1))) & 0x1FF)
+
+/* Allocate a zeroed 4K page table page.  Returns phys addr in *phys. */
+static uint64_t *amd_pt_alloc_page(uint64_t *phys_out)
+{
+	phys_bytes p;
+	void *virt = alloc_contig(4096, AC_ALIGN4K, &p);
+	if (!virt) return NULL;
+	memset(virt, 0, 4096);
+	*phys_out = (uint64_t)p;
+	return (uint64_t *)virt;
+}
+
+/* Map a set of page-aligned physical pages into an IOMMU domain.
+ * Walks the 3-level page table, allocating intermediate tables as needed.
+ *
+ * @param root_virt  Virtual address of the level-3 page table root
+ * @param root_phys  Physical address of the level-3 page table root
+ * @param iova       Starting I/O virtual address (must be page-aligned)
+ * @param phys_addr  Starting physical address (must be page-aligned)
+ * @param pages      Number of 4KB pages to map
+ * @param flags      Bit 0 = read/write, bit 1 = user
+ * @param unit       IOMMU unit (for huge page capability checks)
+ * @returns 0 on success, negative errno on failure
+ */
+static int amd_pt_map_pages(uint64_t *root_virt, uint64_t root_phys,
+    uint64_t iova, uint64_t phys_addr, size_t pages, int flags,
+    struct amd_iommu_unit *unit)
+{
+	uint64_t pte_flags = AMD_PTE_PRESENT | AMD_PTE_RW;
+	if (flags & 2) pte_flags |= AMD_PTE_USER;
+
+	while (pages > 0) {
+		uint64_t l3_idx = AMD_PT_INDEX(iova, 3);
+		uint64_t l2_idx = AMD_PT_INDEX(iova, 2);
+		uint64_t l1_idx = AMD_PT_INDEX(iova, 1);
+
+		size_t l1_remaining = (AMD_PT_ENTRIES - l1_idx);
+
+		/* Try 1GB huge page at level 3 (if supported and aligned) */
+		if (unit->has_1gb_pages && pages >= 262144 &&
+		    (iova & 0x3FFFFFFF) == 0 && (phys_addr & 0x3FFFFFFF) == 0) {
+			uint64_t *l3 = root_virt;
+			l3[l3_idx] = (phys_addr & AMD_PTE_ADDR_MASK) |
+			    AMD_PTE_PRESENT | AMD_PTE_RW | AMD_PTE_PS;
+			phys_addr += 0x40000000ULL;  /* 1GB */
+			iova += 0x40000000ULL;
+			pages -= 262144;
+			continue;
+		}
+
+		/* Get or create level-2 page table */
+		uint64_t l3_entry = root_virt[l3_idx];
+		uint64_t *l2_virt;
+		uint64_t l2_phys;
+
+		if (!(l3_entry & AMD_PTE_PRESENT)) {
+			/* Allocate new L2 table */
+			l2_virt = amd_pt_alloc_page(&l2_phys);
+			if (!l2_virt) return -ENOMEM;
+			root_virt[l3_idx] = (l2_phys & AMD_PTE_ADDR_MASK) |
+			    AMD_PTE_PRESENT | AMD_PTE_RW;
+		} else {
+			l2_phys = l3_entry & AMD_PTE_ADDR_MASK;
+			l2_virt = vm_map_phys(SELF, (void *)(uintptr_t)l2_phys, 4096);
+			/* Note: simplified — in a real implementation we'd cache
+			 * the virt mapping of intermediate tables. */
+		}
+
+		/* Try 2MB huge page at level 2 (if supported and aligned) */
+		if (unit->has_2mb_pages && pages >= 512 &&
+		    (iova & 0x1FFFFF) == 0 && (phys_addr & 0x1FFFFF) == 0) {
+			l2_virt[l2_idx] = (phys_addr & AMD_PTE_ADDR_MASK) |
+			    AMD_PTE_PRESENT | AMD_PTE_RW | AMD_PTE_PS;
+			phys_addr += 0x200000ULL;  /* 2MB */
+			iova += 0x200000ULL;
+			pages -= 512;
+			continue;
+		}
+
+		/* Get or create level-1 page table */
+		uint64_t l2_entry = l2_virt[l2_idx];
+		uint64_t *l1_virt;
+		uint64_t l1_phys;
+
+		if (!(l2_entry & AMD_PTE_PRESENT)) {
+			l1_virt = amd_pt_alloc_page(&l1_phys);
+			if (!l1_virt) return -ENOMEM;
+			l2_virt[l2_idx] = (l1_phys & AMD_PTE_ADDR_MASK) |
+			    AMD_PTE_PRESENT | AMD_PTE_RW;
+		} else {
+			l1_phys = l2_entry & AMD_PTE_ADDR_MASK;
+			l1_virt = vm_map_phys(SELF, (void *)(uintptr_t)l1_phys, 4096);
+		}
+
+		/* Map 4KB pages at level 1 */
+		size_t batch = (pages < l1_remaining) ? pages : l1_remaining;
+		for (size_t i = 0; i < batch; i++) {
+			l1_virt[l1_idx + i] = (phys_addr & AMD_PTE_ADDR_MASK) | pte_flags;
+			phys_addr += 0x1000;
+		}
+		iova += batch * 0x1000;
+		pages -= batch;
+	}
+
+	return 0;
+}
+
+/* Unmap a range of pages and free any now-empty intermediate tables.
+ * Walks the page tables and clears entries, freeing L1 tables when
+ * all 512 entries become zero, and similarly for L2/L3. */
+static void amd_pt_unmap_pages(uint64_t *root_virt, uint64_t root_phys,
+    uint64_t iova, size_t size, struct amd_iommu_unit *unit)
+{
+	size_t pages = (size + 4095) / 4096;
+	(void)root_phys;
+	(void)unit;
+
+	while (pages > 0) {
+		uint64_t l3_idx = AMD_PT_INDEX(iova, 3);
+		uint64_t l2_idx = AMD_PT_INDEX(iova, 2);
+		uint64_t l1_idx = AMD_PT_INDEX(iova, 1);
+
+		uint64_t l3_entry = root_virt[l3_idx];
+		if (!(l3_entry & AMD_PTE_PRESENT)) {
+			/* Nothing mapped — advance by 1GB */
+			size_t skip = 262144;
+			if (skip > pages) skip = pages;
+			pages -= skip;
+			iova += skip * 4096;
+			continue;
+		}
+
+		/* Check if L3 entry is a 1GB huge page */
+		if (l3_entry & AMD_PTE_PS) {
+			root_virt[l3_idx] = 0;
+			if (pages >= 262144)
+				pages -= 262144;
+			else
+				pages = 0;
+			iova += 0x40000000ULL;
+			continue;
+		}
+
+		uint64_t l2_phys = l3_entry & AMD_PTE_ADDR_MASK;
+		uint64_t *l2_virt = vm_map_phys(SELF, (void *)(uintptr_t)l2_phys, 4096);
+		uint64_t l2_entry = l2_virt[l2_idx];
+
+		if (!(l2_entry & AMD_PTE_PRESENT)) {
+			/* Nothing at L2 — advance by 2MB */
+			size_t skip = 512;
+			if (skip > pages) skip = pages;
+			pages -= skip;
+			iova += skip * 4096;
+			continue;
+		}
+
+		/* Check if L2 entry is a 2MB huge page */
+		if (l2_entry & AMD_PTE_PS) {
+			l2_virt[l2_idx] = 0;
+			if (pages >= 512)
+				pages -= 512;
+			else
+				pages = 0;
+			iova += 0x200000;
+			continue;
+		}
+
+		uint64_t l1_phys = l2_entry & AMD_PTE_ADDR_MASK;
+		uint64_t *l1_virt = vm_map_phys(SELF, (void *)(uintptr_t)l1_phys, 4096);
+
+		size_t batch = (pages < (512 - l1_idx)) ? pages : (512 - l1_idx);
+		for (size_t i = 0; i < batch; i++)
+			l1_virt[l1_idx + i] = 0;
+
+		/* Check if L1 table is now empty — if so, free it */
+		int empty = 1;
+		for (int i = 0; i < AMD_PT_ENTRIES; i++) {
+			if (l1_virt[i] & AMD_PTE_PRESENT) { empty = 0; break; }
+		}
+		if (empty) {
+			l2_virt[l2_idx] = 0;
+			/* Note: free_contig not available in MINIX — memory reused */
+		}
+
+		/* Check if L2 table is now empty */
+		empty = 1;
+		for (int i = 0; i < AMD_PT_ENTRIES; i++) {
+			if (l2_virt[i] & AMD_PTE_PRESENT) { empty = 0; break; }
+		}
+		if (empty) {
+			root_virt[l3_idx] = 0;
+			/* L2 page freed when L3 entry cleared */
+		}
+
+		iova += batch * 4096;
+		pages -= batch;
+	}
+}
+
+/*===========================================================================*
  *		API implementation					     *
  *===========================================================================*/
 
@@ -597,22 +820,51 @@ static void amd_domain_detach_device(struct gergios_iommu_domain *domain,
 static int amd_map(struct gergios_iommu_domain *domain,
     uint64_t iova, phys_bytes phys_addr, size_t size, int flags)
 {
-	/* Simplified: identity mapping (IOVA == phys_addr).
-	 * Full implementation would walk the page tables and set up
-	 * level-1, level-2, or level-3 mappings as appropriate. */
-	(void)domain; (void)iova; (void)phys_addr; (void)size; (void)flags;
+	struct amd_iommu_unit *unit = &amd_units[0];
+	uint64_t root_phys = (uint64_t)(uintptr_t)domain->priv;
+	uint64_t *root_virt;
+	size_t pages = (size + 4095) / 4096;
+	int r;
 
-	/* For now, we rely on the exclusion vector (all memory accessible)
-	 * or identity mapping.  Actual page table installation will be
-	 * implemented in a follow-up phase. */
+	if (!unit->has_page_tables)
+		return -ENODEV;
 
-	return 0;
+	/* Map the root page table for access */
+	root_virt = vm_map_phys(SELF, (void *)(uintptr_t)root_phys, 4096);
+	if (root_virt == MAP_FAILED)
+		return -ENOMEM;
+
+	r = amd_pt_map_pages(root_virt, root_phys, iova,
+	    (uint64_t)phys_addr, pages, flags, unit);
+
+	if (r == 0) {
+		/* Invalidate IOTLB for the mapped range */
+		amd_invalidate_pages(unit, 0xFFFF, iova, size);
+	}
+
+	return r;
 }
 
 static void amd_unmap(struct gergios_iommu_domain *domain,
     uint64_t iova, size_t size)
 {
-	(void)domain; (void)iova; (void)size;
+	struct amd_iommu_unit *unit = &amd_units[0];
+	uint64_t root_phys = (uint64_t)(uintptr_t)domain->priv;
+	uint64_t *root_virt;
+
+	if (!unit->has_page_tables)
+		return;
+	if (size == 0)
+		return;
+
+	root_virt = vm_map_phys(SELF, (void *)(uintptr_t)root_phys, 4096);
+	if (root_virt == MAP_FAILED)
+		return;
+
+	amd_pt_unmap_pages(root_virt, root_phys, iova, size, unit);
+
+	/* Invalidate IOTLB for the unmapped range */
+	amd_invalidate_pages(unit, 0xFFFF, iova, size);
 }
 
 static int amd_identity_map(struct gergios_iommu_domain *domain,
@@ -641,17 +893,151 @@ static void amd_iotlb_invalidate_all(void)
 	amd_invalidate_pages(unit, 0xFFFF, 0, ~0ULL);
 }
 
-/* Interrupt remapping (stub — NYI) */
+/*===========================================================================*
+ *		Interrupt remapping (AMD-Vi IRTE)			     *
+ *===========================================================================*/
+/*
+ * AMD-Vi Interrupt Remap Table Entry (IRTE) — 16 bytes per entry.
+ * Field layout (per AMD IOMMU spec rev 3.0):
+ *   Word 0 (bits 0-63):
+ *     Bits 0-7:   Vector
+ *     Bits 8-10:  Delivery Mode (000=Fixed, 011=NMI, 100=INIT, 101=ExtINT)
+ *     Bit 11:     Destination Mode (0=Physical, 1=Logical)
+ *     Bit 12:     Trigger Mode (0=Edge, 1=Level)
+ *     Bit 13:     Redirection Hint
+ *     Bit 14:     Interrupt Mask (1=masked)
+ *     Bits 15-19: Reserved
+ *     Bits 20-31: Destination (APIC ID, low 12 bits)
+ *     Bits 32-47: Extended Destination (x2APIC)
+ *     Bits 48-63: Reserved
+ *   Word 1 (bits 64-127):
+ *     Bits 64-79: Source ID (Requester ID — BDF format)
+ *     Bit 80:     Guest Interrupt
+ *     Bits 81-126: Reserved
+ *     Bit 127:    V (Valid)
+ */
+
+#define AMD_IRTE_VECTOR_MASK	0x00000000000000FFULL
+#define AMD_IRTE_DELIVERY_MODE_FIXED	(0ULL << 8)
+#define AMD_IRTE_DEST_MODE_PHYSICAL	(0ULL << 11)
+#define AMD_IRTE_DEST_MODE_LOGICAL	(1ULL << 11)
+#define AMD_IRTE_TRIGGER_EDGE		(0ULL << 12)
+#define AMD_IRTE_TRIGGER_LEVEL		(1ULL << 12)
+#define AMD_IRTE_RH			(1ULL << 13)
+#define AMD_IRTE_MASKED			(1ULL << 14)
+#define AMD_IRTE_DEST_LOW(apic)	(((uint64_t)(apic) & 0xFFF) << 20)
+#define AMD_IRTE_DEST_EXT(apic)	((((uint64_t)(apic) >> 12) & 0xFFFF) << 32)
+/* Source ID is in bits 64-79 of the IRTE = bits 0-15 of the upper 64-bit word */
+#define AMD_IRTE_SRC_ID(bdf)	(((uint64_t)(bdf) & 0xFFFF))
+/* Valid bit is bit 127 of the IRTE = bit 63 of the upper 64-bit word */
+#define AMD_IRTE_VALID		(1ULL << 63)
+
+/* Number of IRTEs per IOMMU unit (allocated as one 4K page = 256 entries) */
+#define AMD_IRTE_COUNT		256
+
+/* AMD DTE: Set I-bit (bit 7) to enable interrupt remapping per device */
+#define AMD_DTE_I_BIT		(1ULL << 7)
+
+/* Per-unit interrupt remap table tracking */
+struct amd_ir_table {
+	uint64_t	phys;		/* Physical address of IRT */
+	uint64_t	*virt;		/* Virtual address of IRT */
+	uint32_t	alloc_map;	/* Bitmap: bit N = IRTE N in use */
+};
+
+static struct amd_ir_table amd_ir_tables[MAX_AMD_IOMMU_UNITS];
+
 static int amd_intr_remap_enable(void)
 {
-	return -ENOTSUP;
+	for (unsigned int u = 0; u < amd_unit_count; u++) {
+		struct amd_iommu_unit *unit = &amd_units[u];
+		phys_bytes phys;
+
+		if (!unit->has_intr_remap)
+			continue;
+
+		/* Allocate Interrupt Remap Table (4K page, 256 × 16-byte entries) */
+		amd_ir_tables[u].virt = alloc_contig(4096, AC_ALIGN4K, &phys);
+		if (!amd_ir_tables[u].virt)
+			return -ENOMEM;
+		amd_ir_tables[u].phys = (uint64_t)phys;
+		memset(amd_ir_tables[u].virt, 0, 4096);
+		amd_ir_tables[u].alloc_map = 0;
+
+		/* Write IRT base register (MMIO offset 0x0070-0x0074) */
+		amd_write64(unit, AMD_IOMMU_OFFSET_IRQ_TABLE_BASE_LO,
+		    AMD_IOMMU_OFFSET_IRQ_TABLE_BASE_HI, (uint64_t)phys);
+
+		/* Write IRT length register: log2(256) = 8 */
+		amd_write32(unit, AMD_IOMMU_OFFSET_IRQ_TABLE_LENGTH, 8);
+
+		/* Enable interrupt remapping in control register */
+		uint32_t cr = amd_read32(unit, AMD_IOMMU_OFFSET_DEV_CR);
+		cr |= AMD_IOMMU_CR_IRQ_ENABLE;
+		amd_write32(unit, AMD_IOMMU_OFFSET_DEV_CR, cr);
+
+		printf("iommu_amd: interrupt remapping enabled on unit %u "
+		    "(IRT=0x%llx)\n", u, (unsigned long long)phys);
+	}
+
+	return 0;
 }
 
 static int amd_intr_remap_set(uint8_t bus, uint8_t dev, uint8_t func,
     unsigned int vector, uint64_t destination)
 {
-	(void)bus; (void)dev; (void)func; (void)vector; (void)destination;
-	return -ENOTSUP;
+	uint16_t bdf = (uint16_t)((bus << 8) | (dev << 3) | func);
+	int unit_idx = 0;
+	struct amd_iommu_unit *unit;
+	struct amd_ir_table *irt;
+	int slot;
+
+	if (amd_unit_count == 0)
+		return -ENODEV;
+
+	unit = &amd_units[unit_idx];
+	irt = &amd_ir_tables[unit_idx];
+
+	if (!unit->has_intr_remap || !irt->virt)
+		return -ENOTSUP;
+
+	/* Find a free IRTE slot */
+	for (slot = 0; slot < AMD_IRTE_COUNT; slot++) {
+		if (!(irt->alloc_map & (1U << slot)))
+			break;
+	}
+	if (slot >= AMD_IRTE_COUNT)
+		return -ENOSPC;
+
+	/* Program the IRTE entry (16 bytes = 2 × 64-bit words) */
+	uint64_t irte_lo = (uint64_t)(vector & 0xFF) |
+	    AMD_IRTE_DELIVERY_MODE_FIXED |
+	    AMD_IRTE_DEST_MODE_PHYSICAL |
+	    AMD_IRTE_TRIGGER_EDGE |
+	    AMD_IRTE_DEST_LOW((unsigned int)destination) |
+	    AMD_IRTE_DEST_EXT((unsigned int)destination);
+
+	uint64_t irte_hi = AMD_IRTE_SRC_ID(bdf) | AMD_IRTE_VALID;
+
+	irt->virt[slot * 2 + 0] = irte_lo;
+	irt->virt[slot * 2 + 1] = irte_hi;
+	irt->alloc_map |= (1U << slot);
+
+	__sync_synchronize();
+
+	/* Set DTE I-bit for this device */
+	if (unit->dev_table_virt) {
+		uint64_t *dte = (uint64_t *)(unit->dev_table_virt + bdf * 16);
+		dte[0] |= AMD_DTE_I_BIT;  /* Set I-bit in entry_lo */
+		__sync_synchronize();
+	}
+
+	printf("iommu_amd: IRTE[%d] dev=%02x:%02x.%x vector=%u "
+	    "dest=0x%llx\n",
+	    slot, bus, dev, func, vector,
+	    (unsigned long long)destination);
+
+	return 0;
 }
 
 /*===========================================================================*

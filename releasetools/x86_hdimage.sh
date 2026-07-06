@@ -109,11 +109,6 @@ fi
 #
 echo "Writing disk image..."
 
-# all sizes are written in 512 byte blocks
-ROOTSIZEARG="-b $((${ROOT_SIZE} / 512 / 8))"
-USRSIZEARG="-b $((${USR_SIZE} / 512 / 8))"
-HOMESIZEARG="-b $((${HOME_SIZE} / 512 / 8))"
-
 if [ ${EFI_SIZE} -ge 512 ]
 then
 	: ${EFI_DIR=$OBJ/efi}
@@ -170,17 +165,10 @@ then
 fi
 
 ROOT_START=${BOOTXX_SECS}
-echo " * ROOT"
-_ROOT_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs -d ${ROOTSIZEARG} -I $((${ROOT_START}*512)) ${IMG} ${WORK_DIR}/proto.root)
-_ROOT_SIZE=$(($_ROOT_SIZE / 512))
+echo " * Creating ext4 filesystem images..."
+create_ext4_fs_images "${IMG}" "${ROOT_START}" "${ROOT_SIZE}" "${USR_SIZE}" "${HOME_SIZE}"
 USR_START=$((${ROOT_START} + ${_ROOT_SIZE}))
-echo " * USR"
-_USR_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs  -d ${USRSIZEARG}  -I $((${USR_START}*512))  ${IMG} ${WORK_DIR}/proto.usr)
-_USR_SIZE=$(($_USR_SIZE / 512))
 HOME_START=$((${USR_START} + ${_USR_SIZE}))
-echo " * HOME"
-_HOME_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs -d ${HOMESIZEARG} -I $((${HOME_START}*512)) ${IMG} ${WORK_DIR}/proto.home)
-_HOME_SIZE=$(($_HOME_SIZE / 512))
 
 #
 # Write the partition table using the natively compiled

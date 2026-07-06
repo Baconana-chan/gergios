@@ -124,13 +124,18 @@ typedef struct e1000
 
     e1000_rx_desc_t *rx_desc;	  /**< Receive Descriptor table. */
     int rx_desc_count;		  /**< Number of Receive Descriptors. */
+    phys_bytes rx_desc_phys;	  /**< Physical address of RX descriptors (for PM resume). */
     char *rx_buffer;		  /**< Receive buffer returned by malloc(). */
     int rx_buffer_size;		  /**< Size of the receive buffer. */
+    phys_bytes rx_buff_phys;	  /**< Physical address of RX buffer (for descriptor init). */
 
     e1000_tx_desc_t *tx_desc;	  /**< Transmit Descriptor table. */
     int tx_desc_count;		  /**< Number of Transmit Descriptors. */
+    phys_bytes tx_desc_phys;	  /**< Physical address of TX descriptors (for PM resume). */
     char *tx_buffer;		  /**< Transmit buffer returned by malloc(). */
     int tx_buffer_size;		  /**< Size of the transmit buffer. */
+    phys_bytes tx_buff_phys;	  /**< Physical address of TX buffer (for descriptor init). */
+    u8_t mac_addr[6];		  /**< MAC address (cached for PM resume). */
 } e1000_t;
 
 #endif /* __E1000_H */

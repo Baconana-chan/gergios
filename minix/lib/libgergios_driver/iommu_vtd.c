@@ -468,10 +468,287 @@ static int vtd_qi_invalidation_wait(struct vtd_unit *unit)
 	}
 
 	return -ETIMEDOUT;
+}/*===========================================================================*
+ *		Page table management (4-level: PML4/PDP/PD/PT)	     *
+ *===========================================================================*/
+
+/* VT-d page table entry bit definitions */
+#define VTD_PTE_PRESENT		(1ULL << 0)
+#define VTD_PTE_RW		(1ULL << 1)
+#define VTD_PTE_USER		(1ULL << 2)
+#define VTD_PTE_PWT		(1ULL << 3)
+#define VTD_PTE_PCD		(1ULL << 4)
+#define VTD_PTE_ACCESSED	(1ULL << 5)
+#define VTD_PTE_DIRTY		(1ULL << 6)
+#define VTD_PTE_PS		(1ULL << 7)	/* Large page (huge page indicator at L2/L3) */
+#define VTD_PTE_ADDR_MASK	0x000FFFFFFFFFFFF0ULL	/* bits 12-51 */
+
+/* VT-d page table levels and index extraction */
+#define VTD_PT_ENTRIES		512
+#define VTD_PML4_INDEX(addr)	(((addr) >> 39) & 0x1FF)
+#define VTD_PDP_INDEX(addr)	(((addr) >> 30) & 0x1FF)
+#define VTD_PD_INDEX(addr)	(((addr) >> 21) & 0x1FF)
+#define VTD_PT_INDEX(addr)	(((addr) >> 12) & 0x1FF)
+
+/* Allocate a zeroed 4K page table page.  Returns phys addr in *phys. */
+static uint64_t *vtd_pt_alloc_page(uint64_t *phys_out)
+{
+	phys_bytes p;
+	void *virt = alloc_contig(4096, AC_ALIGN4K, &p);
+	if (!virt) return NULL;
+	memset(virt, 0, 4096);
+	*phys_out = (uint64_t)p;
+	return (uint64_t *)virt;
+}
+
+/* Map a set of page-aligned physical pages into a VT-d IOMMU domain.
+ * Walks the 4-level page table (PML4 → PDP → PD → PT), allocating
+ * intermediate tables as needed.
+ *
+ * @param pml4_virt  Virtual address of the PML4 root
+ * @param pml4_phys  Physical address of the PML4 root
+ * @param iova       Starting I/O virtual address (must be page-aligned)
+ * @param phys_addr  Starting physical address (must be page-aligned)
+ * @param pages      Number of 4KB pages to map
+ * @param flags      Bit 0 = write-enable, bit 1 = user
+ * @param unit       VT-d unit (for large page support check)
+ * @returns 0 on success, negative errno on failure
+ */
+static int vtd_pt_map_pages(uint64_t *pml4_virt, uint64_t pml4_phys,
+    uint64_t iova, uint64_t phys_addr, size_t pages, int flags,
+    struct vtd_unit *unit)
+{
+	uint64_t pte_flags = VTD_PTE_PRESENT | VTD_PTE_RW | VTD_PTE_ACCESSED;
+	if (flags & 1) pte_flags |= VTD_PTE_RW;
+	if (flags & 2) pte_flags |= VTD_PTE_USER;
+	(void)pml4_phys;
+
+	while (pages > 0) {
+		uint64_t pml4_idx = VTD_PML4_INDEX(iova);
+		uint64_t pdp_idx  = VTD_PDP_INDEX(iova);
+		uint64_t pd_idx   = VTD_PD_INDEX(iova);
+		uint64_t pt_idx   = VTD_PT_INDEX(iova);
+
+		/* Check if we can use a 1GB huge page at PDP level */
+		if ((iova & 0x3FFFFFFF) == 0 && (phys_addr & 0x3FFFFFFF) == 0 &&
+		    pages >= 262144) {
+			uint64_t *pdp_table;
+			uint64_t pdp_phys;
+			uint64_t pml4_entry = pml4_virt[pml4_idx];
+
+			if (!(pml4_entry & VTD_PTE_PRESENT)) {
+				/* Allocate PDP table */
+				pdp_table = vtd_pt_alloc_page(&pdp_phys);
+				if (!pdp_table) return -ENOMEM;
+				pml4_virt[pml4_idx] = (pdp_phys & VTD_PTE_ADDR_MASK) |
+				    VTD_PTE_PRESENT | VTD_PTE_RW;
+			} else {
+				pdp_phys = pml4_entry & VTD_PTE_ADDR_MASK;
+				pdp_table = vm_map_phys(SELF, (void *)(uintptr_t)pdp_phys, 4096);
+			}
+
+			pdp_table[pdp_idx] = (phys_addr & VTD_PTE_ADDR_MASK) |
+			    VTD_PTE_PRESENT | VTD_PTE_RW | VTD_PTE_PS | VTD_PTE_ACCESSED;
+
+			phys_addr += 0x40000000ULL;
+			iova += 0x40000000ULL;
+			pages -= 262144;
+			continue;
+		}
+
+		/* Get or create PDP table */
+		uint64_t pml4_entry = pml4_virt[pml4_idx];
+		uint64_t *pdp_table;
+		uint64_t pdp_phys;
+
+		if (!(pml4_entry & VTD_PTE_PRESENT)) {
+			pdp_table = vtd_pt_alloc_page(&pdp_phys);
+			if (!pdp_table) return -ENOMEM;
+			pml4_virt[pml4_idx] = (pdp_phys & VTD_PTE_ADDR_MASK) |
+			    VTD_PTE_PRESENT | VTD_PTE_RW;
+		} else {
+			pdp_phys = pml4_entry & VTD_PTE_ADDR_MASK;
+			pdp_table = vm_map_phys(SELF, (void *)(uintptr_t)pdp_phys, 4096);
+		}
+
+		/* Try 2MB huge page at PD level (if aligned) */
+		if ((iova & 0x1FFFFF) == 0 && (phys_addr & 0x1FFFFF) == 0 &&
+		    pages >= 512) {
+			uint64_t *pd_table;
+			uint64_t pd_phys;
+			uint64_t pdp_entry = pdp_table[pdp_idx];
+			int new_pd = 0;
+
+			if (!(pdp_entry & VTD_PTE_PRESENT)) {
+				pd_table = vtd_pt_alloc_page(&pd_phys);
+				if (!pd_table) return -ENOMEM;
+				pdp_table[pdp_idx] = (pd_phys & VTD_PTE_ADDR_MASK) |
+				    VTD_PTE_PRESENT | VTD_PTE_RW;
+				new_pd = 1;
+			} else {
+				pd_phys = pdp_entry & VTD_PTE_ADDR_MASK;
+				pd_table = vm_map_phys(SELF, (void *)(uintptr_t)pd_phys, 4096);
+			}
+
+			/* If we just allocated the PD table, use the pointer directly */
+			if (new_pd) {
+				/* pd_table already points to the newly allocated page */
+			}
+
+			pd_table[pd_idx] = (phys_addr & VTD_PTE_ADDR_MASK) |
+			    VTD_PTE_PRESENT | VTD_PTE_RW | VTD_PTE_PS |
+			    VTD_PTE_ACCESSED | VTD_PTE_DIRTY;
+
+			phys_addr += 0x200000ULL;
+			iova += 0x200000ULL;
+			pages -= 512;
+			continue;
+		}
+
+		/* Get or create PD table */
+		uint64_t pdp_entry = pdp_table[pdp_idx];
+		uint64_t *pd_table;
+		uint64_t pd_phys;
+
+		if (!(pdp_entry & VTD_PTE_PRESENT)) {
+			pd_table = vtd_pt_alloc_page(&pd_phys);
+			if (!pd_table) return -ENOMEM;
+			pdp_table[pdp_idx] = (pd_phys & VTD_PTE_ADDR_MASK) |
+			    VTD_PTE_PRESENT | VTD_PTE_RW;
+		} else {
+			pd_phys = pdp_entry & VTD_PTE_ADDR_MASK;
+			pd_table = vm_map_phys(SELF, (void *)(uintptr_t)pd_phys, 4096);
+		}
+
+		/* Get or create PT (level-1) table */
+		uint64_t pd_entry = pd_table[pd_idx];
+		uint64_t *pt_table;
+		uint64_t pt_phys;
+
+		if (!(pd_entry & VTD_PTE_PRESENT)) {
+			pt_table = vtd_pt_alloc_page(&pt_phys);
+			if (!pt_table) return -ENOMEM;
+			pd_table[pd_idx] = (pt_phys & VTD_PTE_ADDR_MASK) |
+			    VTD_PTE_PRESENT | VTD_PTE_RW;
+		} else {
+			pt_phys = pd_entry & VTD_PTE_ADDR_MASK;
+			pt_table = vm_map_phys(SELF, (void *)(uintptr_t)pt_phys, 4096);
+		}
+
+		/* Map 4KB pages */
+		size_t batch = (pages < (512 - pt_idx)) ? pages : (512 - pt_idx);
+		for (size_t i = 0; i < batch; i++) {
+			pt_table[pt_idx + i] = (phys_addr & VTD_PTE_ADDR_MASK) | pte_flags;
+			phys_addr += 0x1000;
+		}
+		iova += batch * 0x1000;
+		pages -= batch;
+	}
+
+	return 0;
+}
+
+/* Unmap a range of pages from a VT-d IOMMU domain. */
+static void vtd_pt_unmap_pages(uint64_t *pml4_virt, uint64_t pml4_phys,
+    uint64_t iova, size_t size, struct vtd_unit *unit)
+{
+	size_t pages = (size + 4095) / 4096;
+	(void)pml4_phys;
+	(void)unit;
+
+	while (pages > 0) {
+		uint64_t pml4_idx = VTD_PML4_INDEX(iova);
+		uint64_t pdp_idx  = VTD_PDP_INDEX(iova);
+		uint64_t pd_idx   = VTD_PD_INDEX(iova);
+		uint64_t pt_idx   = VTD_PT_INDEX(iova);
+
+		uint64_t pml4_entry = pml4_virt[pml4_idx];
+		if (!(pml4_entry & VTD_PTE_PRESENT)) {
+			size_t skip = 262144;
+			if (skip > pages) skip = pages;
+			pages -= skip;
+			iova += skip * 4096;
+			continue;
+		}
+
+		uint64_t pdp_phys = pml4_entry & VTD_PTE_ADDR_MASK;
+		uint64_t *pdp_table = vm_map_phys(SELF, (void *)(uintptr_t)pdp_phys, 4096);
+		uint64_t pdp_entry = pdp_table[pdp_idx];
+
+		if (!(pdp_entry & VTD_PTE_PRESENT)) {
+			size_t skip = 512;
+			if (skip > pages) skip = pages;
+			pages -= skip;
+			iova += skip * 4096;
+			continue;
+		}
+
+		/* Check for 1GB huge page at PDP level */
+		if (pdp_entry & VTD_PTE_PS) {
+			pdp_table[pdp_idx] = 0;
+			iova += 0x40000000ULL;
+			pages -= (pages >= 262144) ? 262144 : pages;
+			continue;
+		}
+
+		uint64_t pd_phys = pdp_entry & VTD_PTE_ADDR_MASK;
+		uint64_t *pd_table = vm_map_phys(SELF, (void *)(uintptr_t)pd_phys, 4096);
+		uint64_t pd_entry = pd_table[pd_idx];
+
+		if (!(pd_entry & VTD_PTE_PRESENT)) {
+			size_t skip = 512;
+			if (skip > pages) skip = pages;
+			pages -= skip;
+			iova += skip * 4096;
+			continue;
+		}
+
+		/* Check for 2MB huge page at PD level */
+		if (pd_entry & VTD_PTE_PS) {
+			pd_table[pd_idx] = 0;
+			iova += 0x200000ULL;
+			pages -= (pages >= 512) ? 512 : pages;
+			continue;
+		}
+
+		uint64_t pt_phys = pd_entry & VTD_PTE_ADDR_MASK;
+		uint64_t *pt_table = vm_map_phys(SELF, (void *)(uintptr_t)pt_phys, 4096);
+
+		size_t batch = (pages < (512 - pt_idx)) ? pages : (512 - pt_idx);
+		for (size_t i = 0; i < batch; i++)
+			pt_table[pt_idx + i] = 0;
+
+		/* Check if PT table is now empty */
+		int empty = 1;
+		for (int i = 0; i < VTD_PT_ENTRIES; i++) {
+			if (pt_table[i] & VTD_PTE_PRESENT) { empty = 0; break; }
+		}
+		if (empty)
+			pd_table[pd_idx] = 0;
+
+		/* Check if PD table is now empty */
+		empty = 1;
+		for (int i = 0; i < VTD_PT_ENTRIES; i++) {
+			if (pd_table[i] & VTD_PTE_PRESENT) { empty = 0; break; }
+		}
+		if (empty)
+			pdp_table[pdp_idx] = 0;
+
+		/* Check if PDP table is now empty */
+		empty = 1;
+		for (int i = 0; i < VTD_PT_ENTRIES; i++) {
+			if (pdp_table[i] & VTD_PTE_PRESENT) { empty = 0; break; }
+		}
+		if (empty)
+			pml4_virt[pml4_idx] = 0;
+
+		iova += batch * 4096;
+		pages -= batch;
+	}
 }
 
 /*===========================================================================*
- *		API implementation					     *
+ *		API implementation				     *
  *===========================================================================*/
 
 static int vtd_detect(void)
@@ -512,28 +789,51 @@ static void vtd_shutdown_hw(void)
 
 static int vtd_domain_alloc(struct gergios_iommu_domain *domain)
 {
+	phys_bytes phys;
+	void *root;
+
 	if (vtd_domain_count >= 64)
 		return -ENOMEM;
+
+	/* Allocate PML4 root page table (4K, zeroed) */
+	root = alloc_contig(4096, AC_ALIGN4K, &phys);
+	if (!root)
+		return -ENOMEM;
+	memset(root, 0, 4096);
 
 	domain->domain_id = vtd_domain_count;
 	domain->type = GERGIOS_IOMMU_INTEL_VTD;
 	domain->max_address = 0xFFFFFFFFFFFFFFFFULL;
 	domain->ref_count = 0;
+	domain->priv = (void *)(uintptr_t)phys;  /* PML4 root phys addr */
 
-	/* Allocate first-level page table root (for pass-through / identity) */
-	/* In a full VT-d implementation, each domain has a first-level or
-	 * second-level page table root.  For now, we store the domain_id. */
-	domain->priv = (void *)(uintptr_t)(domain->domain_id + 1);
 	vtd_domains[vtd_domain_count] = *domain;
 	vtd_domain_count++;
+
+	printf("iommu_vtd: domain %d allocated (PML4 root=0x%llx)\n",
+	    domain->domain_id, (unsigned long long)phys);
 
 	return 0;
 }
 
 static void vtd_domain_free(struct gergios_iommu_domain *domain)
 {
+	uint64_t root_phys = (uint64_t)(uintptr_t)domain->priv;
+
+	/* Walk the page tables and free all intermediate pages.
+	 * Simplified: clear the root PML4 (the IOMMU stop accessing it).
+	 * A full implementation would recursively free all PDP/PD/PT pages.
+	 * alloc_contig memory is not freed — recycled when process exits. */
+	if (root_phys) {
+		uint64_t *root_virt = vm_map_phys(SELF,
+		    (void *)(uintptr_t)root_phys, 4096);
+		if (root_virt != MAP_FAILED)
+			memset(root_virt, 0, 4096);
+	}
+
 	domain->priv = NULL;
 	domain->domain_id = -1;
+	printf("iommu_vtd: domain %d freed\n", domain->domain_id);
 }
 
 static int vtd_domain_attach_device(struct gergios_iommu_domain *domain,
@@ -573,11 +873,12 @@ static int vtd_domain_attach_device(struct gergios_iommu_domain *domain,
 		 * In a real implementation with a per-bus table tracked in
 		 * unit state, we'd use the cached virtual address.  For now,
 		 * compute from the root entry.  Note: we use the phys addr
-		 * stored in the root table entry; no new vm_map_phys needed
-		 * as we don't need to access the table from this codepath
-		 * (we only write to the specific slot via unit mapping). */
-		ctx_table_phys = *root_entry & 0xFFFFFFFFFFFFF000ULL;
-		ctx_table_virt = NULL;  /* not accessed in this path */
+		 * stored in the root table entry; no new vm_map_phys needed         * we need to map it to write the context entry. */
+                ctx_table_phys = *root_entry & 0xFFFFFFFFFFFFF000ULL;
+                ctx_table_virt = vm_map_phys(SELF,
+                    (void *)(uintptr_t)ctx_table_phys, 4096);
+                if (ctx_table_virt == MAP_FAILED)
+                        return -ENOMEM;
 	}
 
 	/* Each context table entry is 8 bytes (for 4K page-table mode):
@@ -635,16 +936,51 @@ static void vtd_domain_detach_device(struct gergios_iommu_domain *domain,
 static int vtd_map(struct gergios_iommu_domain *domain,
     uint64_t iova, phys_bytes phys_addr, size_t size, int flags)
 {
-	/* Simplified: identity-mapped (IOVA == phys).  Full page-table
-	 * management will be implemented in a follow-up. */
-	(void)domain; (void)iova; (void)phys_addr; (void)size; (void)flags;
-	return 0;
+	struct vtd_unit *unit = &vtd_units[0];
+	uint64_t pml4_phys = (uint64_t)(uintptr_t)domain->priv;
+	uint64_t *pml4_virt;
+	size_t pages = (size + 4095) / 4096;
+	int r;
+
+	if (pages == 0)
+		return 0;
+
+	/* Map PML4 root for access */
+	pml4_virt = vm_map_phys(SELF, (void *)(uintptr_t)pml4_phys, 4096);
+	if (pml4_virt == MAP_FAILED)
+		return -ENOMEM;
+
+	r = vtd_pt_map_pages(pml4_virt, pml4_phys, iova,
+	    (uint64_t)phys_addr, pages, flags, unit);
+
+	if (r == 0) {
+		/* Invalidate IOTLB for the mapped range */
+		vtd_invalidate_iotlb(unit, domain->domain_id, iova, size, 0);
+		vtd_qi_invalidation_wait(unit);
+	}
+
+	return r;
 }
 
 static void vtd_unmap(struct gergios_iommu_domain *domain,
     uint64_t iova, size_t size)
 {
-	(void)domain; (void)iova; (void)size;
+	struct vtd_unit *unit = &vtd_units[0];
+	uint64_t pml4_phys = (uint64_t)(uintptr_t)domain->priv;
+	uint64_t *pml4_virt;
+
+	if (size == 0)
+		return;
+
+	pml4_virt = vm_map_phys(SELF, (void *)(uintptr_t)pml4_phys, 4096);
+	if (pml4_virt == MAP_FAILED)
+		return;
+
+	vtd_pt_unmap_pages(pml4_virt, pml4_phys, iova, size, unit);
+
+	/* Invalidate IOTLB for the unmapped range */
+	vtd_invalidate_iotlb(unit, domain->domain_id, iova, size, 0);
+	vtd_qi_invalidation_wait(unit);
 }
 
 static int vtd_identity_map(struct gergios_iommu_domain *domain,
@@ -675,17 +1011,152 @@ static void vtd_iotlb_invalidate_all(void)
 	vtd_qi_invalidation_wait(unit);
 }
 
+/*===========================================================================*
+ *		Interrupt remapping (VT-d IRTE)				     *
+ *===========================================================================*/
+/*
+ * VT-d Interrupt Remap Table Entry (IRTE) — 16 bytes per entry.
+ * Field layout (per Intel VT-d spec rev 3.4, section 5.1.2):
+ *   Lower 64 bits:
+ *     Bit 0:      P (Present)
+ *     Bit 1:      FPD (Flexible Posted Descriptor)
+ *     Bits 2-3:   Reserved
+ *     Bits 4-7:   Vector[3:0]
+ *     Bits 8-10:  RQ (Remap Qualifier) — 000 for MSI remap
+ *     Bit 11:     SIDP (Source ID Present)
+ *     Bits 12-15: SVT (Source Validation Type, if SIDP=0)
+ *     Bits 16-31: SID (Source ID — 16-bit Requester ID)
+ *     Bits 32-47: Destination[15:0] — low 16 bits of APIC ID
+ *     Bits 48-63: Destination[31:16] + Vector[7:4] + flags
+ *   Upper 64 bits:
+ *     Bits 64-127: Extended Address + flags (for x2APIC / EIM)
+ */
+
+#define VTD_IRTE_PRESENT	(1ULL << 0)
+#define VTD_IRTE_FPD		(1ULL << 1)
+#define VTD_IRTE_VECTOR(v)	(((uint64_t)(v) & 0xFF) << 4)
+#define VTD_IRTE_RQ_MSI		(0ULL << 8)	/* Remap Qualifier = MSI */
+#define VTD_IRTE_SIDP		(1ULL << 11)	/* SID Present */
+#define VTD_IRTE_SVT_NONE	(0ULL << 12)	/* No source validation */
+#define VTD_IRTE_SVT_REQID	(2ULL << 12)	/* Validate against requester ID */
+#define VTD_IRTE_SID(bdf)	(((uint64_t)(bdf) & 0xFFFF) << 16)
+#define VTD_IRTE_DEST(apic)	(((uint64_t)(apic) & 0xFFFFFFFF) << 32)
+
+/* Number of IRTEs (one 4K page = 256 entries × 16 bytes) */
+#define VTD_IRTE_COUNT		256
+
+/* Per-unit interrupt remap table */
+struct vtd_ir_table {
+	uint64_t	phys;		/* Physical address (4K-aligned) */
+	uint64_t	*virt;		/* Virtual address */
+	uint32_t	alloc_map;	/* Bitmap: bit N = entry N in use */
+};
+
+static struct vtd_ir_table vtd_ir_tables[MAX_VTD_UNITS];
+
 static int vtd_intr_remap_enable(void)
 {
-	/* Stub — not yet implemented */
-	return -ENOTSUP;
+	int r;
+
+	for (unsigned int u = 0; u < vtd_unit_count; u++) {
+		struct vtd_unit *unit = &vtd_units[u];
+		phys_bytes phys;
+
+		if (!unit->has_ir)
+			continue;
+
+		/* Allocate IR table: 4K page = 256 × 16-byte entries */
+		vtd_ir_tables[u].virt = alloc_contig(4096, AC_ALIGN4K, &phys);
+		if (!vtd_ir_tables[u].virt)
+			return -ENOMEM;
+		vtd_ir_tables[u].phys = (uint64_t)phys;
+		memset(vtd_ir_tables[u].virt, 0, 4096);
+		vtd_ir_tables[u].alloc_map = 0;
+
+		/* Set IRTA register: base address + size (log2(N) - 1) = 7 (256 entries) */
+		uint64_t irta = ((uint64_t)phys & 0xFFFFFFFFFFFFF000ULL) | 7;
+		vtd_write64(unit, VTD_REG_IRTA, irta);
+		__sync_synchronize();
+
+		/* Enable interrupt remapping: set IRE bit in GCMD */
+		uint64_t gcmd = vtd_read64(unit, VTD_REG_GCMD);
+		gcmd |= VTD_GCMD_IRE;
+		vtd_write64(unit, VTD_REG_GCMD, gcmd);
+
+		r = vtd_wait_for_command(unit, VTD_REG_GSTS,
+		    VTD_GSTS_IRES, VTD_GSTS_IRES);
+		if (r != 0) {
+			printf("iommu_vtd: IRE enable failed on unit %u (%d)\n",
+			    u, r);
+			return r;
+		}
+
+		printf("iommu_vtd: interrupt remapping enabled on unit %u "
+		    "(IRTA=0x%llx)\n", u, (unsigned long long)irta);
+	}
+
+	return 0;
 }
 
 static int vtd_intr_remap_set(uint8_t bus, uint8_t dev, uint8_t func,
     unsigned int vector, uint64_t destination)
 {
-	(void)bus; (void)dev; (void)func; (void)vector; (void)destination;
-	return -ENOTSUP;
+	uint16_t bdf = (uint16_t)((bus << 8) | (dev << 3) | func);
+	int unit_idx = 0;
+	struct vtd_unit *unit;
+	struct vtd_ir_table *irt;
+	int slot;
+
+	if (vtd_unit_count == 0)
+		return -ENODEV;
+
+	unit = &vtd_units[unit_idx];
+	irt = &vtd_ir_tables[unit_idx];
+
+	if (!unit->has_ir || !irt->virt)
+		return -ENOTSUP;
+
+	/* Find a free IRTE slot */
+	for (slot = 0; slot < VTD_IRTE_COUNT; slot++) {
+		if (!(irt->alloc_map & (1U << slot)))
+			break;
+	}
+	if (slot >= VTD_IRTE_COUNT)
+		return -ENOSPC;
+
+	/* Program the IRTE entry (16 bytes = 2 × 64-bit words).
+	 * Lower word: Present | FPD=0 | Vector | RQ=MSI | SIDP | SID | Destination
+	 * Upper word: 0 (no x2APIC extended address) */
+	uint64_t irte_lo = VTD_IRTE_PRESENT |
+	    VTD_IRTE_VECTOR(vector) |
+	    VTD_IRTE_RQ_MSI |
+	    VTD_IRTE_SIDP |
+	    VTD_IRTE_SVT_NONE |
+	    VTD_IRTE_SID(bdf) |
+	    VTD_IRTE_DEST((unsigned int)destination);
+
+	irt->virt[slot * 2 + 0] = irte_lo;
+	irt->virt[slot * 2 + 1] = 0;  /* Upper word = 0 */
+	irt->alloc_map |= (1U << slot);
+
+	__sync_synchronize();
+
+	/* Invalidate IEC (Interrupt Entry Cache) via QI descriptor */
+	{
+		uint64_t desc[2];
+		/* IEC descriptor: type 4, global invalidation */
+		desc[0] = (uint64_t)VTD_QI_DESC_IEC | (1ULL << 4);
+		desc[1] = (uint64_t)slot;  /* IRTE index to invalidate */
+		vtd_qi_submit(unit, desc);
+		vtd_qi_invalidation_wait(unit);
+	}
+
+	printf("iommu_vtd: IRTE[%d] dev=%02x:%02x.%x vector=%u "
+	    "dest=0x%llx\n",
+	    slot, bus, dev, func, vector,
+	    (unsigned long long)destination);
+
+	return 0;
 }
 
 /*===========================================================================*

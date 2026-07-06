@@ -77,11 +77,6 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:${PATH}
 . releasetools/image.defaults
 . releasetools/image.functions
 
-# all sizes are written in 512 byte blocks
-ROOTSIZEARG="-b $((${ROOT_SIZE} / 512 / 8))"
-USRSIZEARG="-b $((${USR_SIZE} / 512 / 8))"
-HOMESIZEARG="-b $((${HOME_SIZE} / 512 / 8))"
-
 # where the kernel & boot modules will be
 MODDIR=${DESTDIR}/boot/minix/.temp
 
@@ -92,8 +87,8 @@ echo "Adding extra files..."
 
 # create a fstab entry in /etc
 cat >${ROOT_DIR}/etc/fstab <<END_FSTAB
-/dev/c0d0p2	/usr		mfs	rw			0	2
-/dev/c0d0p3	/home		mfs	rw			0	2
+/dev/c0d0p2	/usr		ext4	rw			0	2
+/dev/c0d0p3	/home		ext4	rw			0	2
 none		/sys		devman	rw,rslabel=devman	0	0
 none		/dev/pts	ptyfs	rw,rslabel=ptyfs	0	0
 END_FSTAB
@@ -129,17 +124,10 @@ dd if=/dev/zero of=${IMG} bs=512 count=1 seek=$((($IMG_SIZE / 512) -1))
 echo "Writing disk image..."
 FAT_START=2048 # those are sectors
 ROOT_START=$(($FAT_START + $FAT_SIZE))
-echo " * ROOT"
-_ROOT_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs -d ${ROOTSIZEARG} -I $((${ROOT_START}*512)) ${IMG} ${WORK_DIR}/proto.root)
-_ROOT_SIZE=$(($_ROOT_SIZE / 512))
+echo " * Creating ext4 filesystem images..."
+create_ext4_fs_images "${IMG}" "${ROOT_START}" "${ROOT_SIZE}" "${USR_SIZE}" "${HOME_SIZE}"
 USR_START=$((${ROOT_START} + ${_ROOT_SIZE}))
-echo " * USR"
-_USR_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs  -d ${USRSIZEARG}  -I $((${USR_START}*512))  ${IMG} ${WORK_DIR}/proto.usr)
-_USR_SIZE=$(($_USR_SIZE / 512))
 HOME_START=$((${USR_START} + ${_USR_SIZE}))
-echo " * HOME"
-_HOME_SIZE=$(${CROSS_TOOLS}/nbmkfs.mfs -d ${HOMESIZEARG} -I $((${HOME_START}*512)) ${IMG} ${WORK_DIR}/proto.home)
-_HOME_SIZE=$(($_HOME_SIZE / 512))
 echo " * BOOT"
 rm -rf ${ROOT_DIR}/*
 cp ${RELEASETOOLSDIR}/u-boot/${U_BOOT_BIN_DIR}/MLO ${ROOT_DIR}/

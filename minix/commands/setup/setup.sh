@@ -25,7 +25,7 @@ then	USRFILES=$(($USRFILES - `find -x $INSTALLDIR | wc -l`))
 fi
 
 if [ -z "$FSTYPE" ]
-then	FSTYPE=mfs
+then	FSTYPE=ext4
 fi
 
 PATH=/bin:/sbin:/usr/bin:/usr/sbin
@@ -480,7 +480,7 @@ The following subpartitions are now being created on /dev/$primary:
 partition /dev/$primary $bootsectors 81:${ROOTSECTS}* 81:$homesize 81:0+ > /dev/null || exit
 
 echo "Creating /dev/$root for / .."
-mkfs.mfs /dev/$root || exit
+mkfs.$FSTYPE /dev/$root || exit
 
 if [ "$nohome" = 0 ]
 then
@@ -536,7 +536,7 @@ fi
 
 # CD remnants that aren't for the installed system
 rm /mnt/etc/issue /mnt/CD /mnt/.* 2>/dev/null
-echo >/mnt/etc/fstab "/dev/$root	/		mfs	rw			0	1
+echo >/mnt/etc/fstab "/dev/$root	/		$FSTYPE	rw			0	1
 /dev/$usr	/usr		$FSTYPE	rw			0	2
 $fshome
 none		/sys		devman	rw,rslabel=devman	0	0

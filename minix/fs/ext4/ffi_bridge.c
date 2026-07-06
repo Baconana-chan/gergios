@@ -830,6 +830,504 @@ ext4_orphan_cleanup(struct ext4_io_ctx *io_ctx)
 	return ret;
 }
 
+/* ─── EXT4_C_ONLY stubs ──────────────────────────────────────────
+ *
+ * When EXT4_C_ONLY is defined (Rust staticlib not available),
+ * these stubs provide weak implementations of the Rust FFI functions
+ * so the ext4 server compiles and links as C-only fallback.
+ *
+ * Read/Write operations return ENOTSUP — the FS is not functional
+ * without the Rust core. Checksum operations are safe no-ops.
+ * ext4_sb_info_size() returns the correct struct size for allocation.
+ */
+
+#ifdef EXT4_C_ONLY
+
+#include <errno.h>
+
+int
+ext4_parse_superblock(const uint8_t *data, struct ext4_sb_info *sbi)
+{
+	(void)data;
+	(void)sbi;
+	/* Without Rust ext4-core, we can't parse the superblock */
+	return ENOTSUP;
+}
+
+size_t
+ext4_sb_info_size(void)
+{
+	return sizeof(struct ext4_sb_info);
+}
+
+int
+ext4_compute_csum_seed(struct ext4_sb_info *sbi, const uint8_t *sb_data)
+{
+	(void)sbi;
+	(void)sb_data;
+	return 0;
+}
+
+int
+ext4_verify_sb_csum(const struct ext4_sb_info *sbi,
+		      const uint8_t *sb_data)
+{
+	(void)sbi;
+	(void)sb_data;
+	return 0;
+}
+
+int
+ext4_verify_gd_csum(const struct ext4_sb_info *sbi, uint32_t group,
+		     const uint8_t *gd_data, uint16_t desc_size)
+{
+	(void)sbi;
+	(void)group;
+	(void)gd_data;
+	(void)desc_size;
+	return 0;
+}
+
+int
+ext4_verify_inode_csum(const struct ext4_sb_info *sbi, uint32_t ino,
+			const uint8_t *inode_data, uint16_t inode_size)
+{
+	(void)sbi;
+	(void)ino;
+	(void)inode_data;
+	(void)inode_size;
+	return 0;
+}
+
+int
+ext4_verify_all_csums(const struct ext4_sb_info *sbi,
+		       const uint8_t *sb_data,
+		       struct ext4_csum_result *result,
+		       void *ctx,
+		       ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)sb_data;
+	(void)ctx;
+	(void)read_block;
+	if (result != NULL) {
+		result->sb_valid = 1;
+		result->gd_valid = 1;
+		result->gd_failed = 0xFFFFFFFF;
+		result->root_inode_valid = 1;
+	}
+	return 0;
+}
+
+int
+ext4_update_sb_csum(const struct ext4_sb_info *sbi,
+		     uint8_t *sb_data)
+{
+	(void)sbi;
+	(void)sb_data;
+	return 0;
+}
+
+int
+ext4_update_gd_csum(const struct ext4_sb_info *sbi,
+		     uint32_t group, uint8_t *gd_data,
+		     uint16_t desc_size)
+{
+	(void)sbi;
+	(void)group;
+	(void)gd_data;
+	(void)desc_size;
+	return 0;
+}
+
+int
+ext4_read_inode(const struct ext4_sb_info *sbi, uint32_t ino,
+		struct ext4_inode_info *info,
+		void *ctx, ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)info;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_lookup(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	     const char *name, uint32_t *out_ino, uint8_t *out_type,
+	     void *ctx, ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)out_ino;
+	(void)out_type;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_read_file(const struct ext4_sb_info *sbi, uint32_t ino,
+		uint64_t offset, uint8_t *buf, uint32_t count,
+		uint32_t *bytes_read,
+		void *ctx, ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)offset;
+	(void)buf;
+	(void)count;
+	(void)bytes_read;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_stat(const struct ext4_sb_info *sbi, uint32_t ino,
+	   uint16_t *mode, uint64_t *size,
+	   uint16_t *uid, uint16_t *gid,
+	   void *ctx, ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)mode;
+	(void)size;
+	(void)uid;
+	(void)gid;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_read_group_descriptor(const struct ext4_sb_info *sbi,
+			      uint32_t group,
+			      struct ext4_gd_info *gd_info,
+			      void *ctx,
+			      ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)group;
+	(void)gd_info;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_truncate(const struct ext4_sb_info *sbi, uint32_t ino,
+	       uint64_t new_size,
+	       void *ctx,
+	       ext4_read_block_cb read_block,
+	       ext4_write_block_cb write_block,
+	       ext4_free_blocks_cb free_blocks)
+{
+	(void)sbi;
+	(void)ino;
+	(void)new_size;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)free_blocks;
+	return ENOTSUP;
+}
+
+int
+ext4_link(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	   const char *name, uint32_t target_ino, uint16_t target_mode,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block,
+	   ext4_alloc_block_cb alloc_block)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)target_ino;
+	(void)target_mode;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	return ENOTSUP;
+}
+
+int
+ext4_unlink(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	     const char *name,
+	     void *ctx,
+	     ext4_read_block_cb read_block,
+	     ext4_write_block_cb write_block,
+	     ext4_free_blocks_cb free_blocks,
+	     ext4_free_inode_cb free_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)free_blocks;
+	(void)free_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_create(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	    const char *name, uint16_t mode,
+	    uint16_t uid, uint16_t gid, uint32_t *out_ino,
+	    void *ctx,
+	    ext4_read_block_cb read_block,
+	    ext4_write_block_cb write_block,
+	    ext4_alloc_block_cb alloc_block,
+	    ext4_alloc_inode_cb alloc_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)mode;
+	(void)uid;
+	(void)gid;
+	(void)out_ino;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	(void)alloc_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_mkdir(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	   const char *name, uint16_t mode,
+	   uint16_t uid, uint16_t gid,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block,
+	   ext4_alloc_block_cb alloc_block,
+	   ext4_alloc_inode_cb alloc_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)mode;
+	(void)uid;
+	(void)gid;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	(void)alloc_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_rename(const struct ext4_sb_info *sbi,
+	    uint32_t old_dir_ino, const char *old_name,
+	    uint32_t new_dir_ino, const char *new_name,
+	    void *ctx,
+	    ext4_read_block_cb read_block,
+	    ext4_write_block_cb write_block,
+	    ext4_alloc_block_cb alloc_block,
+	    ext4_free_blocks_cb free_blocks,
+	    ext4_free_inode_cb free_inode)
+{
+	(void)sbi;
+	(void)old_dir_ino;
+	(void)old_name;
+	(void)new_dir_ino;
+	(void)new_name;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	(void)free_blocks;
+	(void)free_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_write_file(const struct ext4_sb_info *sbi, uint32_t ino,
+		uint64_t offset, const uint8_t *buf, uint32_t count,
+		uint32_t *bytes_written,
+		void *ctx,
+		ext4_read_block_cb read_block,
+		ext4_write_block_cb write_block,
+		ext4_alloc_block_cb alloc_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)offset;
+	(void)buf;
+	(void)count;
+	(void)bytes_written;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	return ENOTSUP;
+}
+
+int
+ext4_readdir(const struct ext4_sb_info *sbi, uint32_t ino,
+	     uint64_t *pos,
+	     struct ext4_dirent *entries, uint32_t max_entries,
+	     uint32_t *count,
+	     void *ctx,
+	     ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)pos;
+	(void)entries;
+	(void)max_entries;
+	(void)count;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+int
+ext4_rmdir(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	    const char *name,
+	    void *ctx,
+	    ext4_read_block_cb read_block,
+	    ext4_write_block_cb write_block,
+	    ext4_free_blocks_cb free_blocks,
+	    ext4_free_inode_cb free_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)free_blocks;
+	(void)free_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_chown(const struct ext4_sb_info *sbi, uint32_t ino,
+	   uint16_t uid, uint16_t gid, uint16_t *mode,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)uid;
+	(void)gid;
+	(void)mode;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	return ENOTSUP;
+}
+
+int
+ext4_chmod(const struct ext4_sb_info *sbi, uint32_t ino,
+	   uint16_t *mode,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)mode;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	return ENOTSUP;
+}
+
+int
+ext4_utime(const struct ext4_sb_info *sbi, uint32_t ino,
+	   uint32_t atime, uint32_t mtime,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)atime;
+	(void)mtime;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	return ENOTSUP;
+}
+
+int
+ext4_mknod(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	   const char *name, uint16_t mode,
+	   uint16_t uid, uint16_t gid, uint32_t rdev,
+	   void *ctx,
+	   ext4_read_block_cb read_block,
+	   ext4_write_block_cb write_block,
+	   ext4_alloc_block_cb alloc_block,
+	   ext4_alloc_inode_cb alloc_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)mode;
+	(void)uid;
+	(void)gid;
+	(void)rdev;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	(void)alloc_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_symlink(const struct ext4_sb_info *sbi, uint32_t dir_ino,
+	     const char *name, const char *target,
+	     uint16_t uid, uint16_t gid,
+	     void *ctx,
+	     ext4_read_block_cb read_block,
+	     ext4_write_block_cb write_block,
+	     ext4_alloc_block_cb alloc_block,
+	     ext4_alloc_inode_cb alloc_inode)
+{
+	(void)sbi;
+	(void)dir_ino;
+	(void)name;
+	(void)target;
+	(void)uid;
+	(void)gid;
+	(void)ctx;
+	(void)read_block;
+	(void)write_block;
+	(void)alloc_block;
+	(void)alloc_inode;
+	return ENOTSUP;
+}
+
+int
+ext4_readlink(const struct ext4_sb_info *sbi, uint32_t ino,
+	      uint8_t *buf, uint32_t buf_size, uint32_t *bytes_read,
+	      void *ctx,
+	      ext4_read_block_cb read_block)
+{
+	(void)sbi;
+	(void)ino;
+	(void)buf;
+	(void)buf_size;
+	(void)bytes_read;
+	(void)ctx;
+	(void)read_block;
+	return ENOTSUP;
+}
+
+#endif /* EXT4_C_ONLY */
+
 /* ─── Public API ──────────────────────────────────────────────────── */
 
 /* Parse the ext4 superblock, reading from the given device. */

@@ -78,7 +78,7 @@ cp /path/to/build/mod07_tty gergios_boot/boot/modules/
 cp /path/to/build/mod08_mib gergios_boot/boot/modules/
 cp /path/to/build/mod09_vm gergios_boot/boot/modules/
 cp /path/to/build/mod10_pfs gergios_boot/boot/modules/
-cp /path/to/build/mod11_mfs gergios_boot/boot/modules/
+cp /path/to/build/mod11_ext4 gergios_boot/boot/modules/
 cp /path/to/build/mod12_init gergios_boot/boot/modules/
 ```
 
@@ -234,7 +234,7 @@ TIMEOUT=10
     MODULE_PATH=boot:///boot/modules/mod08_mib
     MODULE_PATH=boot:///boot/modules/mod09_vm
     MODULE_PATH=boot:///boot/modules/mod10_pfs
-    MODULE_PATH=boot:///boot/modules/mod11_mfs
+    MODULE_PATH=boot:///boot/modules/mod11_ext4
     MODULE_PATH=boot:///boot/modules/mod12_init
     CMDLINE=rootdevname=c0d0p0
 
@@ -251,7 +251,7 @@ TIMEOUT=10
     MODULE_PATH=boot:///boot/modules/mod08_mib
     MODULE_PATH=boot:///boot/modules/mod09_vm
     MODULE_PATH=boot:///boot/modules/mod10_pfs
-    MODULE_PATH=boot:///boot/modules/mod11_mfs
+    MODULE_PATH=boot:///boot/modules/mod11_ext4
     MODULE_PATH=boot:///boot/modules/mod12_init
     CMDLINE=rootdevname=c0d0p0 bootopts=-s
 EOF
@@ -477,7 +477,7 @@ ESP (FAT32)
 │       ├── mod08_mib             ← MIB service
 │       ├── mod09_vm              ← Virtual Memory
 │       ├── mod10_pfs             ← PFS
-│       ├── mod11_mfs             ← MFS
+│       ├── mod11_ext4            ← ext4 (default FS)
 │       └── mod12_init            ← /sbin/init
 ```
 

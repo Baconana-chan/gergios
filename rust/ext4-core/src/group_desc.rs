@@ -5,6 +5,51 @@
 
 use crate::types::*;
 
+/// Serialize a group descriptor into a raw buffer (32 or 64 bytes).
+/// `data` must be at least `desc_size` bytes.
+pub fn serialize_group_desc(gd: &Ext4GroupDesc, data: &mut [u8], desc_size: usize) {
+    if data.len() < desc_size { return; }
+    data.fill(0);
+    data[0..4].copy_from_slice(&gd.bg_block_bitmap_lo.to_le_bytes());
+    data[4..8].copy_from_slice(&gd.bg_inode_bitmap_lo.to_le_bytes());
+    data[8..12].copy_from_slice(&gd.bg_inode_table_lo.to_le_bytes());
+    data[12..14].copy_from_slice(&gd.bg_free_blocks_count_lo.to_le_bytes());
+    data[14..16].copy_from_slice(&gd.bg_free_inodes_count_lo.to_le_bytes());
+    data[16..18].copy_from_slice(&gd.bg_used_dirs_count_lo.to_le_bytes());
+    data[18..20].copy_from_slice(&gd.bg_flags.to_le_bytes());
+    data[24..26].copy_from_slice(&gd.bg_block_bitmap_csum_lo.to_le_bytes());
+    data[26..28].copy_from_slice(&gd.bg_inode_bitmap_csum_lo.to_le_bytes());
+    data[28..30].copy_from_slice(&gd.bg_itable_unused_lo.to_le_bytes());
+    data[30..32].copy_from_slice(&gd.bg_checksum.to_le_bytes());
+    if desc_size >= 64 {
+        data[32..36].copy_from_slice(&gd.bg_block_bitmap_hi.to_le_bytes());
+        data[36..40].copy_from_slice(&gd.bg_inode_bitmap_hi.to_le_bytes());
+        data[40..44].copy_from_slice(&gd.bg_inode_table_hi.to_le_bytes());
+        data[44..46].copy_from_slice(&gd.bg_free_blocks_count_hi.to_le_bytes());
+        data[46..48].copy_from_slice(&gd.bg_free_inodes_count_hi.to_le_bytes());
+        data[48..50].copy_from_slice(&gd.bg_used_dirs_count_hi.to_le_bytes());
+        data[50..52].copy_from_slice(&gd.bg_itable_unused_hi.to_le_bytes());
+        data[56..58].copy_from_slice(&gd.bg_block_bitmap_csum_hi.to_le_bytes());
+        data[58..60].copy_from_slice(&gd.bg_inode_bitmap_csum_hi.to_le_bytes());
+    }
+}
+
+/// Serialize all group descriptors into a buffer for a single block.
+/// `data` must be at least `num_groups * desc_size` bytes.
+pub fn serialize_group_descriptors(
+    groups: &[Ext4GroupDesc],
+    data: &mut [u8],
+    desc_size: usize,
+) {
+    for (i, gd) in groups.iter().enumerate() {
+        let off = i * desc_size;
+        if off + desc_size > data.len() {
+            break;
+        }
+        serialize_group_desc(gd, &mut data[off..off + desc_size], desc_size);
+    }
+}
+
 /// Parse all group descriptors from a raw buffer.
 ///
 /// `data` must be at least `num_groups * desc_size` bytes long.

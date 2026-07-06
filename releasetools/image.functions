@@ -132,8 +132,8 @@ workdir_add_hdd_files()
 {
 	# create a fstab entry in /etc
 	cat >${ROOT_DIR}/etc/fstab <<END_FSTAB
-/dev/c0d0p1	/usr		mfs	rw			0	2
-/dev/c0d0p2	/home		mfs	rw			0	2
+/dev/c0d0p1	/usr		ext4	rw			0	2
+/dev/c0d0p2	/home		ext4	rw			0	2
 none		/sys		devman	rw,rslabel=devman	0	0
 none		/dev/pts	ptyfs	rw,rslabel=ptyfs	0	0
 END_FSTAB
@@ -253,6 +253,165 @@ create_protos()
 	do
 		cat ${WORK_DIR}/input | grep  "^\./$i/\|^. " | sed "s,\./$i,\.,g" | ${CROSS_TOOLS}/nbtoproto -b ${ROOT_DIR}/$i -o ${WORK_DIR}/proto.$i
 	done
+}
+
+#
+# Create ext4 filesystem images for root, usr, and home partitions.
+# Writes each partition directly into the main disk image using dd.
+# Sets _ROOT_SIZE, _USR_SIZE, _HOME_SIZE (in 512-byte sectors).
+#
+# Strategy (in order of preference):
+#   1. fakeroot + mke2fs -d  — best: preserves uid=0/gid=0 ownership
+#   2. mke2fs -d             — ok: files owned by build user
+#   3. nbmkfs.ext4 + mount   — fallback: empty FS + loop mount + copy (needs root)
+#
+# $1 : main disk image path
+# $2 : root partition start sector
+# $3 : root partition size in bytes
+# $4 : usr partition size in bytes
+# $5 : home partition size in bytes
+create_ext4_fs_images()
+{
+	local img="$1"
+	local root_start="$2"
+	local root_size="$3"
+	local usr_size="$4"
+	local home_size="$5"
+	local block_size=4096
+
+	echo " * Creating ext4 staging directories..."
+	local staging_root="${WORK_DIR}/staging_root"
+	local staging_usr="${WORK_DIR}/staging_usr"
+	local staging_home="${WORK_DIR}/staging_home"
+	rm -rf "${staging_root}" "${staging_usr}" "${staging_home}"
+	mkdir -p "${staging_root}" "${staging_usr}" "${staging_home}"
+
+	echo " *   Populating root staging (excluding usr/, home/)..."
+	if command -v rsync >/dev/null 2>&1; then
+		rsync -a --exclude='/usr/' --exclude='/home/' "${ROOT_DIR}/" "${staging_root}/"
+	else
+		cp -a "${ROOT_DIR}/." "${staging_root}/"
+		rm -rf "${staging_root}/usr" "${staging_root}/home"
+	fi
+
+	echo " *   Populating usr staging..."
+	mkdir -p "${staging_usr}"
+	if [ -d "${ROOT_DIR}/usr" ]; then
+		cp -a "${ROOT_DIR}/usr/." "${staging_usr}/"
+	fi
+
+	echo " *   Populating home staging..."
+	mkdir -p "${staging_home}"
+	if [ -d "${ROOT_DIR}/home" ]; then
+		cp -a "${ROOT_DIR}/home/." "${staging_home}/"
+	fi
+
+	# ── Create ROOT partition ──
+	local part_root="${WORK_DIR}/part_root.ext4"
+	echo " *   Creating ROOT ext4 image..."
+	_create_single_ext4 "${part_root}" "${staging_root}" "${root_size}" "root"
+	_ROOT_SIZE=$(( $(stat -c %s "${part_root}" 2>/dev/null || stat -f %z "${part_root}" 2>/dev/null) / 512 ))
+	dd if="${part_root}" of="${img}" bs=512 seek="${root_start}" conv=notrunc 2>/dev/null
+	rm -f "${part_root}"
+
+	# ── Create USR partition ──
+	local usr_start=$((root_start + _ROOT_SIZE))
+	local part_usr="${WORK_DIR}/part_usr.ext4"
+	echo " *   Creating USR ext4 image..."
+	_create_single_ext4 "${part_usr}" "${staging_usr}" "${usr_size}" "usr"
+	_USR_SIZE=$(( $(stat -c %s "${part_usr}" 2>/dev/null || stat -f %z "${part_usr}" 2>/dev/null) / 512 ))
+	dd if="${part_usr}" of="${img}" bs=512 seek="${usr_start}" conv=notrunc 2>/dev/null
+	rm -f "${part_usr}"
+
+	# ── Create HOME partition ──
+	local home_start=$((usr_start + _USR_SIZE))
+	local part_home="${WORK_DIR}/part_home.ext4"
+	echo " *   Creating HOME ext4 image..."
+	_create_single_ext4 "${part_home}" "${staging_home}" "${home_size}" "home"
+	_HOME_SIZE=$(( $(stat -c %s "${part_home}" 2>/dev/null || stat -f %z "${part_home}" 2>/dev/null) / 512 ))
+	dd if="${part_home}" of="${img}" bs=512 seek="${home_start}" conv=notrunc 2>/dev/null
+	rm -f "${part_home}"
+
+	# Clean up staging directories
+	rm -rf "${staging_root}" "${staging_usr}" "${staging_home}"
+
+	echo " *   Partitions: root=${_ROOT_SIZE}s usr=${_USR_SIZE}s home=${_HOME_SIZE}s"
+}
+
+#
+# Create a single ext4 partition image from a staging directory.
+# Tries fakeroot+mke2fs first, then nbmkfs.ext4+mount+copy as fallback.
+#
+# $1 : output ext4 image file
+# $2 : source staging directory
+# $3 : partition size in bytes
+# $4 : partition name (for error messages)
+_create_single_ext4()
+{
+	local output="$1"
+	local src="$2"
+	local part_size="$3"
+	local name="$4"
+	local block_size=4096
+	local blocks=$((part_size / block_size))
+
+	# Create an empty sparse file of the required size
+	truncate -s "${part_size}" "${output}" 2>/dev/null || \
+		dd if=/dev/zero of="${output}" bs=1 count=1 seek=$((part_size - 1)) 2>/dev/null
+
+	# Strategy 1: fakeroot + mke2fs -d (best: preserves uid=0/gid=0)
+	# Note: fakeroot makes all files appear owned by root, so no -E root_owner needed.
+	if command -v fakeroot >/dev/null 2>&1 && command -v mke2fs >/dev/null 2>&1; then
+		echo " *     ${name}: using fakeroot + mke2fs -d..."
+		fakeroot mke2fs -t ext4 -b "${block_size}" -d "${src}" \
+			-O ^has_journal,^metadata_csum,^64bit,^dir_index \
+			"${output}" "${blocks}" >/dev/null 2>&1 && return 0
+		echo " *     ${name}: fakeroot+mke2fs failed, trying alternatives..."
+		rm -f "${output}"
+		truncate -s "${part_size}" "${output}" 2>/dev/null || \
+			dd if=/dev/zero of="${output}" bs=1 count=1 seek=$((part_size - 1)) 2>/dev/null
+	fi
+
+	# Strategy 2: mke2fs -d without fakeroot (ok: files owned by build user)
+	if command -v mke2fs >/dev/null 2>&1; then
+		echo " *     ${name}: using mke2fs -d (no fakeroot)..."
+		mke2fs -t ext4 -b "${block_size}" -d "${src}" \
+			-O ^has_journal,^metadata_csum,^64bit,^dir_index \
+			"${output}" "${blocks}" >/dev/null 2>&1 && return 0
+		echo " *     ${name}: mke2fs failed, trying nbmkfs.ext4+mount..."
+		rm -f "${output}"
+		truncate -s "${part_size}" "${output}" 2>/dev/null || \
+			dd if=/dev/zero of="${output}" bs=1 count=1 seek=$((part_size - 1)) 2>/dev/null
+	fi
+
+	# Strategy 3: nbmkfs.ext4 + loop mount + copy (needs root)
+	local nbmkfs="${CROSS_TOOLS}/nbmkfs.ext4"
+	local nbmkfs_alt="build/tools/nbmkfs.ext4"
+	if [ -x "${nbmkfs}" ]; then
+		: # found
+	elif [ -x "${nbmkfs_alt}" ]; then
+		nbmkfs="${nbmkfs_alt}"
+	else
+		echo "ERROR: ${name}: cannot create ext4 image."
+		echo "  Install e2fsprogs (apt install e2fsprogs) or build nbmkfs.ext4:"
+		echo "  ./releasetools/build_ext4.sh host"
+		exit 1
+	fi
+
+	echo " *     ${name}: using nbmkfs.ext4 + loop mount (needs root)..."
+	"${nbmkfs}" -b "${block_size}" "${output}" 2>&1 | tail -1
+
+	local mnt="${WORK_DIR}/mnt_${name}_$$"
+	mkdir -p "${mnt}"
+	mount -o loop "${output}" "${mnt}" 2>/dev/null || {
+		echo "ERROR: ${name}: cannot mount ext4 image (needs root or fuse2fs)"
+		rm -rf "${mnt}"
+		exit 1
+	}
+	cp -a "${src}/." "${mnt}/"
+	sync
+	umount "${mnt}"
+	rmdir "${mnt}" 2>/dev/null || true
 }
 
 #
@@ -584,7 +743,7 @@ menuentry "Minix Boot" {
         module /boot/minix_default/mod08_mib
         module /boot/minix_default/mod09_vm
         module /boot/minix_default/mod10_pfs
-        module /boot/minix_default/mod11_mfs
+        module /boot/minix_default/mod11_ext4
         module /boot/minix_default/mod12_init
 }
 
@@ -601,7 +760,7 @@ menuentry "Minix Boot (serial)" {
         module /boot/minix_default/mod08_mib
         module /boot/minix_default/mod09_vm
         module /boot/minix_default/mod10_pfs
-        module /boot/minix_default/mod11_mfs
+        module /boot/minix_default/mod11_ext4
         module /boot/minix_default/mod12_init
 }
 END_GRUBCFG

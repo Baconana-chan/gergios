@@ -117,6 +117,11 @@
 #include <sys/mman.h>
 #include <assert.h>
 
+/* DMA API from libgergios_driver */
+#include "dma.h"
+#include "gergios_device.h"
+#include "pm.h"
+
 #include "ahci.h"
 
 /* Host Bus Adapter (HBA) state. */
@@ -131,7 +136,29 @@ static struct {
 
 	int irq;		/* IRQ number */
 	int hook_id;		/* IRQ hook ID */
+
+	int devind;		/* PCI device index (for DMA attach) */
 } hba_state;
+
+/* GergiOS device for DMA API attachment */
+static struct gergios_device *ahci_gdev = NULL;
+
+/* PM ops for runtime power management */
+static int ahci_runtime_suspend(struct gergios_device *dev);
+static int ahci_runtime_resume(struct gergios_device *dev);
+
+static const struct gergios_pm_ops ahci_pm_ops = {
+	.runtime_suspend	= ahci_runtime_suspend,
+	.runtime_resume		= ahci_runtime_resume,
+};
+
+static struct gergios_driver ahci_gergios_drv = {
+	.name	= "ahci",
+	.class	= GERGIOS_DRIVER_BLOCK,
+	.ops	= {
+		.pm	= &ahci_pm_ops,
+	},
+};
 
 #define hba_read(r)		(hba_state.base[r])
 #define hba_write(r, v)		(hba_state.base[r] = (v))
@@ -260,6 +287,108 @@ static struct blockdriver ahci_dtab = {
 	.bdr_alarm	= ahci_alarm,
 	.bdr_device	= ahci_device
 };
+
+/*===========================================================================*
+ *			Runtime PM callbacks				     *
+ *===========================================================================*/
+
+static int ahci_runtime_suspend(struct gergios_device *dev)
+{
+	/* Quiesce all active ports before PCI D3hot transition.
+	 * The PM framework sets D3hot after this callback returns. */
+	int port;
+
+	(void)dev;
+
+	for (port = 0; port < hba_state.nr_ports; port++) {
+		struct port_state *ps = &port_state[port];
+
+		if (ps->state != STATE_NO_PORT &&
+		    ps->state != STATE_SPIN_UP) {
+			port_stop(ps);
+		}
+	}
+
+	/* Mask all HBA interrupts */
+	hba_write(AHCI_HBA_GHC,
+	    hba_read(AHCI_HBA_GHC) & ~AHCI_HBA_GHC_IE);
+
+	return 0;
+}
+
+/*
+ * Restore port MMIO registers lost during D3hot.
+ * After a PCI D3hot → D0 transition, the AHCI HBA loses all
+ * port-level registers (PxCLB, PxFB, PxCMD, PxIE, etc.).
+ * This function restores the critical ones from the cached
+ * port_state structures.
+ */
+static void port_restore_mmio(struct port_state *ps)
+{
+	u32_t cmd;
+	u32_t ie_mask;
+
+	/* Determine the interrupt enable mask based on port state.
+	 * See the state table at the top of this file for details. */
+	switch (ps->state) {
+	case STATE_SPIN_UP:
+	case STATE_NO_DEV:
+	case STATE_WAIT_DEV:
+		ie_mask = AHCI_PORT_IE_PCE;
+		break;
+	case STATE_BAD_DEV:
+		ie_mask = AHCI_PORT_IE_PRCE;
+		break;
+	case STATE_WAIT_ID:
+	case STATE_GOOD_DEV:
+		ie_mask = AHCI_PORT_IE_MASK;
+		break;
+	default:
+		return; /* NO_PORT — nothing to restore */
+	}
+
+	/* Restore physical address registers (lost in D3hot) */
+	port_write(ps, AHCI_PORT_CLBU, 0);
+	port_write(ps, AHCI_PORT_CLB, ps->cl_phys);
+	port_write(ps, AHCI_PORT_FBU, 0);
+	port_write(ps, AHCI_PORT_FB, ps->fis_phys);
+
+	/* Re-enable FIS receive (lost in D3hot) */
+	cmd = port_read(ps, AHCI_PORT_CMD);
+	port_write(ps, AHCI_PORT_CMD, cmd | AHCI_PORT_CMD_FRE);
+
+	/* Restore interrupt enable mask */
+	port_write(ps, AHCI_PORT_IE, ie_mask);
+}
+
+static int ahci_runtime_resume(struct gergios_device *dev)
+{
+	/* Restart after PCI D0 transition.
+	 * The PM framework has already restored PCI D0 before calling this. */
+	int port;
+	u32_t ghc;
+
+	(void)dev;
+
+	/* Re-enable AHCI mode and interrupts */
+	ghc = hba_read(AHCI_HBA_GHC);
+	hba_write(AHCI_HBA_GHC, ghc | AHCI_HBA_GHC_AE | AHCI_HBA_GHC_IE);
+
+	/* Re-enable IRQ */
+	sys_irqenable(&hba_state.hook_id);
+
+	/* Restore port MMIO registers and restart ports */
+	for (port = 0; port < hba_state.nr_ports; port++) {
+		struct port_state *ps = &port_state[port];
+
+		if (ps->state != STATE_NO_PORT) {
+			port_restore_mmio(ps);
+			port_start(ps);
+		}
+	}
+
+	return 0;
+}
 
 /*===========================================================================*
  *				atapi_exec				     *
@@ -997,7 +1126,17 @@ static int port_get_padbuf(struct port_state *ps, size_t size)
 		free_contig(ps->pad_base, ps->pad_size);
 
 	ps->pad_size = size;
-	ps->pad_base = alloc_contig(ps->pad_size, 0, &ps->pad_phys);
+	if (ahci_gdev) {
+		uint64_t dma_handle;
+		if (gergios_dma_alloc_coherent(ahci_gdev, ps->pad_size,
+		    (void **)&ps->pad_base, &dma_handle) == 0) {
+			ps->pad_phys = (phys_bytes)dma_handle;
+		} else {
+			ps->pad_base = NULL;
+		}
+	} else {
+		ps->pad_base = alloc_contig(ps->pad_size, 0, &ps->pad_phys);
+	}
 
 	if (ps->pad_base == NULL) {
 		dprintf(V_ERR, ("%s: unable to allocate a padding buffer of "
@@ -1199,6 +1338,14 @@ static ssize_t port_transfer(struct port_state *ps, u64_t pos, u64_t eof,
 
 	if (r < 0) return r;
 
+	/* Mark activity for runtime PM — reset idle timer */
+	if (ahci_gdev)
+		gergios_pm_mark_active(ahci_gdev);
+
+	/* Get PM reference to prevent runtime suspend during I/O */
+	if (ahci_gdev)
+		gergios_pm_get(ahci_gdev);
+
 	/* Perform the actual transfer. */
 	cmd = port_find_cmd(ps);
 
@@ -1208,6 +1355,10 @@ static ssize_t port_transfer(struct port_state *ps, u64_t pos, u64_t eof,
 	else
 		r = ata_transfer(ps, cmd, start_lba, count, write,
 			!!(flags & BDEV_FORCEWRITE), prdt, nr_prds);
+
+	/* Release PM reference */
+	if (ahci_gdev)
+		gergios_pm_put(ahci_gdev);
 
 	if (r != OK) return r;
 
@@ -1903,7 +2054,17 @@ static void port_alloc(struct port_state *ps)
 		ct_off = ps->mem_size;
 	}
 
-	ps->mem_base = alloc_contig(ps->mem_size, AC_ALIGN4K, &ps->mem_phys);
+	if (ahci_gdev) {
+		uint64_t dma_handle;
+		if (gergios_dma_alloc_coherent(ahci_gdev, ps->mem_size,
+		    (void **)&ps->mem_base, &dma_handle) == 0) {
+			ps->mem_phys = (phys_bytes)dma_handle;
+		} else {
+			ps->mem_base = NULL;
+		}
+	} else {
+		ps->mem_base = alloc_contig(ps->mem_size, AC_ALIGN4K, &ps->mem_phys);
+	}
 	if (ps->mem_base == NULL)
 		panic("unable to allocate port memory");
 	memset(ps->mem_base, 0, ps->mem_size);
@@ -1961,10 +2122,21 @@ static void port_free(struct port_state *ps)
 			PORTREG_DELAY);
 	}
 
-	if (ps->pad_base != NULL)
-		free_contig(ps->pad_base, ps->pad_size);
+	if (ps->pad_base != NULL) {
+		if (ahci_gdev)
+			gergios_dma_free_coherent(ahci_gdev, ps->pad_size,
+			    ps->pad_base, (uint64_t)ps->pad_phys);
+		else
+			free_contig(ps->pad_base, ps->pad_size);
+	}
 
-	free_contig(ps->mem_base, ps->mem_size);
+	if (ps->mem_base != NULL) {
+		if (ahci_gdev)
+			gergios_dma_free_coherent(ahci_gdev, ps->mem_size,
+			    ps->mem_base, (uint64_t)ps->mem_phys);
+		else
+			free_contig(ps->mem_base, ps->mem_size);
+	}
 }
 
 /*===========================================================================*
@@ -2033,6 +2205,9 @@ static int ahci_probe(int skip)
 
 	pci_reserve(devind);
 
+	/* Store the PCI device index for DMA API attachment */
+	hba_state.devind = devind;
+
 	return devind;
 }
 
@@ -2066,6 +2241,41 @@ static void ahci_init(int devind)
 	 */
 	u32_t base, size, cap, ghc, mask;
 	int r, port, ioflag;
+
+	/* Initialise the DMA subsystem (idempotent — only first call matters) */
+	gergios_dma_init();
+
+	/* Create gergios_device for DMA API attachment.
+	 * We use devind as bus_address (matching pci_scan.c convention).
+	 * The actual BDF would need a PCI server extension to read. */
+	{
+		u16_t vid = pci_attr_r16(devind, 0x00);
+		u16_t did = pci_attr_r16(devind, 0x02);
+		u32_t class = pci_attr_r32(devind, 0x08) >> 8;
+
+		ahci_gdev = gergios_device_create(NULL,
+		    vid, did, 0xFFFF, 0xFFFF, class,
+		    (uint32_t)devind);
+	if (ahci_gdev) {
+		int dma_r = gergios_dma_attach_device(ahci_gdev);
+		if (dma_r == 0) {
+			gergios_dma_set_mask(ahci_gdev, 0xFFFFFFFFULL);
+			printf("AHCI%u: DMA attached (backend=%d)\n",
+			    ahci_instance,
+			    gergios_dma_get_backend());
+		} else {
+			printf("AHCI%u: DMA attach failed (%d), "
+			    "falling back to direct alloc\n",
+			    ahci_instance, dma_r);
+		}
+
+		/* Register with power management framework */
+		ahci_gdev->driver = &ahci_gergios_drv;
+		gergios_pm_register_device(ahci_gdev);
+		gergios_pm_runtime_enable(ahci_gdev, 1);
+		gergios_pm_set_idle_timeout(ahci_gdev, 10000); /* 10 seconds */
+	}
+	}
 
 	if ((r = pci_get_bar(devind, PCI_BAR_6, &base, &size, &ioflag)) != OK)
 		panic("unable to retrieve BAR: %d", r);
@@ -2206,6 +2416,10 @@ static void ahci_alarm(clock_t stamp)
 
 	/* Call the port-specific handler for each port that timed out. */
 	expire_timers(stamp);
+
+	/* Drive runtime PM idle detection (~1 Hz via standard alarm rate) */
+	if (ahci_gdev)
+		gergios_pm_tick();
 }
 
 /*===========================================================================*

@@ -1,0 +1,8 @@
+[package]
+name = "mkfs-ext4"
+version = "0.1.0"
+edition = "2021"
+description = "mkfs.ext4 — create empty ext4 filesystems"
+
+[dependencies]
+ext4-core = { path = "../ext4-core" }

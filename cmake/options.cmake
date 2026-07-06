@@ -32,6 +32,7 @@ option(MKBITCODE "Build with LLVM bitcode" OFF)
 option(MKMAGIC "Build with MAGIC pass" OFF)
 option(MKASR "Build with ASR (Address Space Randomization)" OFF)
 option(MKCOVERAGE "Build with coverage profiling" OFF)
+option(MKPUFFS "Build puffs userspace filesystem framework + FUSE compat" ON)
 
 # Components that are BSD-Make-only for now (games, external) are not
 # included in the CMake build. The CMake build focuses on the MINIX

@@ -67,6 +67,12 @@ add_minix_executable(mtop
     BINDIR /usr/bin
 )
 
+# hellofs — FUSE example filesystem (built only if MKPUFFS=ON)
+if(MKPUFFS)
+    add_subdirectory(hellofs)
+    add_subdirectory(mfsfuse)
+endif()
+
 # toproto
 add_minix_executable(toproto
     SOURCES toproto/toproto.c

@@ -27,6 +27,8 @@
 #include <minix/sysutil.h>
 #include <minix/type.h>
 #include <minix/com.h>
+#include <minix/rs.h>
+#include <minix/acpi.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +38,7 @@
 #include "gergios_device.h"
 #include "gergios_driver.h"
 #include "pm.h"
+#include "hibernate.h"
 
 /*===========================================================================*
  *		External ACPI functions (from ACPICA / ACPI driver)	     *
@@ -214,6 +217,249 @@ int gergios_pci_d_state_supported(int devind, uint8_t pm_capptr,
 	default:
 		return 0;
 	}
+}
+
+/*===========================================================================*
+ *		PCI PME (Power Management Event) control		     *
+ *===========================================================================*/
+
+int gergios_pci_pme_enable(int devind, uint8_t pm_capptr)
+{
+	uint16_t pmcsr;
+
+	if (pm_capptr == 0)
+		return -ENODEV;
+
+	pmcsr = pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+	pmcsr |= PCI_PM_PMCSR_PME_EN;
+	pci_attr_w16(devind, pm_capptr + PCI_PM_CAP_PMCSR, pmcsr);
+
+	/* Flush posted write */
+	(void)pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+
+	return 0;
+}
+
+int gergios_pci_pme_disable(int devind, uint8_t pm_capptr)
+{
+	uint16_t pmcsr;
+
+	if (pm_capptr == 0)
+		return -ENODEV;
+
+	pmcsr = pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+	pmcsr &= ~PCI_PM_PMCSR_PME_EN;
+	pci_attr_w16(devind, pm_capptr + PCI_PM_CAP_PMCSR, pmcsr);
+
+	(void)pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+
+	return 0;
+}
+
+int gergios_pci_pme_status(int devind, uint8_t pm_capptr)
+{
+	uint16_t pmcsr;
+
+	if (pm_capptr == 0)
+		return -ENODEV;
+
+	pmcsr = pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+	return (pmcsr & PCI_PM_PMCSR_PME_STS) ? 1 : 0;
+}
+
+int gergios_pci_pme_clear(int devind, uint8_t pm_capptr)
+{
+	uint16_t pmcsr;
+
+	if (pm_capptr == 0)
+		return -ENODEV;
+
+	pmcsr = pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+	pmcsr |= PCI_PM_PMCSR_PME_STS;	/* write-1-to-clear */
+	pci_attr_w16(devind, pm_capptr + PCI_PM_CAP_PMCSR, pmcsr);
+
+	(void)pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMCSR);
+
+	return 0;
+}
+
+int gergios_pci_pme_d_state_supported(int devind, uint8_t pm_capptr,
+    enum gergios_pci_d_state d_state)
+{
+	uint16_t pmc;
+
+	if (pm_capptr == 0)
+		return -ENODEV;
+
+	pmc = pci_attr_r16(devind, pm_capptr + PCI_PM_CAP_PMC);
+
+	switch (d_state) {
+	case GERGIOS_PCI_D0:
+		return (pmc & PCI_PM_CAP_PME_D0) != 0;
+	case GERGIOS_PCI_D1:
+		return (pmc & PCI_PM_CAP_PME_D1) != 0;
+	case GERGIOS_PCI_D2:
+		return (pmc & PCI_PM_CAP_PME_D2) != 0;
+	case GERGIOS_PCI_D3hot:
+		return (pmc & PCI_PM_CAP_PME_D3hot) != 0;
+	case GERGIOS_PCI_D3cold:
+		return (pmc & PCI_PM_CAP_PME_D3cold) != 0;
+	default:
+		return 0;
+	}
+}
+
+/*===========================================================================*
+ *		Per-Device Wakeup Configuration				     *
+ *===========================================================================*/
+
+/* IPC to the ACPI driver for wakeup GPE configuration.
+ * Returns IPC response error or 0 on success. */
+static int acpi_wakeup_ipc(int enable, ACPI_HANDLE device_handle)
+{
+	endpoint_t acpi_ep;
+	message m;
+	int r;
+
+	/* Look up the ACPI driver endpoint */
+	r = minix_rs_lookup("acpi", &acpi_ep);
+	if (r != 0)
+		return -ENODEV;
+
+	memset(&m, 0, sizeof(m));
+	((struct acpi_wakeup_req *)&m)->hdr.request =
+	    enable ? ACPI_REQ_WAKEUP_ENABLE : ACPI_REQ_WAKEUP_DISABLE;
+	((struct acpi_wakeup_req *)&m)->device_handle = device_handle;
+
+	r = ipc_sendrec(acpi_ep, &m);
+	if (r != 0)
+		return r;
+
+	return ((struct acpi_wakeup_resp *)&m)->err;
+}
+
+int gergios_pm_wakeup_enable(struct gergios_device *dev)
+{
+	if (!dev)
+		return -EINVAL;
+
+	if (dev->vendor_id == 0 && dev->device_id == 0)
+		return -ENODEV;
+
+	int devind = (int)dev->bus_address;
+	if (devind <= 0)
+		return -ENODEV;
+
+	uint8_t pm_cap = gergios_pci_find_pm_cap(devind);
+	if (pm_cap == 0)
+		return -ENODEV;
+
+	/* Check if PME from D3hot is supported (most devices).
+	 * For suspend-to-idle, D0 PME is also important. */
+	if (!gergios_pci_pme_d_state_supported(devind, pm_cap,
+	    GERGIOS_PCI_D3hot) &&
+	    !gergios_pci_pme_d_state_supported(devind, pm_cap,
+	        GERGIOS_PCI_D0)) {
+		return -EOPNOTSUPP;
+	}
+
+	/* Enable PCI PME register */
+	int r = gergios_pci_pme_enable(devind, pm_cap);
+	if (r != 0)
+		return r;
+
+	/* Clear any stale PME status */
+	gergios_pci_pme_clear(devind, pm_cap);
+
+	/* Configure ACPI GPE wake mask via ACPI driver IPC.
+	 * This tells the platform to allow wake events from this device.
+	 * If ACPI is not available, PCI PME alone may still work on
+	 * some platforms. */
+	r = acpi_wakeup_ipc(1, dev->acpi_handle);
+	if (r != 0 && r != -ENODEV) {
+		printf("gergios_pm: ACPI GPE wake enable failed: %d\n", r);
+		/* Continue — PCI PME is already configured */
+	}
+
+	/* Update pm_device state */
+	for (unsigned int i = 0; i < pm_device_count; i++) {
+		if (pm_devices[i].dev == dev) {
+			pm_devices[i].wakeup_capable = 1;
+			pm_devices[i].wakeup_enabled = 1;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+int gergios_pm_wakeup_disable(struct gergios_device *dev)
+{
+	if (!dev)
+		return -EINVAL;
+
+	int devind = (int)dev->bus_address;
+	if (devind <= 0)
+		return -ENODEV;
+
+	uint8_t pm_cap = gergios_pci_find_pm_cap(devind);
+	if (pm_cap == 0)
+		return -ENODEV;
+
+	/* Disable PCI PME */
+	gergios_pci_pme_disable(devind, pm_cap);
+
+	/* Disable ACPI GPE wake mask */
+	acpi_wakeup_ipc(0, dev->acpi_handle);
+
+	/* Update pm_device state */
+	for (unsigned int i = 0; i < pm_device_count; i++) {
+		if (pm_devices[i].dev == dev) {
+			pm_devices[i].wakeup_enabled = 0;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+int gergios_pm_wakeup_status(struct gergios_device *dev)
+{
+	if (!dev)
+		return -EINVAL;
+
+	for (unsigned int i = 0; i < pm_device_count; i++) {
+		if (pm_devices[i].dev == dev)
+			return pm_devices[i].wakeup_enabled ? 1 : 0;
+	}
+
+	return 0;
+}
+
+int gergios_pm_wakeup_gpe(struct gergios_device *dev)
+{
+	if (!dev || !dev->acpi_handle)
+		return -ENODEV;
+
+	endpoint_t acpi_ep;
+	message m;
+	int r;
+
+	r = minix_rs_lookup("acpi", &acpi_ep);
+	if (r != 0)
+		return -ENODEV;
+
+	memset(&m, 0, sizeof(m));
+	((struct acpi_wakeup_gpe_req *)&m)->hdr.request =
+	    ACPI_REQ_WAKEUP_GPE;
+	((struct acpi_wakeup_gpe_req *)&m)->device_handle =
+	    dev->acpi_handle;
+
+	r = ipc_sendrec(acpi_ep, &m);
+	if (r != 0)
+		return r;
+
+	return ((struct acpi_wakeup_gpe_resp *)&m)->gpe_number;
 }
 
 /*===========================================================================*
@@ -589,6 +835,11 @@ int gergios_pm_init(void)
  *		Debugging						     *
  *===========================================================================*/
 
+unsigned int gergios_pm_device_count(void)
+{
+	return pm_device_count;
+}
+
 void gergios_pm_dump(void)
 {
 	printf("--- gergios PM state ---\n");
@@ -596,6 +847,7 @@ void gergios_pm_dump(void)
 	printf("pm_initialised: %d\n", pm_initialised);
 	printf("acpi_available: %d\n", acpi_available);
 	printf("S3 available:   %d\n", gergios_pm_s3_available());
+	printf("S4 available:   %d\n", gergios_pm_hibernate_available());
 	printf("registered devices: %u\n", pm_device_count);
 
 	for (unsigned int i = 0; i < pm_device_count; i++) {
@@ -605,12 +857,170 @@ void gergios_pm_dump(void)
 		    ? dev->driver->name : "?";
 
 		printf("  [%2u] %-20s D%d  idle=%u/%u  usage=%u  "
-		    "suspended=%d rt=%d\n",
+		    "suspended=%d rt=%d wake=%d/%d\n",
 		    i, name,
 		    pm_dev->d_state,
 		    pm_dev->idle_count, pm_dev->idle_threshold,
 		    pm_dev->usage_count,
-		    pm_dev->suspended, pm_dev->runtime_pm);
+		    pm_dev->suspended, pm_dev->runtime_pm,
+		    pm_dev->wakeup_enabled, pm_dev->wakeup_capable);
 	}
 	printf("--- end ---\n");
+}
+
+void gergios_pm_hibernate_dump(void)
+{
+	gergios_hibernate_dump();
+}
+
+/*===========================================================================*
+ *		S4 Hibernate Integration				     *
+ *===========================================================================*/
+
+int gergios_pm_hibernate_available(void)
+{
+	if (!pm_initialised)
+		return 0;
+
+	return gergios_hibernate_available();
+}
+
+int gergios_pm_hibernate(int swap_devind, uint64_t start_sector)
+{
+	int r;
+
+	if (!pm_initialised) {
+		printf("gergios_pm: not initialised\n");
+		return -ENODEV;
+	}
+
+	if (!gergios_pm_hibernate_available()) {
+		printf("gergios_pm: S4 hibernate not available\n");
+		return -ENODEV;
+	}
+
+	printf("gergios_pm: initiating S4 hibernate (swap=%d, sector=%llu)...\n",
+	    swap_devind, (unsigned long long)start_sector);
+
+	/* Step 1: Initialise the hibernate engine */
+	r = gergios_hibernate_init(swap_devind, start_sector);
+	if (r != 0) {
+		printf("gergios_pm: hibernate init failed: %d\n", r);
+		return r;
+	}
+
+	/* Step 2: Save PCI config space for all registered PM devices */
+	for (unsigned int i = 0; i < pm_device_count; i++) {
+		struct gergios_pm_device *pm_dev = &pm_devices[i];
+		struct gergios_device *dev = pm_dev->dev;
+
+		if (!dev) continue;
+
+		if (dev->vendor_id != 0 || dev->device_id != 0) {
+			int devind = (int)dev->bus_address;
+			if (devind > 0) {
+				r = gergios_hibernate_save_pci_state(devind,
+				    dev->vendor_id, dev->device_id,
+				    (uint32_t)dev->bus_address);
+				if (r != 0 && r != -ENOMEM) {
+					printf("gergios_pm: failed to save PCI "
+					    "state for device %d: %d\n",
+					    devind, r);
+					gergios_hibernate_abort();
+					return r;
+				}
+			}
+		}
+	}
+
+	/* Step 3: Suspend all devices (leaf→root order, as in S3) */
+	printf("gergios_pm: suspending devices for S4...\n");
+	r = suspend_all_devices();
+	if (r != 0) {
+		printf("gergios_pm: suspend failed, aborting hibernate\n");
+		gergios_hibernate_abort();
+		resume_all_devices();
+		return r;
+	}
+
+	/* Step 4: Save the hibernation image (memory + device state) */
+	r = gergios_hibernate_save();
+	if (r != 0) {
+		printf("gergios_pm: hibernate save failed: %d\n", r);
+		gergios_hibernate_abort();
+		resume_all_devices();
+		return r;
+	}
+
+	/* Step 5: Enter ACPI S4 sleep state */
+	printf("gergios_pm: entering ACPI S4...\n");
+
+	pm_state.system_sleep = GERGIOS_SLEEP_S4;
+
+	if (acpi_available) {
+		r = AcpiEnterSleepStatePrep(4);
+		if (r != 0) {
+			printf("gergios_pm: ACPI S4 prep failed: %d\n", r);
+			gergios_hibernate_abort();
+			resume_all_devices();
+			return r;
+		}
+
+		/* AcpiEnterSleepState(S4) will typically power off the system.
+		 * If it returns, something went wrong. */
+		r = AcpiEnterSleepState(4);
+		printf("gergios_pm: ACPI S4 returned! (error %d)\n", r);
+		gergios_hibernate_abort();
+		resume_all_devices();
+		return r;
+	}
+
+	/* No ACPI — fake S4 by just powering off */
+	printf("gergios_pm: no ACPI, powering off...\n");
+	sys_sysctl(SYSCTL_POWEROFF);
+	return 0;
+}
+
+int gergios_pm_hibernate_resume_boot(void)
+{
+	int r;
+
+	printf("gergios_pm: checking for hibernation image...\n");
+
+	/* Initialise hibernate with default swap device */
+	r = gergios_hibernate_init(-1, 0);
+	if (r != 0) {
+		printf("gergios_pm: hibernate init failed: %d\n", r);
+		return r;
+	}
+
+	/* Detect if a valid image exists */
+	r = gergios_hibernate_detect();
+	if (r <= 0) {
+		if (r == 0)
+			printf("gergios_pm: no hibernation image found\n");
+		else
+			printf("gergios_pm: hibernate detect error: %d\n", r);
+		return (r == 0) ? 1 : r;
+	}
+
+	printf("gergios_pm: hibernation image detected, restoring...\n");
+
+	/* Restore the hibernation image */
+	r = gergios_hibernate_restore();
+	if (r != 0) {
+		printf("gergios_pm: hibernate restore failed: %d\n", r);
+		return r;
+	}
+
+	/* Resume all devices (root→leaf order) */
+	printf("gergios_pm: resuming devices after hibernate...\n");
+	r = resume_all_devices();
+	if (r != 0)
+		printf("gergios_pm: some devices failed to resume: %d\n", r);
+
+	pm_state.system_sleep = GERGIOS_SLEEP_S0;
+
+	printf("gergios_pm: hibernate resume complete\n");
+	return 0;
 }

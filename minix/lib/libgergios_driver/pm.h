@@ -184,6 +184,60 @@ uint8_t gergios_pci_find_pm_cap(int devind);
 int gergios_pci_d_state_supported(int devind, uint8_t pm_capptr,
     enum gergios_pci_d_state d_state);
 
+/* --- PCI PME (Power Management Event) ---------------------------------- */
+
+/* Enable PME (Power Management Event) signalling on a PCI device.
+ * This allows the device to assert PME# to wake the system from a
+ * sleep state.  The caller should verify that the device supports
+ * PME from the target D-state via gergios_pci_pme_d_state_supported().
+ *
+ * devind: PCI device index
+ * pm_capptr: PM capability pointer (from gergios_pci_find_pm_cap)
+ * Returns 0 on success, negative errno on failure. */
+int gergios_pci_pme_enable(int devind, uint8_t pm_capptr);
+
+/* Disable PME signalling on a PCI device. */
+int gergios_pci_pme_disable(int devind, uint8_t pm_capptr);
+
+/* Read the PME status bit for a PCI device.
+ * Returns 1 if PME is asserted (pending), 0 if not, negative on error. */
+int gergios_pci_pme_status(int devind, uint8_t pm_capptr);
+
+/* Clear the PME status bit for a PCI device.
+ * Returns 0 on success, negative on error. */
+int gergios_pci_pme_clear(int devind, uint8_t pm_capptr);
+
+/* Check if a PCI device supports PME from a given D-state.
+ * D-state: 0=D0, 1=D1, 2=D2, 3=D3hot, 4=D3cold
+ * Returns 1 if supported, 0 if not, negative on error. */
+int gergios_pci_pme_d_state_supported(int devind, uint8_t pm_capptr,
+    enum gergios_pci_d_state d_state);
+
+/* --- Per-Device Wakeup Configuration ----------------------------------- */
+
+/* Enable wakeup for a device.
+ * This configures both the PCI PME register AND the ACPI GPE wake mask
+ * (via the ACPI driver) so the device can wake the system from sleep.
+ *
+ * dev: the gergios device
+ * Returns 0 on success, negative errno on failure.
+ * - ENODEV: device has no PM capability or ACPI wake GPE
+ * - EOPNOTSUPP: device does not support PME from its target sleep state */
+int gergios_pm_wakeup_enable(struct gergios_device *dev);
+
+/* Disable wakeup for a device.
+ * Clears both the PCI PME register and the ACPI GPE wake mask. */
+int gergios_pm_wakeup_disable(struct gergios_device *dev);
+
+/* Check if wakeup is currently enabled for a device.
+ * Returns 1 if enabled, 0 if disabled, negative on error. */
+int gergios_pm_wakeup_status(struct gergios_device *dev);
+
+/* Query the ACPI _PRW wake GPE number for a device via the ACPI driver.
+ * Returns the GPE number on success (>=0), or negative on error.
+ * The caller can then use the GPE for direct ACPI GPE wake mask control. */
+int gergios_pm_wakeup_gpe(struct gergios_device *dev);
+
 /* --- PM Timer / Tick ---------------------------------------------------- */
 
 /* Periodic tick for runtime PM idle detection.
@@ -191,9 +245,36 @@ int gergios_pci_d_state_supported(int devind, uint8_t pm_capptr,
  * or from a central PM timer.  Idle-counting is performed here. */
 void gergios_pm_tick(void);
 
+/* --- Hibernate (S4 Suspend-to-Disk) ------------------------------------- */
+
+/* Initiate S4 hibernate: suspend all devices, save memory image to swap,
+ * then enter ACPI S4 sleep state.
+ * swap_devind: PCI device index of the swap block device (or -1 for auto).
+ * start_sector: LBA of the swap partition on the device.
+ * Returns 0 on success, negative errno on failure.
+ * On success, the system enters S4 and powers off.  The next boot must
+ * detect and restore the hibernation image. */
+int gergios_pm_hibernate(int swap_devind, uint64_t start_sector);
+
+/* Check if S4 (hibernate) is available on this system.
+ * Returns 1 if S4 is available, 0 if not. */
+int gergios_pm_hibernate_available(void);
+
+/* Attempt to resume from a hibernation image at boot time.
+ * Called early in the boot sequence to detect and restore a saved image.
+ * Returns 0 on success (system resumed), 1 if no image found,
+ * negative on error. */
+int gergios_pm_hibernate_resume_boot(void);
+
+/* Get the number of currently registered PM devices (for diagnostics). */
+unsigned int gergios_pm_device_count(void);
+
 /* --- Debug / Diagnostics ------------------------------------------------ */
 
 /* Print the current PM state of all registered devices (for debugging). */
 void gergios_pm_dump(void);
+
+/* Print detailed hibernation state. */
+void gergios_pm_hibernate_dump(void);
 
 #endif /* _GERGIOS_PM_H */

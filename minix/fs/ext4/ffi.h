@@ -350,6 +350,26 @@ int ext4_verify_all_csums(const struct ext4_sb_info *sbi,
 			  void *ctx,
 			  ext4_read_block_cb read_block);
 
+/* ─── mkfs.ext4 FFI ────────────────────────────────────────────── */
+
+/* Create a minimal ext4 filesystem on the given file descriptor.
+ * Parameters:
+ *   fd         - open writable file descriptor (block device or regular file)
+ *   block_size - block size in bytes (1024, 2048, or 4096)
+ *   blocks_count - number of blocks to format (clamped to 1 block group)
+ * Returns 0 on success, or a POSIX errno on failure.
+ *
+ * The created filesystem is minimal:
+ *   - Single block group
+ *   - Root directory (inode 2) + lost+found (inode 11)
+ *   - Extent tree (no journal)
+ *   - 64-byte group descriptors
+ *
+ * Build the Rust staticlib first:
+ *   cd rust && cargo build --release -p ext4-core
+ */
+int ext4_mkfs(int fd, uint32_t block_size, uint64_t blocks_count);
+
 /* ─── Checksum update FFI functions ──────────────────────────────── */
 
 /* Update the superblock checksum (s_checksum) in a raw SB buffer.

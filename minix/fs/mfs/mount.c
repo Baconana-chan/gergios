@@ -19,6 +19,14 @@ int fs_mount(dev_t dev, unsigned int flags, struct fsdriver_node *root_node,
   fs_dev = dev;
   readonly = (flags & REQ_RDONLY) ? 1 : 0;
 
+#ifdef MFS_READONLY
+  /* MFS is in legacy mode: force read-only to prevent writes.
+   * ext4 is the primary filesystem for GergiOS.
+   * MFS read-write is kept only for legacy compatibility (e.g. mkfs.mfs).
+   */
+  readonly = 1;
+#endif
+
   /* Open the device the file system lives on. */
   if (bdev_open(fs_dev, readonly ? BDEV_R_BIT : (BDEV_R_BIT|BDEV_W_BIT) ) !=
 		OK) {

@@ -532,14 +532,35 @@ For full details, see:
 - [x] Cargo config: `rust/ext4-core/.cargo/config.toml` ✅
 - [x] CMakeLists.txt: Rust auto-detection + C-only fallback (EXT4_C_ONLY=1) ✅
 - [ ] Монтирование реального ext4 раздела в MINIX (ждёт MINIX toolchain + DESTDIR + QEMU)
-- [ ] `#ifdef EXT4_C_ONLY` stubs в `ffi_bridge.c` (требует компиляции C bridge под MINIX)
-- [ ] aarch64-unknown-minix.json target spec
+- [x] `#ifdef EXT4_C_ONLY` stubs в `ffi_bridge.c` — 27 Rust FFI функций (все ENOTSUP или no-op) под `#ifdef EXT4_C_ONLY` ✅
+- [x] aarch64-unknown-minix.json target spec — создан на основе x86_64 ✅
 
-**Phase 5: Legacy Support — ❌ Не начато**
-- [ ] Keep Minix FS as read-only
-- [ ] Add FUSE support (libpuffs — low priority)
-- [ ] Deprecate Minix FS write support
-- [ ] Update default filesystem to ext4
+**Phase 5: Legacy Support — ✅ COMPLETED (1.0)**
+- [x] Keep Minix FS as read-only — MFS_READONLY define в mount.c + CMakeLists.txt ✅
+- [x] Add FUSE support (libpuffs) — libpuffs + librefuse CMake + MKPUFFS + hellofs + mfsfuse ✅
+- [x] Deprecate Minix FS write support — комментарий в CMakeLists.txt, MFS_READONLY гейт ✅
+- [x] Update default filesystem to ext4:
+      • `etc/system.conf`: `service ext4` блок добавлен ✅
+      • `etc/limine.conf`: `mod11_mfs` → `mod11_ext4` (3 entries) ✅
+      • Все fstab: `mfs` → `ext4` (image.functions, arm64_hdimage, arm_sdimage, newfstab.sh, setup.sh) ✅
+      • Boot module: `mod11_mfs` → `mod11_ext4` (limine.conf, x86_cdimage, release.functions, image.functions GRUB) ✅
+      • Build: `minix/fs/Makefile` + `CMakeLists.txt` — ext4 добавлен ✅
+      • Kernel sets: `distrib/sets/lists/minix-kernel/mi` — `mod11_ext4` добавлен ✅
+      • `docs/limine-boot-guide.md` — `mod11_mfs` → `mod11_ext4` ✅
+- [x] Create mkfs.ext4 tool:
+      • `rust/ext4-core/src/superblock.rs`: `serialize_superblock()` ✅
+      • `rust/ext4-core/src/group_desc.rs`: `serialize_group_desc()` + `serialize_group_descriptors()` ✅
+      • `rust/mkfs_ext4/`: бинарный crate с опциями `-b`, `-i`, `-L` ✅
+      • ext4 ФС: 4KB blocks, extents, filetype, flex_bg, sparse_super, root (ino 2), lost+found (ino 11) ✅
+      • Ограничение: 1 block group (~128MB), no journal — минимальная реализация ✅
+- [x] Adapt release scripts for ext4 partition images:
+      • `releasetools/image.functions`: добавлены `create_ext4_fs_images()` + `_create_single_ext4()` ✅
+        — стратегия: ① `fakeroot + mke2fs -d` (uid=0/gid=0) ② `mke2fs -d` ③ `nbmkfs.ext4 + mount+copy`
+        — staging-директории из ROOT_DIR, dd в основной образ, _ROOT/_USR/_HOME_SIZE глобалы
+      • `releasetools/x86_hdimage.sh`: `nbmkfs.mfs` → `create_ext4_fs_images` ✅
+      • `releasetools/arm64_hdimage.sh`: то же ✅
+      • `releasetools/arm_sdimage.sh`: то же ✅
+      • Зависимости сборки: `fakeroot` + `e2fsprogs` на хост-системе ✅
 
 #### Dependencies
 - Architecture migration (x86_64 ✅, ARM64 🟡) — для тестирования в QEMU
@@ -566,7 +587,10 @@ For full details, see:
 - **Phase 5** (Rust Migration) — ✅ **COMPLETED** (PCI, AHCI, virtio-blk, e1000 pilots)
 - **Phase 6** (Multi-Queue & Performance) — ✅ **COMPLETED** (NCQ, MSI-X, IRQ threads, RT scheduler)
 - **Phase 7** (New Hardware + Driver Manager) — ✅ **7.1–7.8 COMPLETED** (incl. HCI UART + fw loading)
-- **Phase 8** (BlueZ Userspace Port) — 🆕 **NOT STARTED**
+  - 7.1 ACPI SCI/GPE ✅, 7.2 PCI hot-plug notify ✅, 7.3 xHCI USB 3.0 ✅
+  - 7.4 NVMe driver ✅, 7.5 Intel HDA Audio ✅, 7.6 Driver manager + LKM ✅
+  - 7.7 PCI hot-plug + ACPI enumerate ✅, 7.8 Bluetooth HCI ✅
+- **Phase 8** (BlueZ Userspace Port) — ❌ **NOT STARTED** (см. ROADMAP.md — планируется для 1.0)
 
 #### Подробнее
 `planning/23_driver_model_modernization.md` — полная документация, LOC breakdown, инвентаризация драйверов
@@ -574,7 +598,7 @@ For full details, see:
 
 ---
 
-### 6. Security Model Modernization
+### 6. Security Model Modernization — 🟡 Planned for 1.0
 
 #### Current State
 - Unix-style permissions
@@ -585,6 +609,7 @@ For full details, see:
 - Capability-based security
 - SELinux/AppArmor equivalent
 - Enhanced memory safety
+- **Full security audit** перед релизом (см. ROADMAP.md)
 
 #### Migration Steps
 
@@ -606,15 +631,16 @@ For full details, see:
 - [ ] Integrate with drivers
 - [ ] Update userland tools
 
-**Phase 4: Testing**
+**Phase 4: Testing — Full Security Audit**
+- [ ] Аудит всей кодовой базы перед 1.0 release
 - [ ] Security testing
 - [ ] Performance testing
 - [ ] Compatibility testing
 - [ ] Documentation
 
 #### Dependencies
-- C language modernization (for memory safety)
-- Architecture migration
+- C language modernization (for memory safety) ✅
+- Architecture migration ✅
 
 #### Risks
 - Complex security model
@@ -625,29 +651,30 @@ For full details, see:
 
 ---
 
-### 7. Network Stack Modernization
+### 7. Network Stack Modernization — 🟡 Planned for 1.0
 
 #### Current State
-- BSD-derived network stack
-- Limited protocol support
-- Poor IPv6 support
+- lwIP TCP/IP stack — базовый функционал ✅ (собран через CMake, работает)
+- INET6 conditional compile flag присутствует
+- BSD-derived socket layer
+- Ограниченная поддержка IPv6
 
 #### Target State
-- Modern TCP/IP stack
-- Full IPv6 support
-- Modern TCP features
+- Modern TCP/IP stack с полным IPv6
+- Решение: lwIP vs FreeBSD TCP/IP stack (evaluation в 1.0)
+- Modern TCP features (BBR, ECN, SACK)
 
 #### Migration Steps
 
 **Phase 1: Evaluation**
-- [ ] Evaluate lwIP
-- [ ] Evaluate FreeBSD network stack
+- [ ] Evaluate lwIP capabilities and limitations
+- [ ] Evaluate FreeBSD network stack port feasibility
 - [ ] Evaluate other options
 - [ ] Choose best option
 
 **Phase 2: Implementation**
 - [ ] Integrate chosen stack
-- [ ] Implement IPv6 support
+- [ ] Implement full IPv6 support
 - [ ] Implement modern TCP features
 - [ ] Update network drivers
 
@@ -658,8 +685,8 @@ For full details, see:
 - [ ] Compatibility testing
 
 #### Dependencies
-- Driver model modernization
-- Architecture migration
+- Driver model modernization ✅
+- Architecture migration ✅
 
 #### Risks
 - Complex network stack
@@ -670,95 +697,103 @@ For full details, see:
 
 ---
 
-### 8. Testing Framework Migration
+### 8. Testing Framework Migration — 🟡 Planned for 1.0
 
 #### Current State
-- ATF testing framework
-- Limited test coverage
-- No integration tests
+- Rust тесты: cargo test + cargo bench + cargo-fuzz (6 targets) ✅
+- CI/CD: 8 jobs (build, sanitizers, fuzz, coverage, benchmarks, QEMU test, static analysis, security scan) ✅
+- ASan/MSan/TSan для Rust + CMake интеграция ✅
+- ATF framework — legacy, частично сохранён
+- Нет integration/fuzz тестов для C-FFI слоя ext4, драйверов
+- Нет QEMU boot-тестов (инфраструктура есть: `scripts/run_qemu_test.sh`)
 
 #### Target State
-- Modern testing framework
-- High test coverage
-- Integration and fuzzing tests
+- Modern testing framework (Google Test / Catch2)
+- Высокое покрытие: C (GT/Catch2) + Rust (built-in)
+- QEMU integration tests для boot/драйверов/FS
+- Fuzzing на C-FFI границах (cargo-fuzz расширен)
+- Performance benchmarks + code coverage в CI
+- **Property-based testing** для критических компонентов (ядро, IPC, FS)
 
 #### Migration Steps
 
 **Phase 1: Evaluation**
-- [ ] Evaluate Google Test
-- [ ] Evaluate Catch2
-- [ ] Evaluate Rust testing
-- [ ] Choose framework
+- [ ] Evaluate Google Test vs Catch2 для C кода
+- [ ] Оценить property-based testing framework (proptest для Rust, libfuzzer для C)
+- [ ] Choose framework(s)
 
 **Phase 2: Implementation**
 - [ ] Integrate chosen framework
-- [ ] Migrate existing tests
+- [ ] Migrate existing ATF tests
 - [ ] Set up CI integration
-- [ ] Add coverage reporting
+- [ ] Add coverage reporting (Rust llvm-cov уже есть, нужно для C)
 
 **Phase 3: Expansion**
-- [ ] Add integration tests
-- [ ] Add fuzzing tests
-- [ ] Add performance tests
+- [x] Rust fuzzing — 6 targets (сделано Phase 6)
+- [ ] Add C-FFI integration tests (ext4, драйверы)
+- [ ] Add QEMU boot tests (инфраструктура готова)
+- [ ] Add performance benchmarks (Rust bench есть, нужно для C)
+- [ ] Property-based testing для ядра/IPC/FS
 - [ ] Increase coverage
 
 #### Dependencies
-- Build system migration
-- C language modernization
+- Build system migration ✅
+- C language modernization ✅
+- Rust toolchain ✅
 
 #### Risks
 - Test migration complexity
 - Maintaining test compatibility
-- CI integration issues
+- QEMU test infrastructure reliability
 
 
 ---
 
-### 9. Bootloader Modernization
+### 9. Bootloader Modernization — 🟡 Bootloader cleanup (1.0)
 
 #### Current State
-- Legacy bootloader
-- No UEFI support
-- No secure boot
+- **Limine** — UEFI+BIOS bootloader уже мигрирован ✅
+  - `releasetools/make_limine_test_image.sh` — образ для тестирования
+  - Limine 8.x as the primary boot protocol (limine.h + limine.c для AAC64)
+  - GRUB fallback сохранён для совместимости
+- **AAC64 (ARM64)**: Limine AAC64 protocol + self-contained PL011 serial ✅
+- UEFI boot: работает через Limine ✅
 
 #### Target State
-- Modern bootloader (GRUB2/systemd-boot)
-- UEFI support
-- Secure boot support
+- Limine как sole bootloader
+- GRUB UEFI код удалён
+- Secure boot — evaluation
 
 #### Migration Steps
 
-**Phase 1: Evaluation**
-- [ ] Evaluate GRUB2
-- [ ] Evaluate systemd-boot
-- [ ] Evaluate other options
-- [ ] Choose bootloader
+**Phase 1: Evaluation — ✅ COMPLETED** (Limine выбран и реализован)
+- [x] Evaluate GRUB2 (fallback сохранён)
+- [x] Evaluate Limine (выбран — UEFI+BIOS, AAC64, простой конфиг)
+- [x] Integrate Limine в build system (make_limine_test_image.sh)
 
-**Phase 2: Implementation**
-- [ ] Integrate chosen bootloader
-- [ ] Implement UEFI support
-- [ ] Implement secure boot
-- [ ] Update boot process
+**Phase 2: Implementation — ✅ COMPLETED**
+- [x] Limine UEFI+BIOS boot protocol integration
+- [x] AAC64 Limine support (limine.h + limine.c)
+- [x] PL011 serial output before kernel init (self-contained в limine.c)
+- [x] make_limine_test_image.sh — automated test image creation
 
-**Phase 3: Testing**
-- [ ] Boot testing
-- [ ] UEFI testing
-- [ ] Secure boot testing
-- [ ] Compatibility testing
+**Phase 3: Cleanup — 🟡 Planned for 1.0**
+- [ ] Удалить GRUB UEFI код (GRUB fallback оставить для BIOS-only)
+- [ ] Финализировать Limine как sole bootloader
+- [ ] Secure boot evaluation
 
 #### Dependencies
-- Architecture migration
+- Architecture migration ✅
+- CMake build system ✅
 
 #### Risks
-- Boot complexity
-- UEFI implementation
-- Secure boot complexity
-- Hardware compatibility
+- GRUB UEFI код — dead code, нужно аккуратно удалить
+- Secure boot — сложность реализации, отложить если не критично
 
 
 ---
 
-### 10. Crypto Libraries Modernization
+### 10. Crypto Libraries Modernization — ✅ COMPLETED
 
 #### Current State
 - ✅ OpenSSL 0.9.8/1.0.1p — **полностью заменён** (код удалён, зависимости переписаны)
@@ -832,25 +867,54 @@ For full details, see:
 
 ---
 
-## Migration Dependencies Graph
+## Migration Dependencies Graph (обновлён на 2026-07-06)
 
 ```
-Build System (CMake)
-    ├─> Architecture Migration (x86_64/ARM64)
-    │       ├─> Filesystem Migration (ext4)
-    │       ├─> Driver Model Modernization
-    │       └─> Bootloader Modernization
-    ├─> C Language Modernization (C17 + Rust)
-    │       ├─> Security Model Modernization
-    │       ├─> Crypto Libraries Modernization
-    │       └─> Network Stack Modernization
+Build System (CMake) ✅
+    ├─> Architecture Migration (x86_64/ARM64) 🟡
+    │       ├─> Filesystem Migration (ext4) 🟡 (ждёт toolchain)
+    │       ├─> Driver Model Modernization ✅
+    │       └─> Bootloader Modernization 🟡 (cleanup)
+    ├─> C Language Modernization (C17 + Rust) ✅
+    │       ├─> Security Model Modernization ⬜ (1.0)
+    │       ├─> Crypto Libraries Modernization ✅
+    │       └─> Network Stack Modernization ⬜ (1.0)
     ├─> NetBSD Dependency Reduction (planning/10)
-    │       ├─> pkgsrc migration (tools, libs, externals)
-    │       ├─> musl libc migration
-    │       └─> GergiOS rebranding
-    └─> Testing Framework Migration
+    │       ├─> pkgsrc migration (tools, libs, externals) 🟡
+    │       ├─> ~~musl libc migration~~ ❌ (удалён из roadmap)
+    │       └─> GergiOS rebranding ✅
+    └─> Testing Framework Migration ⬜ (1.0)
             └─> All other migrations (for testing)
 ```
+
+**Легенда**: ✅ COMPLETED | 🟡 In progress/Partial | ⬜ Planned for 1.0 | ❌ Removed
+
+## Cross-Reference: ROADMAP.md → planning/03
+
+Актуальный план релизов см. в [ROADMAP.md](../ROADMAP.md).
+Ниже — маппинг разделов planning/03 на релизы:
+
+| Раздел planning/03 | Статус | Релиз |
+|---|---|---|
+| 1. Build System (CMake) | ✅ COMPLETED | 1.0 Foundation |
+| 2. Architecture (x86_64 + ARM64) | 🟡 Partial | 1.0 (x86_64 ✅, ARM64 kernel 🟡) |
+| 3. C Language (C17 + Rust) | ✅ COMPLETED | 1.0 Foundation |
+| 4. Filesystem (ext4) | 🟡 Partial | 1.0 (ждёт toolchain) |
+| 5. Driver Model | ✅ COMPLETED | 1.0 Foundation |
+| 6. Security Model | ⬜ Not started | 1.0 |
+| 7. Network Stack | ⬜ Not started | 1.0 |
+| 8. Testing Framework | ⬜ Not started | 1.0 |
+| 9. Bootloader | 🟡 Partial | 1.0 (cleanup) |
+| 10. Crypto (wolfSSL) | ✅ COMPLETED | 1.0 Foundation |
+
+**Ключевые изменения против оригинального planning/03**:
+- ~~musl libc~~ — удалён из roadmap (головняк, не нужен)
+- ~~Custom FS (btrfs/ZFS)~~ → ext4 enhancements (1.2+)
+- ~~Distributed systems~~ — удалён (слишком размыто)
+- Container runtime → 1.2+
+- Real-time extensions → 1.1
+- Security audit → часть Security Model в 1.0
+- Property-based testing → часть Testing Framework в 1.0
 
 ## Risk Mitigation Strategies
 

@@ -4,6 +4,7 @@
 # Replicates minix/usr.sbin/Makefile and minix/usr.sbin/Makefile.inc
 
 add_subdirectory_if_exists(mkfs.mfs)
+add_subdirectory_if_exists(mkfs.ext4)
 
 add_minix_executable(btrace
     SOURCES btrace/btrace.c

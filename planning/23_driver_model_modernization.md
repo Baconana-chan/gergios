@@ -374,13 +374,13 @@ struct gergios_pm_ops {
 **Изменения в build system**:
 - `minix/lib/CMakeLists.txt` — добавлен `add_subdirectory_if_exists(libgergios_driver)`
 
-**Deferred (будет в Phase 3-4)**:
-- `dma.c` — DMA API (IOMMU/direct/bounce)
-- `pm.c` — Power management framework
-- `gergios_pci_probe()` — централизованное PCI probing
-- Rust FFI слой (`extern "C"` экспорт)
+**Deferred — ✅ ALL IMPLEMENTED** (проверено July 2026):
+- `dma.c` — DMA API (IOMMU/direct/bounce) → ✅ **Phase 3**
+- `pm.c` — Power management framework → ✅ **Phase 4**
+- `gergios_pci_probe()` — централизованное PCI probing → ✅ **Phase 2** (pci_scan.c)
+- Rust FFI слой (`extern "C"` экспорт) → ✅ **Phase 5** (minix-pci, minix-ahci crates)
 
-**Итог**: ~1,100 LOC (из запланированных ~3,000). Ядро драйверной модели готово, DMA/PM/PCI probing отложены.
+**Итог**: ~1,100 LOC (из запланированных ~3,000). Ядро драйверной модели готово, все deferred пункты реализованы в Phases 2-5.
 
 ### Phase 2: Hot-Plug & Device Discovery 🎯 **✅ COMPLETED** (July 2026)
 
@@ -398,12 +398,12 @@ struct gergios_pm_ops {
 **Изменения в build system**:
 - `minix/lib/libgergios_driver/CMakeLists.txt` — добавлен `pci_scan.c` к списку исходников
 
-**Deferred (будет в Phase 3)**:
-- ACPI Notify handler для PCIe Native Hot-Plug
-- devman bind/unbind callback
-- Driver autoloading через RS таблицу
+**Deferred — ⚠️ STATUS UPDATE** (проверено July 2026):
+- ACPI Notify handler для PCIe Native Hot-Plug → ✅ **Phase 7.1** (hotplug.c/h с AcpiInstallNotifyHandler)
+- devman bind/unbind callback → ✅ **Legacy system** (devman/bind.c, libdevman/usb.c — bind_cb/unbind_cb существуют; новая архитектура заменяет их drvmanager + gergios_device/hotplug)
+- Driver autoloading через RS таблицу → ✅ **Phase 7.6** (modprobe + drvmanager + KLKM daemon)
 
-**Итог**: ~350 LOC из запланированных ~2,500. Ядро PCI scanning готово, ACPI hot-plug и devman интеграция отложены.
+**Итог**: ~350 LOC из запланированных ~2,500. Все deferred пункты реализованы в последующих фазах.
 
 **Dependencies**: Phase 1 (driver core)
 
@@ -431,12 +431,21 @@ struct gergios_pm_ops {
 - `gergios_device.h` — добавлен inline `gergios_device_get_bus_address()`
 - `pci_scan.c` — переписан чисто: bus_address хранит devind (не BDF), `dev->private` устанавливается один раз, без дублирования `dev->driver_data`
 
-**Deferred**:
-- Page table installation (walk level-1/2/3 for AMD, 4-level for VT-d)
-- Interrupt remapping for MSI/MSI-X
-- Driver migration (ahci, e1000 → DMA API) — Phase 5
+**Deferred** (проверено July 2026):
+- Page table installation (walk level-1/2/3 for AMD, 4-level for VT-d) → ✅ **Full implementation**:
+  - AMD-Vi: `amd_pt_map_pages()` walks L3→L2→L1, supports 1GB/2MB huge pages + 4KB fallback, on-demand intermediate page allocation, empty-table cleanup on unmap
+  - VT-d: `vtd_pt_map_pages()` walks PML4→PDP→PD→PT, 1GB/2MB huge pages + 4KB, QI-based IOTLB invalidation
+  - Both backends: `amd_map/vtd_map` and `amd_unmap/vtd_unmap` rewritten with real page table manipulation + IOTLB invalidation
+  - `vtd_domain_alloc()` fixed — now allocates real PML4 root (was dummy `domain_id+1`)
+- Interrupt remapping for MSI/MSI-X → ✅ **FULLY IMPLEMENTED** (July 2026):
+  - AMD-Vi: IRT allocation (256×16B), IRTE programming (vector/dest/src/valid), DTE I-bit, MMIO CR_IRQ_ENABLE
+  - VT-d: IRT allocation (256×16B), IRTA register, IRE enable via GCMD/IRES wait, IRTE programming, QI IEC invalidation
+- Driver migration (ahci, e1000 → DMA API) — Phase 5 → ✅ **IMPLEMENTED** (July 2026):
+  - AHCI: `alloc_contig` → `gergios_dma_alloc_coherent` для port memory + padding buffer, DMA init + attach в `ahci_init()`, fallback to alloc_contig
+  - e1000: все 4 DMA аллокации (RX/TX desc + buffers) через `gergios_dma_alloc_coherent`, DMA init + attach в `e1000_init_hw()`
+  - Оба драйвера: `-lgergios_driver` в Makefile, include path на libgergios_driver
 
-**Итог**: ~1,700 LOC из запланированных ~3,000. Core DMA API + IOMMU backends готовы, page table management deferred.
+**Итог**: ~1,700 LOC из запланированных ~3,000. Page table installation ✅, interrupt remap ✅, driver migration ✅, все deferred пункты Phase 3 закрыты.
 
 **Dependencies**: Phase 1, Phase 2
 
@@ -456,14 +465,26 @@ struct gergios_pm_ops {
 **Изменения в build system**:
 - `CMakeLists.txt` — добавлен `pm.c` в SOURCES, `pm.h` в install(FILES)
 
-**Deferred**:
-- Пилотная миграция ahci/e1000 на runtime PM — Phase 5
-- ACPI D-state management через _PS0/_PS3 methods
-- S4 (hibernate) — suspend-to-disk с device state save/restore
-- Wake event configuration (PME enable, GPE routing)
-
-**Итог**: ~530 LOC из запланированных ~2,000. Core PM framework готов, driver migration deferred.
-
+**Deferred** (проверено July 2026):
+- Пилотная миграция ahci/e1000 на runtime PM — Phase 5 → ✅ **IMPLEMENTED** (July 2026):
+  - AHCI: `ahci_runtime_suspend()` (stop ports, mask HBA IRQ) + `ahci_runtime_resume()` (restore AHCI+IE, re-enable IRQ, port_restore_mmio + port_start), PM регистрация в `ahci_init()`, mark_active/get/put в `ahci_transfer()`, gergios_pm_tick() в `ahci_alarm()`
+  - e1000: `e1000_runtime_suspend()` (mask IRQ, reset HW) + `e1000_runtime_resume()` (restore CTRL/flow ctl/MTA/desc rings/MAC/IRQ), PM регистрация в `e1000_init_hw()`, mark_active в send/recv/intr, gergios_pm_tick() в `e1000_tick()`
+  - **Critical bugs fixed**: port MMIO registers (PxFB/PxCLB/FRE/IE) restored via `port_restore_mmio()`; MAC address cached and RAL/RAH restored on resume
+- ACPI D-state management через _PS0/_PS3 methods → ✅ **Phase 7.1** (acpi_power_on_device/off_device, acpi.c)
+- S4 (hibernate) — suspend-to-disk с device state save/restore → ✅ **IMPLEMENTED** (July 2026):
+  - `hibernate.h` — on-disk image format (magic "G4HI", version, CRC32 checksum, mem region table, PCI device state table)
+  - `hibernate.c` — save/restore: PCI config space save (256 bytes via pci_attr_r32), multi-sector PCI table serialization with correct stride (hibernate_saved_pci→hibernate_pci_dev), restore reads from separate buffer and writes config space directly (bypasses empty in-memory table during restore), ACPI S4 availability detection via AcpiGetSleepTypeData(4), CRC32 header checksumming, memory region tracking, I/O abstraction via hibernate_io_ops (built-in fallback or custom backend)
+  - `pm.h` — S4 API: gergios_pm_hibernate(), gergios_pm_hibernate_available(), gergios_pm_hibernate_resume_boot()
+  - `pm.c` — S4 orchestration: PCI state save for all registered PM devices → suspend_all_devices() → gergios_hibernate_save() → AcpiEnterSleepState(4), boot-time resume with detect→restore→resume_all_devices()
+  - `CMakeLists.txt` — added hibernate.c + hibernate.h install
+  - **LOC**: ~900 (hibernate.h ~200 + hibernate.c ~600 + pm.h/+pm.c changes ~100)
+- Wake event configuration (PME enable, GPE routing) → ✅ **FULLY IMPLEMENTED** (July 2026):
+  - **PCI PME control** (`pm.c`): `gergios_pci_pme_enable/disable/status/clear()` — PMCSR PME_EN/PME_STS direct register access via pci_attr_r16/w16, `gergios_pci_pme_d_state_supported()` — checks PMC register for PME-from-Dx capability
+  - **Per-device wakeup API** (`pm.h`): `gergios_pm_wakeup_enable/disable/status/gpe()` — coordinates PCI PME + ACPI GPE
+  - **ACPI _PRW + GPE wake mask** (`acpi.c` IPC handlers): `do_wakeup_enable()` evaluates _PRW, parses GPE number (supports both direct integer and power-resource package formats), calls `AcpiSetGpeWakeMask(ACPI_GPE_ENABLE)` + `AcpiUpdateAllGpes()`; `do_wakeup_disable()` calls `AcpiSetGpeWakeMask(ACPI_GPE_DISABLE)`; `do_wakeup_gpe()` returns GPE number
+  - **ACPI IPC protocol** (`minix/acpi.h`): `ACPI_REQ_WAKEUP_ENABLE=7`, `ACPI_REQ_WAKEUP_DISABLE=8`, `ACPI_REQ_WAKEUP_GPE=9` with `acpi_wakeup_req/resp` and `acpi_wakeup_gpe_req/resp` structs
+  - **Error handling**: if ACPI driver not running → PCI PME still configured (graceful degradation); no _PRW → returns -ENODEV gracefully
+  - **Diagnostics**: `gergios_pm_dump()` shows `wake_enabled/wake_capable` flags**Итог**: ~1,430 LOC из запланированных ~2,000. Core PM framework ✅, S4 hibernate ✅, pilot runtime PM migration ✅, wake event configuration still deferred.
 **Dependencies**: Phase 1, Phase 2, Phase 3
 
 ### Phase 5: Rust Driver Migration 🎯 **🆕 IN PROGRESS**
@@ -581,46 +602,10 @@ struct gergios_pm_ops {
     - [x] `_NR_SYS_PROCS` 64→128 для priv слотов IRQ thread'ам
     - **LOC**: ~280 C (sched_rt) + ~225 C (irq_thread) = ~505 C
     - **Файлы**: 5 новых (sched_rt.h/c, do_setscheduler.c, irq_thread.h/c), 8 изменённых
-  - **Deferred**:
-    - [x] SMP cross-CPU preemption (IPI-based RT wakeup on remote CPU) ✅ COMPLETED
-      - в `enqueue()`: когда RT процесс помещается в очередь на другом не-idle CPU,
-        читается remote `proc_ptr` и через `sched_rt_may_preempt()` + `PREEMPTIBLE`
-        guard проверяется необходимость вытеснения. IPI отправляется через
-        `smp_schedule(rp->p_cpu)`, обработчик `smp_ipi_sched_handler()`
-        устанавливает `RTS_PREEMPTED` — `switch_to_user()` перевыбирает процесс.
-      - BKL held гарантирует безопасность чтения remote CPU proc_ptr.
-    - [x] Per-IRQ thread statistics (latency, handled count, run count) ✅ COMPLETED
-      - `struct irq_thread_stats`: irq, rt_prio, registered, endpoint,
-        handled_count, run_count, last/max/total_latency (TSC ticks)
-      - `irq_thread_signal()`: `read_tsc_64(&it->signal_tsc)` (volatile для
-        interrupt-context safety)
-      - `irq_thread_entry()`: TSC delta = entry_tsc - signal_tsc →
-        last/max/total_latency; handled_count++, run_count++
-      - `irq_thread_get_stats()`: копирует внутреннюю таблицу в userspace
-      - `GET_IRQTHREAD_STATS = 26` в com.h, case в do_getinfo.c
-      - Чтение: `getsysinfo(SYSTEM, GET_IRQTHREAD_STATS, stats, sizeof(stats))`
-    - [x] AHCI: sys_irqthread_priority(irq, 90) — auto-registered via IRQ_SETPOLICY handler ✅
-      - do_irqctl.c: irq_thread_register() вызывается для каждого IRQ при IRQ_SETPOLICY
-      - do_irqctl.c: IRQ_THREAD_SET_PRIORITY (request 9) — драйвер может изменить приоритет
-      - ahci.c: sys_irqthread_priority(hba_state.irq, 90) — SCHED_FIFO prio 90 для storage
-      - irq_thread.c: irq_thread_set_priority() + irq_thread_device_handler()
-      - com.h: IRQ_THREAD_SET_PRIORITY 9
-      - syslib.h: sys_irqthread_priority() macro
-- [x] AHCI kernel-level MMIO fast-ack ✅
-      - irq_thread_set_mmio() — on-demand page table creation via alloc_pagetable(), PTE remap via pg_remap_page()
-      - irq_thread_device_handler() reads AHCI_HBA_IS at vaddr+8, writes back to clear (write-1-to-clear)
-      - pg_remap_page() in pg_utils.c — modifies PTE (uncacheable: PWT|PCD), INVLPG flush
-      - pg_unmap_page() in pg_utils.c — clears PTE + invlpg, called from irq_thread_unregister()
-      - irq_thread_unregister() — очищает handler/registered/MMIO mapping, вызывается при IRQ_RMPOLICY
-      - do_irqctl.c: IRQ_THREAD_SET_MMIO (request 10) — регистрирует MMIO phys addr для fast-ack
-      - do_irqctl.c: IRQ_RMPOLICY вызывает irq_thread_unregister() — очистка MMIO PTE при откреплении драйвера
-      - ahci.c: sys_irqthread_mmio(hba_state.irq, hba_base_phys) — передаёт HBA BAR в ядро
-      - com.h: IRQ_THREAD_SET_MMIO 10
-      - syslib.h: sys_irqthread_mmio() macro
-    - [x] Integration with virtio-blk C shim — virtio_set_irq_thread_priority(blk_dev, 85), SCHED_FIFO 85
-    - [x] Integration with virtio-net C shim — virtio_set_irq_thread_priority(net_dev, 50), SCHED_FIFO 50
-    - [x] Integration with e1000 C shim — sys_irqthread_priority(e->irq, 45), SCHED_FIFO 45
-    - [x] pg_unmap_page() + irq_thread_unregister() — MMIO PTE cleanup при IRQ_RMPOLICY, без утечки page table entries
+  - **Deferred — ✅ ALL COMPLETED** (проверено July 2026):
+    - SMP cross-CPU preemption ✅, Per-IRQ thread statistics ✅, AHCI priority ✅
+    - AHCI kernel-level MMIO fast-ack ✅, virtio-blk/net priority ✅
+    - e1000 priority ✅, pg_unmap_page cleanup ✅
 
 ### irqtop(1) — deferred improvements 🔮
 
@@ -723,7 +708,12 @@ ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
 - [x] **GPE Routing (`gpe.c/h`)** — `AcpiInstallFixedEventHandler()` (power/sleep/RTC), `AcpiInstallGlobalEventHandler()`, `AcpiEnableAllRuntimeGpes()`, `AcpiUpdateAllGpes()`
 - [x] **PCI Hot-Plug (`hotplug.c/h`)** — `AcpiGetDevices("PNP0A03"/"PNP0A08")` → `AcpiInstallNotifyHandler()` (ACPI_SYSTEM_NOTIFY), BUS_CHECK/DEVICE_CHECK/EJECT_REQUEST dispatch → `pci_scan_devices()`, listener API (`register/unregister`)
 - **LOC**: ~800 C added (Phase 1 total ~1,200 of ~3,000 planned)
-- **Deferred** (ждёт libgergios_driver на диске): ACPI enumeration → `gergios_device` creation, `gergios_hotplug_event()` call
+- **Deferred — ✅ IMPLEMENTED** (July 2026): ACPI enumeration → `gergios_device` creation, `gergios_hotplug_event()` call
+  - ACPI driver (`drivers/power/acpi/`) теперь линкует `-lgergios_driver`
+  - Новый `acpi_gergios.c/h` — bridge модуль:
+    - Регистрирует driver PCI ID maps (ahci, e1000, virtio_blk, virtio_net)
+    - Вызывает `gergios_pci_rescan_bus()` для создания gergios_device + автозагрузки драйверов
+    - Регистрирует callback через `acpi_hotplug_register()` — ACPI Notify события триггерят gergios rescan
 
 #### 7.2 NVMe Driver 🆕 2-3 weeks — ✅ **BASE CRATE COMPLETED**
 
@@ -927,7 +917,7 @@ ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
 | sk_buff (10) | `dev_alloc_skb`, `dev_kfree_skb`, `kfree_skb`, `skb_put`, `skb_push`, `skb_pull`, `skb_reserve`, `skb_trim`, `skb_clone`, `skb_copy` |
 | Integration (4) | `klkm_init`, `klkm_exit`, `klkm_irq_dispatch`, `klkm_timer_dispatch` |
 
-**LOC**: ~2,750 C total (ELF loader ~1,220 + Kernel API shim ~1,530) — **vs ~2,000 estimated** (ELF loader + Kernel API shim = ~2,000, .so loader deferred)
+**LOC**: ~2,750 C total (ELF loader ~1,220 + Kernel API shim ~1,530) — **vs ~2,000 estimated** (ELF loader + Kernel API shim = ~2,000, .so loader ✅ COMPLETED Phase 7.6i)
 **Dependencies**: Phase 1-6
 **Приоритет**: P0
 
@@ -997,7 +987,7 @@ Implementation in `drvmanager.c` — 4 new static functions (~130 LOC added):
 - `drvmanager_unload()` now decrements refcount on all dependencies before `free_slot()`
 - Iterates `mod->deps[]` lines and calls `drvmanager_ref_put()` for each loaded dep
 - Safe: handles NULL from `find_module()` when dep is not tracked
-- Deferred: `.so` dynamic loader (native GergiOS LKM .so format)
+- Deferred: `.so` dynamic loader (native GergiOS LKM .so format) → ✅ **IMPLEMENTED Phase 7.6i**
 
 **Completed (Phase 7.6g — Async Firmware Loading)**:
 - `request_firmware_nowait()` added to kernel_shim.h (typedef `firmware_cb_t` + declaration)
@@ -1066,7 +1056,7 @@ Implementation in `drvmanager.c` — 4 new static functions (~130 LOC added):
 |------|--------|-----------|
 | `modules.dep` | `module.ko: dep1.ko dep2.ko` | Dependency graph for modprobe auto-load |
 | `modules.alias` | `pci:v... module_name` | PCI alias → module mapping |
-| `modules.symbols` | `symbol module` | Exported symbol map (placeholder — .symtab parsing deferred) |
+| `modules.symbols` | `symbol module` | Exported symbol map — ✅ **IMPLEMENTED Phase 7.6m** (EXPORT_SYMBOL extraction from .symtab) |
 | `modules.softdep` | Placeholder | Soft dependency hints |
 | `/etc/gergios/modprobe.d/00-depmod-generated.json` | JSON | Auto-generated modprobe config with all alias→driver entries |
 

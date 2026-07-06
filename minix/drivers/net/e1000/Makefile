@@ -6,8 +6,11 @@ FILES=${PROG}.conf
 FILESNAME=${PROG}
 FILESDIR= /etc/system.conf.d
 
-DPADD+=	${LIBNETDRIVER} ${LIBSYS}
-LDADD+=	-lnetdriver -lsys
+DPADD+=	${LIBNETDRIVER} ${LIBSYS} ${LIBGERGIOSDRIVER}
+LDADD+=	-lnetdriver -lsys -lgergios_driver
+
+# Include path for libgergios_driver headers
+CPPFLAGS+=	-I${.CURDIR}/../../../lib/libgergios_driver
 
 WARNS?= 5
 

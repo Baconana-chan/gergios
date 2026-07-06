@@ -165,7 +165,13 @@ ACPICA_SRCS= \
 SRCS+=${ACPICA_SRCS} 
 
 DPADD+=	${LIBSYS}
-LDADD+=	-lsys
+LDADD+=	-lsys -lgergios_driver
+
+# libgergios_driver headers for ACPI→GergiOS bridge
+CPPFLAGS+=	-I${.CURDIR}/../../../lib/libgergios_driver
+
+# Add gergios bridge source
+SRCS+=	acpi_gergios.c
 
 CPPFLAGS += -I${.CURDIR}/include
 CFLAGS += -DACPI_LIBRARY

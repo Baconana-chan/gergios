@@ -358,6 +358,15 @@
 /* We do not support TCP window scaling at this time. */
 
 /*
+ * Selective ACK (SACK) support, available since lwIP 2.2.0.  SACK improves
+ * TCP throughput when packet loss occurs by allowing the receiver to inform
+ * the sender about exactly which segments were received, avoiding
+ * unnecessary retransmissions.  This option increases the TCP PCB size
+ * slightly and adds some code for SACK option generation.
+ */
+#define LWIP_TCP_SACK_OUT              1
+
+/*
  * We would like to align TCP/IP header field accesses to 32 bits.  lwIP offers
  * ETH_PAD_SIZE to that end.  We do not use that however, because it is
  * inconvenient: it adds the padding to the actual output packets, thus forcing

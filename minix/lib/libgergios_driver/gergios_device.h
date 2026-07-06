@@ -117,6 +117,9 @@ struct gergios_device {
 
 	/* Link to devman device tree */
 	void *devman_node;
+
+	/* ACPI namespace handle for this device (0 if not ACPI-enumerated) */
+	void *acpi_handle;
 };
 
 /*===========================================================================*

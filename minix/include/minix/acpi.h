@@ -1,12 +1,24 @@
 #include <sys/types.h>
 #include <minix/ipc.h>
 
+/* Forward declaration for IPC structs that reference ACPI_HANDLE.
+ * ACPI_HANDLE is defined in acpi.h which is only available when
+ * ACPICA is linked.  For users of libgergios_driver, this definition
+ * serves as an opaque pointer type. */
+#ifndef _ACPI_HANDLE_DEFINED
+#define _ACPI_HANDLE_DEFINED
+typedef void *ACPI_HANDLE;
+#endif
+
 #define ACPI_REQ_GET_IRQ			1
 #define ACPI_REQ_MAP_BRIDGE			2
 #define ACPI_REQ_POWER_ON			3
 #define ACPI_REQ_POWER_OFF			4
 #define ACPI_REQ_GET_SLEEP_STATES		5
 #define ACPI_REQ_ENUM_DEVICES			6
+#define ACPI_REQ_WAKEUP_ENABLE			7
+#define ACPI_REQ_WAKEUP_DISABLE			8
+#define ACPI_REQ_WAKEUP_GPE			9
 
 struct acpi_request_hdr {
 	endpoint_t 	m_source; /* message header */
@@ -103,6 +115,42 @@ struct acpi_enum_resp {
 int acpi_init(void);
 int acpi_get_irq(unsigned bus, unsigned dev, unsigned pin);
 void acpi_map_bridge(unsigned int pbnr, unsigned int dev, unsigned int sbnr);
+
+/*
+ * ACPI_REQ_WAKEUP_ENABLE / ACPI_REQ_WAKEUP_DISABLE —
+ * Configure the ACPI GPE wake mask for a device.
+ * The ACPI driver queries _PRW under the device, finds the wake GPE,
+ * and calls AcpiSetGpeWakeMask() to enable/disable it.
+ * device_handle: ACPI handle of the target device (from AcpiGetHandle).
+ */
+struct acpi_wakeup_req {
+	struct acpi_request_hdr	hdr;
+	ACPI_HANDLE		device_handle;
+	u32_t			__padding[6];
+};
+
+struct acpi_wakeup_resp {
+	endpoint_t	m_source;
+	int		err;
+	u32_t		__padding[7];
+};
+
+/*
+ * ACPI_REQ_WAKEUP_GPE —
+ * Query the _PRW GPE number associated with a device.
+ * Returns the GPE number, or -1 if no _PRW found.
+ */
+struct acpi_wakeup_gpe_req {
+	struct acpi_request_hdr	hdr;
+	ACPI_HANDLE		device_handle;
+	u32_t			__padding[6];
+};
+
+struct acpi_wakeup_gpe_resp {
+	endpoint_t	m_source;
+	int		gpe_number;
+	u32_t		__padding[7];
+};
 
 /*
  * Power management helpers — call _PS0 / _PS3 on an ACPI device.
