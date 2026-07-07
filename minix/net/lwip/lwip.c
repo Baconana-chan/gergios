@@ -2,6 +2,17 @@
 
 #include "lwip.h"
 #include "tcpisn.h"
+#include "lwipsyncookie.h"
+#include "lwip_ratelimit.h"
+#include "lwip_tcp_md5.h"
+#include "lwip_ipsec.h"
+#include "wgif.h"
+#include "wg_sysctl.h"
+#include "ipsec_sysctl.h"
+#include "dtls_sysctl.h"
+#include "ifstat.h"
+#include "tcp_ext.h"
+#include "latency.h"
 #include "mcast.h"
 #include "ethif.h"
 #include "rtsock.h"
@@ -15,6 +26,7 @@
 
 static int running, recheck_timer;
 static minix_timer_t lwip_timer;
+static minix_timer_t syn_cookie_timer;
 
 static void expire_lwip_timer(int);
 
@@ -90,6 +102,24 @@ expire_lwip_timer(int arg __unused)
 	set_lwip_timer();
 
 	recheck_timer = FALSE;
+}
+
+/*
+ * Periodic timer for SYN cookie secret rotation.  This timer fires every
+ * SYN_COOKIE_TS_SECONDS (~2 seconds) to advance the SYN cookie timestamp
+ * counter and rotate secrets when the counter wraps around.
+ */
+static void
+expire_syn_cookie_timer(int arg __unused)
+{
+
+	lwip_syn_cookie_tick();
+	lwip_ratelimit_tick();
+
+	/* Re-arm the timer for the next tick. */
+	set_timer(&syn_cookie_timer,
+	    (clock_t)SYN_COOKIE_TS_SECONDS * sys_hz(),
+	    expire_syn_cookie_timer, 0 /*unused*/);
 }
 
 /*
@@ -255,6 +285,87 @@ init(int type __unused, sef_init_info_t * init __unused)
 	 * the message loop.
 	 */
 	init_timer(&lwip_timer);
+
+	/*
+	 * Initialize the SYN cookie module.  The secrets will be generated
+	 * for the first time here, and a periodic timer will rotate them.
+	 * This must be done after lwip_init() (which sets up LWIP_RAND).
+	 */
+	lwip_syn_cookie_init();
+
+	/*
+	 * Initialize the rate limiters for ICMP, ARP, NDP.  This must be
+	 * done after lwip_init() which sets up the networking infrastructure.
+	 */
+	lwip_ratelimit_init();
+
+	/*
+	 * Initialize the TCP MD5 signature module.  This registers the ext_arg
+	 * ID for per-connection MD5 key storage.  Must be done after
+	 * lwip_init() and before any TCP connections are established.
+	 */
+	lwip_tcp_md5_init();
+
+	/*
+	 * Initialize the IPsec module.  This clears the SADB and statistics.
+	 * Must be done after lwip_init() and before any sockets are created.
+	 */
+	lwip_ipsec_init();
+
+	/*
+	 * Register the IPsec sysctl tree (minix.lwip.ipsec).  Must be done
+	 * before mibtree_init().
+	 */
+	ipsec_sysctl_init();
+
+	/*
+	 * Initialize the DTLS over UDP module.  This zeros out statistics.
+	 * wolfSSL is already initialized by other components (syslogd).
+	 * Must be called after lwip_init().
+	 */
+	lwip_dtls_init();
+
+	/*
+	 * Register the DTLS sysctl tree (minix.lwip.dtls).  Must be done
+	 * before mibtree_init().
+	 */
+	dtls_sysctl_init();
+
+	/*
+	 * Initialize the WireGuard sysctl tree.  This must be done before
+	 * mibtree_init() so that the RMIB subtree is registered in time.
+	 */
+	wg_sysctl_init();
+
+	/*
+	 * Initialize the WireGuard VPN interface module.  Registers the "wg"
+	 * interface type with ifdev, allowing creation of WireGuard tunnel
+	 * interfaces via ifconfig wg0 create.
+	 */
+	wgif_init();
+
+	/*
+	 * Register the interface statistics sysctl tree (minix.lwip.ifaces).
+	 */
+	ifstat_init();
+
+	/*
+	 * Register the TCP extended metrics sysctl tree (minix.lwip.tcp_ext).
+	 */
+	tcp_ext_init();
+
+	/*
+	 * Initialize the latency histogram module.
+	 */
+	latency_init();
+
+	/*
+	 * Set up the periodic timer for SYN cookie secret rotation.
+	 */
+	init_timer(&syn_cookie_timer);
+	set_timer(&syn_cookie_timer,
+	    (clock_t)SYN_COOKIE_TS_SECONDS * sys_hz(),
+	    expire_syn_cookie_timer, 0 /*unused*/);
 
 	recheck_timer = TRUE;
 

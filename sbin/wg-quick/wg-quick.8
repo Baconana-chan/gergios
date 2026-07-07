@@ -1,0 +1,63 @@
+.\" $Gergios$
+.Dd July 7, 2026
+.Dt WG-QUICK 8
+.Os
+.Sh NAME
+.Nm wg-quick
+.Nd configure WireGuard interfaces from config files
+.Sh SYNOPSIS
+.Nm
+.Cm up
+.Ar ifname
+.Nm
+.Cm down
+.Ar ifname
+.Nm
+.Cm list
+.Sh DESCRIPTION
+.Nm
+reads a WireGuard configuration file from
+.Pa /etc/wireguard/ Ns Aq Ar ifname Ns .conf
+and configures the interface.
+.Pp
+The commands are as follows:
+.Bl -tag -width indent
+.It Cm up Ar ifname
+Create and bring up a WireGuard interface using the configuration from
+.Pa /etc/wireguard/ Ns Aq Ar ifname Ns .conf .
+.It Cm down Ar ifname
+Tear down and destroy a WireGuard interface.
+.It Cm list
+List available WireGuard configuration files.
+.El
+.Sh CONFIG FILE FORMAT
+The configuration file uses the standard WireGuard format:
+.Bd -literal -offset indent
+[Interface]
+PrivateKey = <base64>
+ListenPort = 51820
+Address = 10.0.0.1/24
+
+[Peer]
+PublicKey = <base64>
+Endpoint = 192.168.1.100:51820
+AllowedIPs = 10.0.0.0/24
+PersistentKeepalive = 25
+.Ed
+.Pp
+Multiple
+.Sq [Peer]
+sections are supported (up to 8).
+.Sh FILES
+.Bl -tag -width /etc/wireguard/wg0.conf -compact
+.It Pa /etc/wireguard/
+Directory containing per-interface WireGuard configuration files.
+.El
+.Sh SEE ALSO
+.Xr ifconfig 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+command appeared in Gergios (MINIX 3) as part of the network stack
+modernization effort (Phase 4).

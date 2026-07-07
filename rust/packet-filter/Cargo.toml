@@ -1,0 +1,13 @@
+[package]
+name = "packet-filter"
+version = "0.1.0"
+edition = "2024"
+description = "Safe BPF (Berkeley Packet Filter) verifier — no_std, zero unsafe"
+
+[lib]
+crate-type = ["staticlib", "lib"]
+
+[profile.dev]
+panic = "abort"
+
+[dependencies]

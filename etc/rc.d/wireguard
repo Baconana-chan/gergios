@@ -1,0 +1,68 @@
+#!/bin/sh
+#
+# $NetBSD: wireguard,v 1.0 2026/07/07 00:00:00 gergios Exp $
+#
+# PROVIDE: wireguard
+# REQUIRE: network
+# BEFORE:  DAEMON
+# KEYWORD: shutdown
+
+$_rc_subr_loaded . /etc/rc.subr
+
+name="wireguard"
+start_cmd="wireguard_start"
+stop_cmd="wireguard_stop"
+
+wireguard_start()
+{
+	# Auto-discover all WireGuard config files in /etc/wireguard/.
+	# Each file named <ifname>.conf creates an interface named <ifname>.
+	local conf
+
+	if [ ! -d /etc/wireguard ]; then
+		echo "No /etc/wireguard directory — skipping WireGuard startup."
+		return 0
+	fi
+
+	echo -n "Starting WireGuard interfaces:"
+	for conf in /etc/wireguard/*.conf; do
+		[ -f "$conf" ] || continue
+
+		local ifname
+		ifname=$(basename "$conf" .conf)
+
+		echo -n " $ifname"
+
+		/sbin/wg-quick up "$ifname" >/dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			echo
+			warn "failed to start WireGuard interface $ifname"
+		fi
+	done
+	echo "."
+}
+
+wireguard_stop()
+{
+	local conf
+
+	if [ ! -d /etc/wireguard ]; then
+		return 0
+	fi
+
+	echo -n "Stopping WireGuard interfaces:"
+	for conf in /etc/wireguard/*.conf; do
+		[ -f "$conf" ] || continue
+
+		local ifname
+		ifname=$(basename "$conf" .conf)
+
+		echo -n " $ifname"
+
+		/sbin/wg-quick down "$ifname" >/dev/null 2>&1
+	done
+	echo "."
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -21,6 +21,7 @@
 
 #include "lwip.h"
 #include "bpfdev.h"
+#include "bpf_any.h"
 
 #include <minix/chardriver.h>
 #include <net/if.h>
@@ -89,6 +90,7 @@ static struct bpfdev {
 #define BPFF_SEESENT	0x08		/* also process host-sent packets */
 #define BPFF_HDRCMPLT	0x10		/* do not fill in link-layer source */
 #define BPFF_FEEDBACK	0x20		/* feed back written packet as input */
+#define BPFF_ANY	0x40		/* attached to "any" (all interfaces) */
 
 static TAILQ_HEAD(, bpfdev_link) bpfl_freelist;	/* list of free BPF devices */
 
@@ -236,10 +238,15 @@ bpfdev_close(devminor_t minor)
 	}
 
 	/*
-	 * If the BPF device was attached to an interface, and that interface
-	 * has not disappeared in the meantime, detach from it now.
+	 * If the BPF device was an "any" listener, detach from the global
+	 * "any" list.  Otherwise, if it was attached to a specific interface,
+	 * detach from it now.
 	 */
-	if (bpf->bpf_ifdev != NULL) {
+	if (bpf->bpf_flags & BPFF_ANY) {
+		ifdev_detach_bpf_any(&bpf->bpf_link);
+
+		bpf->bpf_flags &= ~BPFF_ANY;
+	} else if (bpf->bpf_ifdev != NULL) {
 		if (bpf->bpf_flags & BPFF_PROMISC)
 			ifdev_clear_promisc(bpf->bpf_ifdev);
 
@@ -301,7 +308,18 @@ bpfdev_test_select(struct bpfdev * bpf, unsigned int ops)
 	 * libpcap claims that it is the right behavior, that is just insane.
 	 */
 	if (ops & CDEV_OP_RD) {
-		if (bpf->bpf_ifdev == NULL)
+		/*
+		 * For "any" devices, use the normal buffer-based ready check.
+		 * For regular devices, if the interface has disappeared,
+		 * always report ready (any pending data + EOF on read).
+		 */
+		if (bpf->bpf_flags & BPFF_ANY) {
+			if (bpf->bpf_hlen > 0)
+				ready_ops |= CDEV_OP_RD;
+			else if ((bpf->bpf_flags & BPFF_IMMEDIATE) &&
+			    bpf->bpf_slen > 0)
+				ready_ops |= CDEV_OP_RD;
+		} else if (bpf->bpf_ifdev == NULL)
 			ready_ops |= CDEV_OP_RD;
 		else if (bpf->bpf_hlen > 0)
 			ready_ops |= CDEV_OP_RD;
@@ -390,6 +408,7 @@ bpfdev_resume_read(struct bpfdev * bpf, int is_timeout)
 			/*
 			 * Allow readers to get the last packets after the
 			 * interface has disappeared, before getting errors.
+			 * For "any" devices, we also rotate to drain data.
 			 */
 			if (bpf->bpf_ifdev == NULL)
 				bpfdev_rotate(bpf);
@@ -457,8 +476,10 @@ bpfdev_read(devminor_t minor, uint64_t position, endpoint_t endpt,
 	 * Following standard receive semantics, if the interface is gone,
 	 * return all the packets that were pending before returning an error.
 	 * This requires extra buffer rotations after read completion, too.
+	 * For "any" devices, the virtual interface never disappears.
 	 */
-	if (bpf->bpf_ifdev == NULL && bpf->bpf_hlen == 0)
+	if (!(bpf->bpf_flags & BPFF_ANY) &&
+	    bpf->bpf_ifdev == NULL && bpf->bpf_hlen == 0)
 		return EIO;
 
 	/*
@@ -603,6 +624,10 @@ bpfdev_write(devminor_t minor, uint64_t position, endpoint_t endpt,
  * even though the interface may disappear before that.  Return OK if the BPF
  * device was successfully attached to the interface, or a negative error code
  * otherwise.
+ *
+ * If the interface name is "any", the BPF device is attached to the global
+ * "any" listener list and will receive packets from all interfaces with a
+ * cooked header (DLT_MINIX_ANY).
  */
 static int
 bpfdev_attach(struct bpfdev * bpf, struct ifreq * ifr)
@@ -610,10 +635,8 @@ bpfdev_attach(struct bpfdev * bpf, struct ifreq * ifr)
 	struct ifdev *ifdev;
 	void *sbuf, *hbuf;
 
-	/* Find the interface with the given name. */
+	/* Null-terminate the interface name. */
 	ifr->ifr_name[sizeof(ifr->ifr_name) - 1] = '\0';
-	if ((ifdev = ifdev_find_by_name(ifr->ifr_name)) == NULL)
-		return ENXIO;
 
 	/*
 	 * Allocate a store buffer and a hold buffer.  Preallocate the memory,
@@ -630,6 +653,27 @@ bpfdev_attach(struct bpfdev * bpf, struct ifreq * ifr)
 		return ENOMEM;
 	}
 
+	/* Check for the special "any" interface name. */
+	if (!strcmp(ifr->ifr_name, "any")) {
+		bpf->bpf_ifdev = NULL;
+		bpf->bpf_sbuf = sbuf;
+		bpf->bpf_hbuf = hbuf;
+		bpf->bpf_flags |= BPFF_ANY;
+		assert(bpf->bpf_slen == 0);
+		assert(bpf->bpf_hlen == 0);
+
+		ifdev_attach_bpf_any(&bpf->bpf_link);
+
+		return OK;
+	}
+
+	/* Find the interface with the given name. */
+	if ((ifdev = ifdev_find_by_name(ifr->ifr_name)) == NULL) {
+		(void)munmap(sbuf, bpf->bpf_size);
+		(void)munmap(hbuf, bpf->bpf_size);
+		return ENXIO;
+	}
+
 	bpf->bpf_ifdev = ifdev;
 	bpf->bpf_sbuf = sbuf;
 	bpf->bpf_hbuf = hbuf;
@@ -643,6 +687,8 @@ bpfdev_attach(struct bpfdev * bpf, struct ifreq * ifr)
 
 /*
  * Detach the BPF device from its interface, which is about to disappear.
+ * For "any" BPF devices, this should not be called because the "any" virtual
+ * interface never disappears.
  */
 void
 bpfdev_detach(struct bpfdev_link * bpfl)
@@ -650,6 +696,7 @@ bpfdev_detach(struct bpfdev_link * bpfl)
 	struct bpfdev *bpf = (struct bpfdev *)bpfl;
 
 	assert(bpf->bpf_flags & BPFF_IN_USE);
+	assert(!(bpf->bpf_flags & BPFF_ANY));
 	assert(bpf->bpf_ifdev != NULL);
 
 	/*
@@ -816,14 +863,20 @@ bpfdev_ioctl(devminor_t minor, unsigned long request, endpoint_t endpt,
 		return bpfdev_setfilter(bpf, endpt, grant);
 
 	case BIOCPROMISC:
-		if (bpf->bpf_ifdev == NULL)
-			return EINVAL;
-
-		if (!(bpf->bpf_flags & BPFF_PROMISC)) {
-			if (!ifdev_set_promisc(bpf->bpf_ifdev))
+		/*
+		 * For "any" devices, promiscuous mode has no meaning since we
+		 * already capture all packets from all interfaces.
+		 */
+		if (!(bpf->bpf_flags & BPFF_ANY)) {
+			if (bpf->bpf_ifdev == NULL)
 				return EINVAL;
 
-			bpf->bpf_flags |= BPFF_PROMISC;
+			if (!(bpf->bpf_flags & BPFF_PROMISC)) {
+				if (!ifdev_set_promisc(bpf->bpf_ifdev))
+					return EINVAL;
+
+				bpf->bpf_flags |= BPFF_PROMISC;
+			}
 		}
 
 		return OK;
@@ -834,16 +887,28 @@ bpfdev_ioctl(devminor_t minor, unsigned long request, endpoint_t endpt,
 		return OK;
 
 	case BIOCGDLT:
-		if (bpf->bpf_ifdev == NULL)
-			return EINVAL;
+		if (bpf->bpf_flags & BPFF_ANY) {
+			uval = DLT_MINIX_ANY;
+		} else {
+			if (bpf->bpf_ifdev == NULL)
+				return EINVAL;
 
-		/* TODO: support for type configuration per BPF device. */
-		uval = ifdev_get_dlt(bpf->bpf_ifdev);
+			/* TODO: support for type configuration per BPF device. */
+			uval = ifdev_get_dlt(bpf->bpf_ifdev);
+		}
 
 		return sys_safecopyto(endpt, grant, 0, (vir_bytes)&uval,
 		    sizeof(uval));
 
 	case BIOCGETIF:
+		if (bpf->bpf_flags & BPFF_ANY) {
+			memset(&ifr, 0, sizeof(ifr));
+			strlcpy(ifr.ifr_name, "any", sizeof(ifr.ifr_name));
+
+			return sys_safecopyto(endpt, grant, 0, (vir_bytes)&ifr,
+			    sizeof(ifr));
+		}
+
 		if (bpf->bpf_ifdev == NULL)
 			return EINVAL;
 
@@ -921,6 +986,9 @@ bpfdev_ioctl(devminor_t minor, unsigned long request, endpoint_t endpt,
 		return OK;
 
 	case BIOCSDLT:
+		if (bpf->bpf_flags & BPFF_ANY)
+			return EOPNOTSUPP;
+
 		if (bpf->bpf_ifdev == NULL)
 			return EINVAL;
 
@@ -935,6 +1003,29 @@ bpfdev_ioctl(devminor_t minor, unsigned long request, endpoint_t endpt,
 		return OK;
 
 	case MINIX_BIOCGDLTLIST:
+		if (bpf->bpf_flags & BPFF_ANY) {
+			if ((r = sys_safecopyfrom(endpt, grant, 0,
+			    (vir_bytes)&bfl, sizeof(bfl))) != OK)
+				return r;
+
+			if (bfl.bfl_list != NULL) {
+				if (bfl.bfl_len < 1)
+					return ENOMEM;
+
+				uval = DLT_MINIX_ANY;
+
+				if ((r = sys_safecopyto(endpt, grant,
+				    offsetof(struct minix_bpf_dltlist,
+				    mbfl_list), (vir_bytes)&uval,
+				    sizeof(uval))) != OK)
+					return r;
+			}
+			bfl.bfl_len = 1;
+
+			return sys_safecopyto(endpt, grant, 0,
+			    (vir_bytes)&bfl, sizeof(bfl));
+		}
+
 		if (bpf->bpf_ifdev == NULL)
 			return EINVAL;
 
@@ -1285,7 +1376,9 @@ bpfdev_get_info(struct bpf_d_ext * bde, const struct bpfdev * bpf)
 	bde->bde_rcount = bpf->bpf_stat.bs_recv;
 	bde->bde_dcount = bpf->bpf_stat.bs_drop;
 	bde->bde_ccount = bpf->bpf_stat.bs_capt;
-	if (bpf->bpf_ifdev != NULL)
+	if (bpf->bpf_flags & BPFF_ANY)
+		strlcpy(bde->bde_ifname, "any", sizeof(bde->bde_ifname));
+	else if (bpf->bpf_ifdev != NULL)
 		strlcpy(bde->bde_ifname, ifdev_get_name(bpf->bpf_ifdev),
 		    sizeof(bde->bde_ifname));
 }

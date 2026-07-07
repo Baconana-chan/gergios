@@ -1,0 +1,16 @@
+[package]
+name = "virtio-net"
+version = "0.1.0"
+edition = "2024"
+description = "Virtio network device driver for MINIX — Rust pilot replacing C virtio_net"
+
+[lib]
+name = "virtio_net"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+minix-driver = { path = "../minix-driver" }
+
+[features]
+default = []
+sanitize = []

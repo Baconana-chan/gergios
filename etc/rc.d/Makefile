@@ -57,6 +57,7 @@ CONFIGFILES=\
 # MINIX: we will gradually switch over to the NetBSD rc system.  For conflict
 # avoidance, all MINIX-specific scripts should have "minix" in their name.
 CONFIGFILES+=	minixrc
+CONFIGFILES+=	wireguard
 .endif
 
 FILESDIR=	/etc/rc.d

@@ -67,9 +67,13 @@ static const unsigned int NETBSD_TF_NODELAY = TF_NODELAY;
 
 #include "lwip.h"
 #include "tcpisn.h"
+#include "latency.h"
 
 #include "lwip/tcp.h"
 #include "lwip/priv/tcp_priv.h" /* for tcp_pcb_lists */
+#include "lwipsyncookie.h"
+#include "lwip_tcp_md5.h"
+#include "lwip_ipsec.h"
 
 /*
  * The number of TCP sockets (NR_TCPSOCK) is defined in the lwIP configuration.
@@ -175,7 +179,17 @@ static struct rmib_node net_inet_tcp_table[] = {
 				    CTLFLAG_HIDDEN | CTLTYPE_STRING,
 				    TCPISN_SECRET_HEX_LENGTH, tcpisn_secret,
 				    "isn_secret",
-				    "TCP ISN secret (MINIX 3 specific)")
+				    "TCP ISN secret (MINIX 3 specific)"),
+#if LWIP_TCP_SYNCOOKIE
+/*+2*/	[TCPCTL_MAXID + 2]	= RMIB_INTPTR(RMIB_RW, &lwip_syn_cookie_enabled,
+				    "syncookies",
+				    "Enable SYN cookies (RFC 4987)"),
+#endif /* LWIP_TCP_SYNCOOKIE */
+#if LWIP_TCP_MD5SIG
+/*+3*/	[TCPCTL_MAXID + 3]	= RMIB_INTPTR(RMIB_RW, &lwip_tcp_md5_enabled,
+				    "md5sig",
+				    "Enable TCP MD5 signature (RFC 2385)"),
+#endif /* LWIP_TCP_MD5SIG */
 };
 
 static struct rmib_node net_inet_tcp_node =
@@ -1596,8 +1610,15 @@ tcpsock_connect(struct sock * sock, const struct sockaddr * addr,
 	    &tcp->tcp_pcb->local_ip, &dst_addr, &dst_port)) != OK)
 		return r;
 
-	err = tcp_connect(tcp->tcp_pcb, &dst_addr, dst_port,
-	    tcpsock_event_connected);
+	{
+		uint32_t __us = sys_now() * 1000;
+
+		err = tcp_connect(tcp->tcp_pcb, &dst_addr, dst_port,
+		    tcpsock_event_connected);
+
+		latency_record(&latency_tcp_connect,
+		    (sys_now() * 1000) - __us);
+	}
 
 	/*
 	 * Note that various tcp_connect() error cases will leave the PCB with
@@ -1909,19 +1930,33 @@ tcpsock_send(struct sock * sock, const struct sockdriver_data * data,
 	 * this saves us from having to deal with the cases that the following
 	 * calls end up freeing the socket object.
 	 */
-	if (tcpsock_pcb_enqueue(tcp) &&
-	    (r = tcpsock_pcb_send(tcp, FALSE /*raise_error*/)) != OK) {
-		/*
-		 * That did not go well.  Return the error immediately if we
-		 * had not made any progress earlier.  Otherwise, return our
-		 * partial progress and leave the error to be picked up later.
-		 */
-		if (*offp > 0) {
-			sockevent_set_error(tcpsock_get_sock(tcp), r);
+	if (off > 0) {
+		uint32_t __us = sys_now() * 1000;
 
-			return OK;
-		} else
-			return r;
+		if (tcpsock_pcb_enqueue(tcp) &&
+		    (r = tcpsock_pcb_send(tcp, FALSE /*raise_error*/)) != OK) {
+			/*
+			 * That did not go well.  Return the error
+			 * immediately if we had not made any progress
+			 * earlier.  Otherwise, return our partial progress
+			 * and leave the error to be picked up later.
+			 */
+			if (*offp > 0) {
+				sockevent_set_error(tcpsock_get_sock(tcp), r);
+
+				latency_record(&latency_tcp_send,
+				    (sys_now() * 1000) - __us);
+				*offp += off;
+				return OK;
+			} else {
+				latency_record(&latency_tcp_send,
+				    (sys_now() * 1000) - __us);
+				return r;
+			}
+		}
+
+		latency_record(&latency_tcp_send,
+		    (sys_now() * 1000) - __us);
 	}
 
 	*offp += off;
@@ -2108,6 +2143,11 @@ tcpsock_setsockmask(struct sock * sock, unsigned int mask)
 	else
 		ip_reset_option(tcp->tcp_pcb, SOF_REUSEADDR);
 
+	if (mask & SO_REUSEPORT)
+		ip_set_option(tcp->tcp_pcb, SOF_REUSEADDR);
+	else
+		ip_reset_option(tcp->tcp_pcb, SOF_REUSEADDR);
+
 	if (mask & SO_KEEPALIVE)
 		ip_set_option(tcp->tcp_pcb, SOF_KEEPALIVE);
 	else
@@ -2252,8 +2292,79 @@ tcpsock_setsockopt(struct sock * sock, int level, int name,
 			tcp->tcp_pcb->keep_cnt = (uint32_t)val;
 
 			return OK;
+
+#if LWIP_TCP_MD5SIG
+		case TCP_MD5SIG:
+			/*
+			 * TCP MD5 signature (RFC 2385) for BGP peering.  Set/clear
+			 * the per-connection MD5 shared secret.
+			 *
+			 * The input is a struct tcp_md5sig containing the remote
+			 * peer address and the shared secret.  To clear a key,
+			 * set tcpm_keylen to 0.
+			 */
+		{
+			struct tcp_md5sig md5sig;
+
+			if ((r = sockdriver_copyin_opt(data, &md5sig, sizeof(md5sig),
+			    len)) != OK)
+				return r;
+
+			if (md5sig.tcpm_keylen > TCP_MD5SIG_MAXKEYLEN)
+				return EINVAL;
+
+			if (md5sig.tcpm_keylen == 0) {
+				/* Clear existing key. */
+				lwip_tcp_md5_clear_key(tcp->tcp_pcb);
+			} else {
+				if (lwip_tcp_md5_set_key(tcp->tcp_pcb, &md5sig)
+				    != ERR_OK)
+					return ENOBUFS;
+			}
+
+			return OK;
+		}
+#endif /* LWIP_TCP_MD5SIG */
 		}
 
+		return EOPNOTSUPP;
+
+	case IPPROTO_IP:
+#if LWIP_IPSEC
+		switch (name) {
+		case IP_IPSEC_SA: {
+			struct ipsec_sa sa;
+			ip_addr_t dst;
+
+			if (tcp->tcp_pcb->state == LISTEN)
+				return EINVAL;
+
+			if ((r = sockdriver_copyin_opt(data, &sa, sizeof(sa),
+			    len)) != OK)
+				return r;
+
+			/* Validate SA parameters */
+			if (sa.spi == 0)
+				return EINVAL;
+			if ((sa.flags & IPSEC_SA_FLAG_ESP) &&
+			    (sa.enc_keylen == 0 ||
+			     sa.enc_keylen > IPSEC_MAX_KEY_LEN))
+				return EINVAL;
+			if ((sa.flags & IPSEC_SA_FLAG_AH) &&
+			    (sa.auth_keylen == 0 ||
+			     sa.auth_keylen > IPSEC_MAX_AUTH_KEY_LEN))
+				return EINVAL;
+
+			/* Add to global SADB with the PCB's remote address */
+			ip_addr_copy(dst, tcp->tcp_pcb->remote_ip);
+
+			if (lwip_ipsec_sa_add(&sa, &dst) != 0)
+				return ENOBUFS;
+
+			return OK;
+		}
+		}
+#endif /* LWIP_IPSEC */
 		return EOPNOTSUPP;
 	}
 
@@ -2344,8 +2455,45 @@ tcpsock_getsockopt(struct sock * sock, int level, int name,
 
 			return sockdriver_copyout_opt(data, &val, sizeof(val),
 			    len);
+
+#if LWIP_TCP_MD5SIG
+		case TCP_MD5SIG:
+			/*
+			 * Get the MD5 key configuration for this TCP connection.
+			 */
+		{
+			struct tcp_md5sig md5sig;
+
+			if (lwip_tcp_md5_get_key(tcp->tcp_pcb, &md5sig)
+			    != ERR_OK) {
+				memset(&md5sig, 0, sizeof(md5sig));
+			}
+
+			return sockdriver_copyout_opt(data, &md5sig,
+			    sizeof(md5sig), len);
+		}
+#endif /* LWIP_TCP_MD5SIG */
 		}
 
+		return EOPNOTSUPP;
+
+	case IPPROTO_IP:
+#if LWIP_IPSEC
+		switch (name) {
+		case IP_IPSEC_SA: {
+			struct ipsec_sa sa;
+
+			if (tcp->tcp_pcb->state == LISTEN)
+				return EINVAL;
+
+			/* Return SA info if configured, empty struct otherwise */
+			/* TODO: implement proper SA retrieval from global SADB */
+			memset(&sa, 0, sizeof(sa));
+			return sockdriver_copyout_opt(data, &sa, sizeof(sa),
+			    len);
+		}
+		}
+#endif /* LWIP_IPSEC */
 		return EOPNOTSUPP;
 	}
 

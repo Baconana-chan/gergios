@@ -13,6 +13,8 @@
 /* The following are sysctl(7) settings. */
 int lwip_ip4_forward = 0;		/* We patch lwIP to check these.. */
 int lwip_ip6_forward = 0;		/*  ..two settings at run time.   */
+int lwip_ip4_ingress_filter = 0;	/* BCP 38 ingress filtering for IPv4 */
+int lwip_ip6_ingress_filter = 0;	/* BCP 38 ingress filtering for IPv6 */
 static int ipsock_v6only = 1;
 
 /* The CTL_NET PF_INET IPPROTO_IP subtree. */
@@ -25,6 +27,9 @@ static struct rmib_node net_inet_ip_table[] = {
 /*23*/	[IPCTL_LOOPBACKCKSUM]	= RMIB_FUNC(RMIB_RW | CTLTYPE_INT, sizeof(int),
 				    loopif_cksum, "do_loopback_cksum",
 				    "Perform IP checksum on loopback"),
+/*+0*/	[IPCTL_MAXID]		= RMIB_INTPTR(RMIB_RW, &lwip_ip4_ingress_filter,
+				    "ingress_filter",
+				    "BCP 38 ingress filtering for IPv4"),
 };
 
 static struct rmib_node net_inet_ip_node =
@@ -73,6 +78,9 @@ static struct rmib_node net_inet6_ip6_table[] = {
 				    "address"),
 /*+2*/	[IPV6CTL_MAXID + 2]	= RMIB_INT(RMIB_RW, 604800, "tempvltime",
 				    "Valid lifetime of a temporary address"),
+/*+3*/	[IPV6CTL_MAXID + 3]	= RMIB_INTPTR(RMIB_RW, &lwip_ip6_ingress_filter,
+				    "ingress_filter",
+				    "BCP 38 ingress filtering for IPv6"),
 };
 
 static struct rmib_node net_inet6_ip6_node =

@@ -47,8 +47,15 @@ CPPFLAGS+=	-DNO_DES3
 # Note: NO_DSA and NO_DH intentionally omitted.
 # HAVE_DSA and HAVE_DH are needed by BIND and syslogd.
 CPPFLAGS+=	-DNO_OLD_TLS
-CPPFLAGS+=	-DNO_WOLFSSL_CLIENT
-CPPFLAGS+=	-DNO_WOLFSSL_SERVER
+
+# DTLS support (RFC 6347/9147) for DTLS over UDP in lwIP.
+# NOTE: NO_WOLFSSL_CLIENT and NO_WOLFSSL_SERVER are intentionally REMOVED
+# to allow DTLS client/server handshake (wolfSSL_connect/wolfSSL_accept).
+# The original defines reduced code size but blocked DTLS functionality.
+# syslogd (TLS over TCP) is unaffected by this change: the client/server
+# code paths are compiled but the OpenSSL compat layer still works.
+CPPFLAGS+=	-DWOLFSSL_DTLS
+CPPFLAGS+=	-DWOLFSSL_DTLS13
 
 # Performance optimizations
 CPPFLAGS+=	-DFAST_MATH

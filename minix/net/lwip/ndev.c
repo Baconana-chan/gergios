@@ -110,10 +110,94 @@ static ndev_id_t ndev_max;		/* highest driver count ever seen */
 
 static int ndev_pending;		/* number of initializing drivers */
 
+/*
+ * Per-driver statistics for netstat -d.
+ */
+struct ndev_drvinfo {
+	char		ndi_label[LABEL_MAX];	/* driver label */
+	endpoint_t	ndi_endpt;		/* driver endpoint, NONE if unused */
+	uint32_t	ndi_flags;		/* NDI_* flags */
+	uint32_t	ndi_sendq_depth[NDEV_NUM_SENDQ];	/* send queue depths */
+	uint32_t	ndi_sendq_max[NDEV_NUM_SENDQ];	/* send queue max */
+	uint32_t	ndi_recvq_depth;	/* recv queue depth */
+	uint32_t	ndi_recvq_max;		/* recv queue max */
+};
+
+#define NDI_ACTIVE	0x01	/* driver is active (not initializing) */
+#define NDI_INUSE	0x02	/* slot is in use (endpt != NONE) */
+
+/*
+ * Sysctl handler for minix.lwip.drivers info (netstat -d).
+ */
+static ssize_t
+ndev_drvinfo_handler(struct rmib_call * call __unused,
+	struct rmib_node * node __unused, struct rmib_oldp * oldp,
+	struct rmib_newp * newp __unused)
+{
+	struct ndev_drvinfo entries[NR_NDEV];
+	struct ndev *ndev;
+	ndev_id_t slot;
+	ssize_t off;
+	int r;
+
+	memset(entries, 0, sizeof(entries));
+
+	for (slot = 0; slot < (ndev_id_t)__arraycount(ndev_array); slot++) {
+		ndev = &ndev_array[slot];
+
+		if (ndev->ndev_endpt == NONE)
+			continue;
+
+		strlcpy(entries[slot].ndi_label, ndev->ndev_label,
+		    sizeof(entries[slot].ndi_label));
+		entries[slot].ndi_endpt = ndev->ndev_endpt;
+		entries[slot].ndi_flags = NDI_INUSE;
+
+		if (NDEV_ACTIVE(ndev)) {
+			unsigned int q;
+
+			entries[slot].ndi_flags |= NDI_ACTIVE;
+
+			for (q = 0; q < NDEV_NUM_SENDQ; q++) {
+				entries[slot].ndi_sendq_depth[q] =
+				    ndev->ndev_sendq[q].nq_count;
+				entries[slot].ndi_sendq_max[q] =
+				    ndev->ndev_sendq[q].nq_max;
+			}
+
+			entries[slot].ndi_recvq_depth =
+			    ndev->ndev_recvq.nq_count;
+			entries[slot].ndi_recvq_max =
+			    ndev->ndev_recvq.nq_max;
+		}
+	}
+
+	if (oldp == NULL)
+		return (ssize_t)sizeof(entries);
+
+	off = 0;
+
+	for (slot = 0; slot < (ndev_id_t)__arraycount(ndev_array); slot++) {
+		if (!(entries[slot].ndi_flags & NDI_INUSE))
+			continue;
+
+		if ((r = rmib_copyout(oldp, off, &entries[slot],
+		    sizeof(entries[slot]))) < 0)
+			return r;
+
+		off += sizeof(entries[slot]);
+	}
+
+	return off;
+}
+
 /* The CTL_MINIX MINIX_LWIP "drivers" subtree.  Dynamically numbered. */
 static struct rmib_node minix_lwip_drivers_table[] = {
 	RMIB_INTPTR(RMIB_RO, &ndev_pending, "pending",
 	    "Number of drivers currently initializing"),
+	RMIB_FUNC(RMIB_RO, sizeof(struct ndev_drvinfo),
+	    ndev_drvinfo_handler, "info",
+	    "Per-driver information (netstat -d)"),
 };
 
 static struct rmib_node minix_lwip_drivers_node =
@@ -1202,6 +1286,12 @@ ndev_process(const message * m_ptr, int ipc_status)
 
 	case NDEV_STATUS:
 		ndev_status(ndev, m_ptr);
+
+		break;
+
+	default:
+		printf("LWIP: unknown message type %d from driver %s\n",
+		    m_ptr->m_type, ndev->ndev_label);
 
 		break;
 	}

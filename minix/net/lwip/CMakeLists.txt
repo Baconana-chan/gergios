@@ -49,9 +49,14 @@ endif()
 # Suppress lwIP macro warnings
 target_compile_options(lwip PRIVATE -Wno-address)
 
-# Rust net-parse FFI integration (Phase 3)
+# Rust net-parse FFI integration (Phase 3a)
 if(CARGO_EXECUTABLE)
     add_rust_library(net-parse LINK_TO lwip)
+endif()
+
+# Rust packet-filter BPF verifier integration (Phase 3c)
+if(CARGO_EXECUTABLE)
+    add_rust_library(packet-filter LINK_TO lwip)
 endif()
 
 # Install config file

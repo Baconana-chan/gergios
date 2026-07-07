@@ -367,6 +367,27 @@
 #define LWIP_TCP_SACK_OUT              1
 
 /*
+ * SYN Cookie support (RFC 4987).  When enabled, if the listen backlog is
+ * exhausted or a new PCB cannot be allocated for an incoming SYN, a SYN-ACK
+ * with a verifiable cookie sequence number is sent instead of dropping the
+ * SYN.  If the client responds with a valid ACK containing the cookie, a
+ * new connection is created without having stored any intermediate state.
+ * This protects against SYN flood attacks.
+ */
+#define LWIP_TCP_SYNCOOKIE             1
+
+/*
+ * TCP MD5 Signature support (RFC 2385) for BGP peering authentication.
+ * When enabled, per-connection MD5 shared secrets can be configured via the
+ * TCP_MD5SIG socket option.  All TCP segments for a configured connection
+ * will carry the MD5 digest option (Kind=19) which is validated by the peer.
+ * This setting also enables the per-PCB extension arguments (ext_args) that
+ * are needed to store MD5 keys on individual TCP control blocks.
+ */
+#define LWIP_TCP_MD5SIG                1
+#define LWIP_TCP_PCB_NUM_EXT_ARGS      1
+
+/*
  * TCP Segmentation Offload (TSO).  When TSO is enabled, the TCP stack may
  * create super-sized segments (up to TCP_TSO_MAX_SEG * MSS bytes) and pass
  * them to the netif, which must support hardware segmentation (e.g., e1000
@@ -573,6 +594,41 @@
  */
 #define LWIP_ND6_NUM_PREFIXES           1
 #define LWIP_ND6_NUM_ROUTERS            1
+
+/*
+ * Rate limiting for ICMP error messages, ARP/NDP, and IP fragment
+ * reassembly.  Uses token buckets to protect against DoS attacks.
+ */
+#define LWIP_RATELIMIT                  1
+
+/*
+ * WireGuard VPN tunnel support.  When enabled, virtual WireGuard network
+ * interfaces can be created via the wgif module.  The wireguard-lwip
+ * library provides the Noise protocol state machine, session key
+ * management, and UDP encapsulation of tunnel traffic.
+ */
+#define LWIP_WIREGUARD                  1
+
+/*
+ * IPsec ESP Transport + AH support (RFC 4301/4302/4303).  When enabled,
+ * per-socket Security Associations can be configured via the IP_IPSEC_SA
+ * setsockopt option.  ESP provides encryption of IP payload (AES-GCM,
+ * AES-CBC+HMAC, ChaCha20-Poly1305).  AH provides authentication without
+ * encryption (HMAC-SHA256).  Manual keying only -- no IKEv2.
+ * Hooks: LWIP_HOOK_IP4_INPUT for inbound ESP/AH, LWIP_HOOK_IP4_OUTPUT
+ * (via patch 0008) for outbound transforms.
+ */
+#define LWIP_IPSEC                      1
+
+/*
+ * DTLS (Datagram TLS) over UDP support (RFC 6347/9147).  When enabled,
+ * UDP sockets can be wrapped with DTLS encryption via the UDP_DTLS
+ * setsockopt option.  Uses wolfSSL as the cryptographic backend with
+ * custom I/O callbacks for pbuf-based transport.  Supports both DTLS
+ * 1.2 and 1.3, certificate-based and PSK authentication, and non-
+ * blocking handshake for the single-threaded lwIP service model.
+ */
+#define LWIP_DTLS                       1
 
 /*
  * Hooks are in a separate file, to allow some of their parameter types to be

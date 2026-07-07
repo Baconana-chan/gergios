@@ -130,4 +130,13 @@ int ifconf_ioctl(struct sock * sock, unsigned long request,
 u_int bpf_filter_ext(const struct bpf_insn * pc, const struct pbuf * pbuf,
 	const u_char * packet, u_int total, u_int len);
 
+/* lwip_ipsec.h (from liblwip) */
+#if LWIP_IPSEC
+/* IP_IPSEC_SA socket option is handled in tcpsock.c */
+int lwip_ipsec_has_sa(const struct tcp_pcb *pcb);
+#endif /* LWIP_IPSEC */
+
+/* lwip_dtls.h (from liblwip) */
+#include "lwip_dtls.h"
+
 #endif /* !MINIX_NET_LWIP_LWIP_H */

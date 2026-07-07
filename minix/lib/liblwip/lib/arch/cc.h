@@ -38,5 +38,7 @@ struct pbuf *pchain_alloc(int layer, size_t size);
 
 extern int lwip_ip4_forward;
 extern int lwip_ip6_forward;
+extern int lwip_ip4_ingress_filter;
+extern int lwip_ip6_ingress_filter;
 
 #endif /* !LWIP_ARCH_CC_H */

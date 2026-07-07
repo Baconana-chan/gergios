@@ -113,6 +113,8 @@ err_t ifdev_output(struct ifdev * ifdev, struct pbuf * pbuf,
 
 void ifdev_attach_bpf(struct ifdev * ifdev, struct bpfdev_link * bpfl);
 void ifdev_detach_bpf(struct ifdev * ifdev, struct bpfdev_link * bpfl);
+void ifdev_attach_bpf_any(struct bpfdev_link * bpfl);
+void ifdev_detach_bpf_any(struct bpfdev_link * bpfl);
 
 struct ifdev *ifdev_get_by_index(uint32_t ifindex);
 struct ifdev *ifdev_find_by_name(const char * name);

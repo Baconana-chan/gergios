@@ -1,0 +1,46 @@
+# WireGuard configuration for interface wg0.
+# Install as /etc/wireguard/wg0.conf and run:
+#   wg-quick up wg0
+#
+# Generate keys:
+#   openssl rand -base64 32 | tr -d '\n' > /etc/wireguard/private.key
+#   wg pubkey < /etc/wireguard/private.key > /etc/wireguard/public.key
+
+[Interface]
+# Your private key (base64, 32 bytes decoded)
+PrivateKey = mNb4S0X0f4J0Z0f4J0Z0f4J0Z0f4J0Z0f4J0Z0f4=
+
+# Local tunnel IP address (CIDR notation)
+Address = 10.0.0.1/24
+
+# UDP listen port (default: 51820)
+ListenPort = 51820
+
+# ---- Peer 1: remote office ----
+
+[Peer]
+# Remote peer's public key (base64, 32 bytes decoded)
+PublicKey = AbCdEfGhIjKlMnOpQrStUvWxYz1234567890AbCdEfG=
+
+# Optional pre-shared key for additional post-quantum security
+# PresharedKey = /4J0Z0f4J0Z0f4J0Z0f4J0Z0f4J0Z0f4J0Z0f4=
+
+# Remote endpoint (host:port).  Required for outbound connections.
+Endpoint = 192.168.1.100:51820
+
+# Allowed IPs for this peer (CIDR notation).  Comma-separated.
+# Traffic to these subnets will be routed via this peer.
+AllowedIPs = 10.0.0.0/24, 192.168.2.0/24
+
+# Persistent keepalive (seconds).  Keeps NAT/firewall mappings alive.
+PersistentKeepalive = 25
+
+# ---- Peer 2: roaming client ----
+
+[Peer]
+PublicKey = Yz1234567890AbCdEfGhIjKlMnOpQrStUvWxAbCdEfGh=
+
+# No Endpoint — peer initiates connection (responder mode)
+AllowedIPs = 10.0.0.5/32
+
+PersistentKeepalive = 25

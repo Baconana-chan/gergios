@@ -6,6 +6,7 @@
 #include "rtsock.h"
 #include "route.h"
 #include "bpfdev.h"
+#include "bpf_any.h"
 
 #include <net/if_media.h>
 
@@ -25,6 +26,9 @@ static struct ifdev *ifdev_table[MAX_IFDEV];	/* index-based lookup table */
 static TAILQ_HEAD(, ifdev) ifdev_list;		/* list of active interfaces */
 
 static struct ifdev *ifdev_loopback;		/* loopback interface */
+
+/* Global list of BPF devices capturing from ALL interfaces ("any"). */
+static TAILQ_HEAD(, bpfdev_link) ifdev_bpf_any;
 
 /*
  * The maximum number of virtual interface types--that is, interface types for
@@ -57,6 +61,7 @@ ifdev_init(void)
 	memset(ifdev_table, 0, sizeof(ifdev_table));
 
 	TAILQ_INIT(&ifdev_list);
+	TAILQ_INIT(&ifdev_bpf_any);
 
 	memset(ifdev_vtype, 0, sizeof(ifdev_vtype));
 	ifdev_vtypes = 0;
@@ -105,6 +110,9 @@ ifdev_input(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif,
 	if (to_bpf) {
 		TAILQ_FOREACH(bpfl, &ifdev->ifdev_bpf, bpfl_next)
 			bpfdev_input(bpfl, pbuf);
+
+		/* Also deliver to global "any" listeners. */
+		ifdev_deliver_to_any(ifdev, pbuf, PACKET_HOST);
 	}
 
 	ifdev->ifdev_data.ifi_ipackets++;
@@ -123,8 +131,10 @@ ifdev_input(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif,
 	else
 		err = ifdev->ifdev_netif.input(pbuf, &ifdev->ifdev_netif);
 
-	if (err != ERR_OK)
+	if (err != ERR_OK) {
+		ifdev->ifdev_data.ifi_iqdrops++;
 		pbuf_free(pbuf);
+	}
 }
 
 /*
@@ -168,6 +178,9 @@ ifdev_output(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif,
 	if (to_bpf) {
 		TAILQ_FOREACH(bpfl, &ifdev->ifdev_bpf, bpfl_next)
 			bpfdev_output(bpfl, pbuf);
+
+		/* Also deliver to global "any" listeners. */
+		ifdev_deliver_to_any(ifdev, pbuf, PACKET_OUTGOING);
 	}
 
 	ifdev->ifdev_data.ifi_opackets++;
@@ -372,6 +385,109 @@ ifdev_detach_bpf(struct ifdev * ifdev, struct bpfdev_link * bpfl)
 {
 
 	TAILQ_REMOVE(&ifdev->ifdev_bpf, bpfl, bpfl_next);
+}
+
+/*
+ * Attach a BPF device as a global "any" listener.
+ */
+void
+ifdev_attach_bpf_any(struct bpfdev_link * bpfl)
+{
+
+	TAILQ_INSERT_TAIL(&ifdev_bpf_any, bpfl, bpfl_next);
+}
+
+/*
+ * Detach a previously attached "any" BPF listener.
+ */
+void
+ifdev_detach_bpf_any(struct bpfdev_link * bpfl)
+{
+
+	TAILQ_REMOVE(&ifdev_bpf_any, bpfl, bpfl_next);
+}
+
+/*
+ * Deliver a packet to all "any" BPF listeners with a cooked header.
+ * Allocates a pbuf with the cooked header prepended to the original packet,
+ * passes it to each listener, and frees it afterward.
+ */
+void
+ifdev_deliver_to_any(const struct ifdev * ifdev, const struct pbuf * pbuf,
+	int pkttype)
+{
+	struct bpfdev_link *bpfl;
+	struct bpf_any_hdr *hdr;
+	struct pbuf *cpbuf;
+	size_t totlen;
+	int pkttype_adj;
+
+	/* Fast path: no "any" listeners, do nothing. */
+	if (TAILQ_EMPTY(&ifdev_bpf_any))
+		return;
+
+	/*
+	 * Determine the packet type for the cooked header.
+	 * For broadcast/multicast, adjust the caller-provided pkttype.
+	 */
+	if (pbuf->flags & PBUF_FLAG_LLBCAST)
+		pkttype_adj = PACKET_BROADCAST;
+	else if (pbuf->flags & PBUF_FLAG_LLMCAST)
+		pkttype_adj = PACKET_MULTICAST;
+	else
+		pkttype_adj = pkttype;
+
+	/*
+	 * Allocate a new pbuf large enough for the cooked header plus the
+	 * original packet.  We use PBUF_RAW because the cooked header IS the
+	 * link-layer header for "any" captures.
+	 */
+	totlen = BPF_ANY_HDRLEN + pbuf->tot_len;
+
+	if ((cpbuf = pbuf_alloc(PBUF_RAW, totlen, PBUF_RAM)) == NULL)
+		return;
+
+	/* Fill in the cooked header. */
+	hdr = (struct bpf_any_hdr *)cpbuf->payload;
+	memset(hdr, 0, BPF_ANY_HDRLEN);
+
+	hdr->baf_ifindex = (uint16_t)ifdev_get_index(ifdev);
+	hdr->baf_pkttype = (uint16_t)pkttype_adj;
+	hdr->baf_hatype = (uint16_t)ifdev->ifdev_dlt;
+	hdr->baf_halen = (uint16_t)ifdev->ifdev_data.ifi_addrlen;
+
+	/*
+	 * Extract link-layer source address from the original packet.
+	 * For Ethernet (DLT_EN10MB), the source address is at offset 6.
+	 * For other link types, the address is left as zero.
+	 */
+	if (ifdev->ifdev_dlt == DLT_EN10MB && pbuf->len >= 12) {
+		/* Copy source MAC from bytes 6-11 (dest=6, src=6). */
+		memcpy(hdr->baf_addr, (const uint8_t *)pbuf->payload + 6,
+		    MIN(ifdev->ifdev_data.ifi_addrlen, 8U));
+	}
+
+	/*
+	 * Copy ethertype from the link-layer header if available.
+	 * For Ethernet, the EtherType is at offset 12 (2 bytes).
+	 */
+	if (pbuf->len >= 14) {
+		const uint8_t *llhdr = (const uint8_t *)pbuf->payload;
+		hdr->baf_protocol = (uint16_t)(llhdr[12] << 8) | llhdr[13];
+	}
+
+	/* Copy the original packet data after the cooked header. */
+	pbuf_copy_partial(pbuf, (uint8_t *)cpbuf->payload + BPF_ANY_HDRLEN,
+	    pbuf->tot_len, 0);
+
+	/*
+	 * Deliver to each "any" listener.  cpbuf contains the cooked header
+	 * followed by the original packet data in a single contiguous buffer.
+	 */
+	TAILQ_FOREACH(bpfl, &ifdev_bpf_any, bpfl_next)
+		bpfdev_input(bpfl, cpbuf);
+
+	pbuf_free(cpbuf);
 }
 
 /*

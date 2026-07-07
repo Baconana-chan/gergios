@@ -15,7 +15,6 @@
 #include <string.h>
 #include <limits.h>
 #include <net/bpf.h>
-#include <minix/bitmap.h>
 
 #ifdef _MINIX_SYSTEM
 #include "lwip.h"
@@ -378,184 +377,23 @@ bpf_filter_ext(const struct bpf_insn * pc, const struct pbuf * pbuf,
 	}
 
 	/* NOTREACHED */
-}
+}#include <packet_filter.h>
 
 /*
- * In order to avoid having to perform explicit memory allocation, we store
- * some validation state on the stack, using data types that are as small as
- * possible for the current definitions.  The data types, and in fact the whole
- * assumption that we can store the state on the stack, may need to be revised
- * if certain constants are increased in the future.  As of writing, the
- * validation routine uses a little over 1KB of stack memory.
- */
-#if BPF_MEMWORDS <= 16	/* value as of writing: 16 */
-typedef uint16_t meminv_t;
-#else
-#error "increased BPF_MEMWORDS may require code revision"
-#endif
-
-#if BPF_MAXINSNS > 2048	/* value as of writing: 512 */
-#error "increased BPF_MAXINSNS may require code revision"
-#endif
-
-/*
- * Verify that the given filter program is safe to execute, by performing as
- * many static validity checks as possible.  The program is given as 'insns',
- * which must be an array of 'ninsns' BPF instructions.  Unlike bpf_filter(),
- * this function does not accept empty filter programs.  The function returns 1
- * if the program was successfully validated, or 0 if the program should not be
- * accepted.
+ * Verify that the given filter program is safe to execute.
+ *
+ * Delegates to the safe Rust BPF verifier (rust/packet-filter/) which
+ * performs reachability analysis, memory-store validation, division-by-zero
+ * and shift-overflow checks, and jump-bound validation.
+ *
+ * struct bpf_insn and struct packet_filter_insn have identical layout
+ * ({ uint16_t code; uint8_t jt; uint8_t jf; uint32_t k; }), so the cast
+ * is safe.
  */
 int
 bpf_validate(const struct bpf_insn * insns, int ninsns)
 {
-	bitchunk_t reachable[BITMAP_CHUNKS(BPF_MAXINSNS)];
-	meminv_t invalid, meminv[BPF_MAXINSNS];
-	const struct bpf_insn *insn;
-	u_int pc, count, target;
-	int advance;
 
-	if (insns == NULL || ninsns <= 0 || ninsns > BPF_MAXINSNS)
-		return 0;
-	count = (u_int)ninsns;
-
-	memset(reachable, 0, sizeof(reachable[0]) * BITMAP_CHUNKS(count));
-	memset(meminv, 0, sizeof(meminv[0]) * count);
-
-	SET_BIT(reachable, 0);
-	meminv[0] = (meminv_t)~0;
-
-	for (pc = 0; pc < count; pc++) {
-		/* We completely ignore instructions that are not reachable. */
-		if (!GET_BIT(reachable, pc))
-			continue;
-
-		invalid = meminv[pc];
-		advance = 1;
-
-		insn = &insns[pc];
-
-		switch (insn->code) {
-		case BPF_LD+BPF_W+BPF_ABS:
-		case BPF_LD+BPF_H+BPF_ABS:
-		case BPF_LD+BPF_B+BPF_ABS:
-		case BPF_LD+BPF_W+BPF_IND:
-		case BPF_LD+BPF_H+BPF_IND:
-		case BPF_LD+BPF_B+BPF_IND:
-		case BPF_LD+BPF_LEN:
-		case BPF_LD+BPF_IMM:
-		case BPF_LDX+BPF_IMM:
-		case BPF_LDX+BPF_LEN:
-		case BPF_LDX+BPF_B+BPF_MSH:
-		case BPF_ALU+BPF_ADD+BPF_K:
-		case BPF_ALU+BPF_SUB+BPF_K:
-		case BPF_ALU+BPF_MUL+BPF_K:
-		case BPF_ALU+BPF_AND+BPF_K:
-		case BPF_ALU+BPF_OR+BPF_K:
-		case BPF_ALU+BPF_XOR+BPF_K:
-		case BPF_ALU+BPF_ADD+BPF_X:
-		case BPF_ALU+BPF_SUB+BPF_X:
-		case BPF_ALU+BPF_MUL+BPF_X:
-		case BPF_ALU+BPF_DIV+BPF_X:
-		case BPF_ALU+BPF_MOD+BPF_X:
-		case BPF_ALU+BPF_AND+BPF_X:
-		case BPF_ALU+BPF_OR+BPF_X:
-		case BPF_ALU+BPF_XOR+BPF_X:
-		case BPF_ALU+BPF_LSH+BPF_X:
-		case BPF_ALU+BPF_RSH+BPF_X:
-		case BPF_ALU+BPF_NEG:
-		case BPF_MISC+BPF_TAX:
-		case BPF_MISC+BPF_TXA:
-			/* Nothing we can check for these. */
-			break;
-		case BPF_ALU+BPF_DIV+BPF_K:
-		case BPF_ALU+BPF_MOD+BPF_K:
-			/* No division by zero. */
-			if (insn->k == 0)
-				return 0;
-			break;
-		case BPF_ALU+BPF_LSH+BPF_K:
-		case BPF_ALU+BPF_RSH+BPF_K:
-			/* Do not invoke undefined behavior. */
-			if (insn->k >= 32)
-				return 0;
-			break;
-		case BPF_LD+BPF_MEM:
-		case BPF_LDX+BPF_MEM:
-			/*
-			 * Only allow loading words that have been stored in
-			 * all execution paths leading up to this instruction.
-			 */
-			if (insn->k >= BPF_MEMWORDS ||
-			    (invalid & (1 << insn->k)))
-				return 0;
-			break;
-		case BPF_ST:
-		case BPF_STX:
-			if (insn->k >= BPF_MEMWORDS)
-				return 0;
-			invalid &= ~(1 << insn->k);
-			break;
-		case BPF_JMP+BPF_JA:
-			/*
-			 * Make sure that the target instruction of the jump is
-			 * still part of the program, and mark it as reachable.
-			 */
-			if (insn->k >= count - pc - 1)
-				return 0;
-			target = pc + insn->k + 1;
-			SET_BIT(reachable, target);
-			meminv[target] |= invalid;
-			advance = 0;
-			break;
-		case BPF_JMP+BPF_JGT+BPF_K:
-		case BPF_JMP+BPF_JGE+BPF_K:
-		case BPF_JMP+BPF_JEQ+BPF_K:
-		case BPF_JMP+BPF_JSET+BPF_K:
-		case BPF_JMP+BPF_JGT+BPF_X:
-		case BPF_JMP+BPF_JGE+BPF_X:
-		case BPF_JMP+BPF_JEQ+BPF_X:
-		case BPF_JMP+BPF_JSET+BPF_X:
-			/*
-			 * Make sure that both target instructions are still
-			 * part of the program, and mark both as reachable.
-			 * There is no chance that the additions will overflow.
-			 */
-			target = pc + insn->jt + 1;
-			if (target >= count)
-				return 0;
-			SET_BIT(reachable, target);
-			meminv[target] |= invalid;
-
-			target = pc + insn->jf + 1;
-			if (target >= count)
-				return 0;
-			SET_BIT(reachable, target);
-			meminv[target] |= invalid;
-
-			advance = 0;
-			break;
-		case BPF_RET+BPF_A:
-		case BPF_RET+BPF_K:
-			advance = 0;
-			break;
-		default:
-			return 0;
-		}
-
-		/*
-		 * After most instructions, we simply advance to the next.  For
-		 * one thing, this means that there must be a next instruction
-		 * at all.
-		 */
-		if (advance) {
-			if (pc + 1 == count)
-				return 0;
-			SET_BIT(reachable, pc + 1);
-			meminv[pc + 1] |= invalid;
-		}
-	}
-
-	/* The program has passed all our basic tests. */
-	return 1;
+	return packet_filter_validate(
+	    (const struct packet_filter_insn *)insns, ninsns);
 }

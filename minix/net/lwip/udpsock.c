@@ -5,6 +5,8 @@
 #include "pktsock.h"
 
 #include "lwip/udp.h"
+#include "lwip_dtls.h"
+#include "latency.h"
 
 #include <netinet/udp.h>
 #include <netinet/ip_var.h>
@@ -36,6 +38,7 @@
 static struct udpsock {
 	struct pktsock udp_pktsock;		/* pkt socket, MUST be first */
 	struct udp_pcb *udp_pcb;		/* lwIP UDP control block */
+	void *dtls_session;			/* DTLS session (if UDP_DTLS enabled) */
 	SIMPLEQ_ENTRY(udpsock) udp_next;	/* next in free list */
 } udp_array[NR_UDPSOCK];
 
@@ -105,6 +108,47 @@ udpsock_input(void * arg, struct udp_pcb * pcb __unused, struct pbuf * pbuf,
 {
 	struct udpsock *udp = (struct udpsock *)arg;
 
+#if LWIP_DTLS
+	/*
+	 * If DTLS is enabled on this socket, pass the incoming datagram
+	 * to the DTLS layer for decryption.  The DTLS layer consumes the
+	 * pbuf and injects decrypted plaintext internally.
+	 */
+	if (udp->dtls_session != NULL) {
+		err_t dtls_err;
+
+		dtls_err = lwip_dtls_input(udp->dtls_session, pbuf,
+		    ipaddr, port);
+		pbuf_free(pbuf);
+
+		if (dtls_err == ERR_OK &&
+		    lwip_dtls_is_established(udp->dtls_session)) {
+			/*
+			 * Read decrypted plaintext and inject into pktsock
+			 * so that the normal recvfrom() path works unchanged.
+			 */
+			uint8_t pt_buf[65535];
+			int pt_len;
+
+			pt_len = lwip_dtls_read_plaintext(udp->dtls_session,
+			    pt_buf, sizeof(pt_buf));
+			if (pt_len > 0) {
+				struct pbuf *pt_pbuf;
+
+				pt_pbuf = pbuf_alloc(PBUF_TRANSPORT,
+				    (u16_t)pt_len, PBUF_RAM);
+				if (pt_pbuf != NULL) {
+					memcpy(pt_pbuf->payload, pt_buf,
+					    (size_t)pt_len);
+					pktsock_input(&udp->udp_pktsock,
+					    pt_pbuf, ipaddr, port);
+				}
+			}
+		}
+		return;
+	}
+#endif /* LWIP_DTLS */
+
 #if !defined(NDEBUG)
 	/*
 	 * Verify the UDP header using the safe Rust net-parse parser.
@@ -156,6 +200,7 @@ udpsock_socket(int domain, int protocol, struct sock ** sockp,
 	/* We should have enough PCBs so this call should not fail.. */
 	if ((udp->udp_pcb = udp_new_ip_type(ip_type)) == NULL)
 		return ENOBUFS;
+	udp->dtls_session = NULL;
 	udp_recv(udp->udp_pcb, udpsock_input, (void *)udp);
 
 	/* By default, the multicast TTL is 1 and looping is enabled. */
@@ -535,8 +580,48 @@ udpsock_send(struct sock * sock, const struct sockdriver_data * data,
 	assert(!ip_addr_isany(src_addrp));
 	assert(!ip_addr_ismulticast(src_addrp));
 
-	err = udp_sendto_if_src(udp->udp_pcb, pbuf, dst_addrp, dst_port,
-	    ifdev_get_netif(ifdev), src_addrp);
+#if LWIP_DTLS
+	/*
+	 * If DTLS is enabled on this socket, encrypt the payload before
+	 * sending.  The lwip_dtls_output() function handles both the DTLS
+	 * handshake (if not yet established) and the actual encryption.
+	 * If DTLS is still handshaking, the send will return ERR_INPROGRESS
+	 * and the caller should retry later.
+	 */
+	if (udp->dtls_session != NULL) {
+		struct pbuf *dtls_pbuf = pbuf;
+		err_t dtls_err;
+
+		dtls_err = lwip_dtls_output(udp->dtls_session, &pbuf);
+		if (dtls_err == ERR_OK) {
+			/* DTLS consumed the plaintext; encrypted data was
+			 * sent via the wolfSSL send callback internally. */
+			pbuf_free(dtls_pbuf);
+			*off = len;
+			udpsock_swap_opt(udp, &pktopt);
+			return OK;
+		}
+		if (dtls_err == ERR_INPROGRESS) {
+			/* Handshake still in progress, try again later */
+			udpsock_swap_opt(udp, &pktopt);
+			pbuf_free(pbuf);
+			return EWOULDBLOCK;
+		}
+		/* DTLS error — fall through to send unencrypted? No, abort */
+		udpsock_swap_opt(udp, &pktopt);
+		pbuf_free(pbuf);
+		return EIO;
+	}
+#endif /* LWIP_DTLS */
+
+	{
+		uint32_t __us = sys_now() * 1000;
+
+		err = udp_sendto_if_src(udp->udp_pcb, pbuf, dst_addrp, dst_port,
+		    ifdev_get_netif(ifdev), src_addrp);
+
+		latency_record(&latency_udp_send, (sys_now() * 1000) - __us);
+	}
 
 	udpsock_swap_opt(udp, &pktopt);
 
@@ -561,6 +646,11 @@ udpsock_setsockmask(struct sock * sock, unsigned int mask)
 	struct udpsock *udp = (struct udpsock *)sock;
 
 	if (mask & SO_REUSEADDR)
+		ip_set_option(udp->udp_pcb, SOF_REUSEADDR);
+	else
+		ip_reset_option(udp->udp_pcb, SOF_REUSEADDR);
+
+	if (mask & SO_REUSEPORT)
 		ip_set_option(udp->udp_pcb, SOF_REUSEADDR);
 	else
 		ip_reset_option(udp->udp_pcb, SOF_REUSEADDR);
@@ -740,6 +830,43 @@ udpsock_setsockopt(struct sock * sock, int level, int name,
 		break;
 	}
 
+#if LWIP_DTLS
+	case IPPROTO_UDP:
+		switch (name) {
+		case UDP_DTLS: {
+			struct lwip_dtls_config cfg;
+			int r;
+
+			if ((r = sockdriver_copyin_opt(data, &cfg,
+			    sizeof(cfg), len)) != OK)
+				return r;
+
+			if (!cfg.enable) {
+				/* Disable DTLS — clean up session */
+				if (udp->dtls_session != NULL) {
+					lwip_dtls_detach(udp->dtls_session);
+					udp->dtls_session = NULL;
+				}
+				return OK;
+			}
+
+			/* Enable DTLS — attach session */
+			if (udp->dtls_session != NULL) {
+				/* Already configured */
+				return OK;
+			}
+
+			r = lwip_dtls_attach(udp->udp_pcb, &cfg,
+			    &udp->dtls_session);
+			if (r != ERR_OK)
+				return EINVAL;
+
+			return OK;
+		}
+		}
+		break;
+#endif /* LWIP_DTLS */
+
 	/* Handle all other options at the packet or IP level. */
 	udpsock_get_ipopts(udp, &ipopts);
 
@@ -838,6 +965,18 @@ udpsock_getsockopt(struct sock * sock, int level, int name,
 		break;
 	}
 
+#if LWIP_DTLS
+	case IPPROTO_UDP:
+		switch (name) {
+		case UDP_DTLS: {
+			int enabled = (udp->dtls_session != NULL) ? 1 : 0;
+			return sockdriver_copyout_opt(data, &enabled,
+			    sizeof(enabled), len);
+		}
+		}
+		break;
+#endif /* LWIP_DTLS */
+
 	/* Handle all other options at the packet or IP level. */
 	udpsock_get_ipopts(udp, &ipopts);
 
@@ -903,6 +1042,14 @@ udpsock_close(struct sock * sock, int force __unused)
 	struct udpsock *udp = (struct udpsock *)sock;
 
 	udp_recv(udp->udp_pcb, NULL, NULL);
+
+#if LWIP_DTLS
+	/* Clean up DTLS session if active */
+	if (udp->dtls_session != NULL) {
+		lwip_dtls_detach(udp->dtls_session);
+		udp->dtls_session = NULL;
+	}
+#endif /* LWIP_DTLS */
 
 	udp_remove(udp->udp_pcb);
 	udp->udp_pcb = NULL;

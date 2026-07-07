@@ -4,6 +4,8 @@
 SUBDIR+=	eepromread
 .endif # ${MACHINE_ARCH} == "earm"
 
+SUBDIR+=	netstat
+SUBDIR+=	pcapng
 SUBDIR+=	diff
 SUBDIR+=	grep
 SUBDIR+=	mined
