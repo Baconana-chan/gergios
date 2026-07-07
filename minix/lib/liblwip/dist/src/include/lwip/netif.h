@@ -105,6 +105,12 @@ extern "C" {
 /** If set, the netif has MLD6 capability.
  * Set by the netif driver in its init function. */
 #define NETIF_FLAG_MLD6         0x40U
+/** If set, the netif supports TCP Segmentation Offload (TSO).
+ * When TSO is enabled, the TCP stack may create super-sized segments
+ * (up to TCP_TSO_MAX_SEG * MSS bytes) and pass them to the netif,
+ * which must support hardware segmentation (e.g., e1000 TSE).
+ * Set by the netif driver in its init function. */
+#define NETIF_FLAG_TSO          0x80U
 
 /**
  * @}

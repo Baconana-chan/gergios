@@ -880,6 +880,14 @@ tcp_process(struct tcp_pcb *pcb)
         pcb->mss = tcp_eff_send_mss(pcb->mss, &pcb->local_ip, &pcb->remote_ip);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
 
+#if LWIP_TSO
+        /* Enable TSO if the netif supports it */
+        if ((ip_current_netif() != NULL) &&
+            (ip_current_netif()->flags & NETIF_FLAG_TSO)) {
+          tcp_set_flags(pcb, TF_TSO);
+        }
+#endif /* LWIP_TSO */
+
         pcb->cwnd = LWIP_TCP_CALC_INITIAL_CWND(pcb->mss);
         LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_process (SENT): cwnd %"TCPWNDSIZE_F
                                      " ssthresh %"TCPWNDSIZE_F"\n",
@@ -941,6 +949,15 @@ tcp_process(struct tcp_pcb *pcb)
         if (TCP_SEQ_BETWEEN(ackno, pcb->lastack + 1, pcb->snd_nxt)) {
           pcb->state = ESTABLISHED;
           LWIP_DEBUGF(TCP_DEBUG, ("TCP connection established %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
+
+#if LWIP_TSO
+          /* Enable TSO if the netif supports it */
+          if ((ip_current_netif() != NULL) &&
+              (ip_current_netif()->flags & NETIF_FLAG_TSO)) {
+            tcp_set_flags(pcb, TF_TSO);
+          }
+#endif /* LWIP_TSO */
+
 #if LWIP_CALLBACK_API || TCP_LISTEN_BACKLOG
           if (pcb->listener == NULL) {
             /* listen pcb might be closed by now */

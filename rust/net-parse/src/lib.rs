@@ -1,8 +1,12 @@
 //! # net-parse — MINIX network protocol parsers
 //!
 //! This crate provides safe, `no_std` protocol parsers for TCP, UDP, and DNS
-//! headers. It contains **zero `unsafe` code** and uses only slice-based
-//! parsing with exhaustive bounds checking.
+//! headers. It contains **zero `unsafe` code** in the core parsing modules and
+//! uses only slice-based parsing with exhaustive bounds checking.
+//!
+//! The `ffi` module provides C-compatible exports for calling parsers from C
+//! code (e.g., the MINIX lwIP service). It uses `unsafe` to dereference raw
+//! pointers from C, but validates all inputs before access.
 //!
 //! ## Design
 //!
@@ -29,6 +33,7 @@ pub mod tcp;
 pub mod udp;
 pub mod dns;
 pub mod util;
+pub mod ffi;
 
 /// Common error type for packet parsing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,3 +50,10 @@ pub enum ParseError {
 
 /// Result type for packet parsing operations.
 pub type ParseResult<T> = Result<T, ParseError>;
+
+// Panic handler for no_std builds (required when linking as a staticlib).
+#[cfg(not(test))]
+#[panic_handler]
+fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
+}

@@ -67,7 +67,14 @@ pub struct TxDesc {
 /// Transmit Command bits
 pub const TX_CMD_EOP: u8 = 1 << 0;  // End of packet
 pub const TX_CMD_FCS: u8 = 1 << 1;  // Insert FCS/CRC
+pub const TX_CMD_IC: u8 = 1 << 2;   // Insert IP/TCP/UDP Checksum (enables CSS/CSO offload)
 pub const TX_CMD_RS: u8 = 1 << 3;   // Report status
+
+/// Legacy TSE (TCP Segmentation Enable) bit — enables hardware TCP segmentation.
+/// When set, the hardware segments the super-segment into MSS-sized chunks,
+/// updating IP total length, IP checksum, TCP sequence number, and TCP checksum
+/// for each segment.  The MSS is specified in the Special field.
+pub const TX_CMD_TSE: u8 = 1 << 7;
 
 /// Transmit Status bits
 pub const TX_STATUS_DONE: u8 = 1 << 0;  // Descriptor done

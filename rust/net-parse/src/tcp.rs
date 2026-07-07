@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn parse_tcp_invalid_offset() {
-        let mut buf = [0u8; 20];
+        let buf = [0u8; 20];
         // data_offset = 0 (< 5), invalid
         let result = TcpHeader::parse(&buf);
         assert_eq!(result, Err(ParseError::InvalidData));

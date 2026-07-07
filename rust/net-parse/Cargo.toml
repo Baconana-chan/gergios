@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "MINIX network protocol parsers — TCP, UDP, DNS header parsing (no_std)"
 
+[lib]
+name = "net_parse"
+crate-type = ["staticlib", "lib"]
+
 [dependencies]

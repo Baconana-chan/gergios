@@ -437,9 +437,10 @@ if(NOT MACHINE_ARCH STREQUAL "aarch64")
     add_subdirectory(minix/net)
 endif()
 
-# Phase 5: Rust driver libraries (staticlib for AHCI pilot)
+# Phase 5: Rust driver libraries (staticlib for AHCI and e1000)
 if(CARGO_EXECUTABLE)
     add_rust_library(minix-ahci)
+    add_rust_library(e1000)
 endif()
 
 # Rust userland utilities (Phase 3)

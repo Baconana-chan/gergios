@@ -164,8 +164,49 @@ union ich8_hws_flash_regacc
 /** Insert FCS/CRC. */
 #define E1000_TX_CMD_FCS	(1 << 1)
 
+/** Insert IP/TCP/UDP Checksum (enables CSS/CSO offload). */
+#define E1000_TX_CMD_IC		(1 << 2)
+
 /** Report Status. */
 #define E1000_TX_CMD_RS		(1 << 3)
+
+/**
+ * @}
+ */
+
+/**
+ * @name Checksum Offload Constants.
+ * @{
+ */
+
+/** Ethernet header length in bytes (no VLAN tag). */
+#define E1000_ETH_HDR_LEN	14
+
+/** Byte offset of the IPv4 header checksum field from start of packet. */
+#define E1000_IPV4_CKSUM_CSO	(E1000_ETH_HDR_LEN + 10)
+
+/** Byte offset of the start of the IPv4 header (CSS for IP checksum). */
+#define E1000_IPV4_CKSUM_CSS	E1000_ETH_HDR_LEN
+
+/**
+ * @}
+ */
+
+/**
+ * @brief Maximum supported packet size (supports TSO super-segments up to 64KB).
+ */
+#define E1000_MAX_PACKET_SIZE	65536
+
+/**
+ * @name Transmit Command Field Bits — TCP Segmentation Offload (Legacy TSE).
+ * @{
+ */
+
+/** TCP Segmentation Enable — enables hardware TCP segmentation for TSO.
+ *  When set, the hardware segments the super-segment into MSS-sized chunks,
+ *  updating IP total length, IP checksum, TCP sequence number, and TCP
+ *  checksum for each segment.  The MSS is specified in the Special field. */
+#define E1000_TX_CMD_TSE	(1 << 7)
 
 /**
  * @}

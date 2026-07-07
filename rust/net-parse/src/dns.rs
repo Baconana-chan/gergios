@@ -177,7 +177,6 @@ pub fn decode_name_buf(msg: &[u8], offset: usize, out: &mut [u8]) -> ParseResult
 
         if len == 0 {
             // End of name
-            cur += 1;
             break;
         }
 
@@ -187,7 +186,7 @@ pub fn decode_name_buf(msg: &[u8], offset: usize, out: &mut [u8]) -> ParseResult
                 return Err(ParseError::Truncated);
             }
             let ptr = ((len & 0x3F) << 8) | (msg[cur + 1] as usize);
-            cur += 2;
+            pointer_count += 1;
             pointer_count += 1;
             if pointer_count > 10 {
                 return Err(ParseError::InvalidData);

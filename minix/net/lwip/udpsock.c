@@ -105,6 +105,21 @@ udpsock_input(void * arg, struct udp_pcb * pcb __unused, struct pbuf * pbuf,
 {
 	struct udpsock *udp = (struct udpsock *)arg;
 
+#if !defined(NDEBUG)
+	/*
+	 * Verify the UDP header using the safe Rust net-parse parser.
+	 * This assertion catches malformed UDP datagrams in debug builds.
+	 */
+	{
+		struct UdpHeaderFFI udp_hdr;
+		int np_ret;
+
+		np_ret = net_parse_udp_header(pbuf->payload, pbuf->len,
+		    &udp_hdr);
+		assert(np_ret == NET_PARSE_OK);
+	}
+#endif /* !NDEBUG */
+
 	/* All UDP input processing is handled by pktsock. */
 	pktsock_input(&udp->udp_pktsock, pbuf, ipaddr, port);
 }

@@ -367,6 +367,17 @@
 #define LWIP_TCP_SACK_OUT              1
 
 /*
+ * TCP Segmentation Offload (TSO).  When TSO is enabled, the TCP stack may
+ * create super-sized segments (up to TCP_TSO_MAX_SEG * MSS bytes) and pass
+ * them to the netif, which must support hardware segmentation (e.g., e1000
+ * with advanced descriptors).  TSO reduces per-packet overhead in the TCP
+ * stack, IP layer, and driver for bulk transfers, improving throughput.
+ * A segment count of 44 allows up to ~64KB with a 1460 MSS.
+ */
+#define LWIP_TSO                       1
+#define TCP_TSO_MAX_SEG                44
+
+/*
  * We would like to align TCP/IP header field accesses to 32 bits.  lwIP offers
  * ETH_PAD_SIZE to that end.  We do not use that however, because it is
  * inconvenient: it adds the padding to the actual output packets, thus forcing

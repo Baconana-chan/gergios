@@ -104,6 +104,24 @@
 /** Total Packets Transmitted. */
 #define E1000_REG_TPT		0x040D4
 
+/**
+ * @name Interrupt Moderation Registers.
+ * @{
+ */
+
+/** Interrupt Throttling Rate (all queues). */
+#define E1000_REG_EITR		0x000e8
+
+/** Receive Descriptor Threshold Interrupt Delay. */
+#define E1000_REG_RDTR		0x02820
+
+/** Receive Absolute Delay Timer. */
+#define E1000_REG_RADV		0x0282c
+
+/**
+ * @}
+ */
+
 /** Receive Address Low. */
 #define E1000_REG_RAL		0x05400
 

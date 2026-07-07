@@ -178,7 +178,7 @@
 
 /* Network device driver constants.  TODO: move to a better location. */
 #define NDEV_ETH_PACKET_MIN	60	/* min network packet size, in bytes */
-#define NDEV_ETH_PACKET_MAX	1514	/* max network packet size, in bytes */
+#define NDEV_ETH_PACKET_MAX	65535	/* max network packet size, in bytes (TSO: up to 64KB) */
 #define NDEV_ETH_PACKET_TAG	4	/* ethernet VLAN tag size, in bytes */
 #define NDEV_ETH_PACKET_CRC	4	/* ethernet CRC size, in bytes */
 #define NDEV_ETH_PACKET_MAX_TAGGED (NDEV_ETH_PACKET_MAX + NDEV_ETH_PACKET_TAG)

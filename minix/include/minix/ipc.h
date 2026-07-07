@@ -1856,6 +1856,24 @@ typedef struct {
 } mess_ndev_netdriver_transfer;
 _ASSERT_MSG_SIZE(mess_ndev_netdriver_transfer);
 
+/*
+ * @brief Batch send message — multiple single-fragment packets in one IPC.
+ *
+ * Up to NDEV_SEND_BATCH_MAX packets packed into a single message.
+ * Each entry has one grant pointing to the (contiguous) packet data.
+ * The driver processes each packet sequentially through ndr_send().
+ */
+#define NDEV_SEND_BATCH_MAX	8
+
+typedef struct {
+	uint32_t id;			/**< batch sequence number */
+	uint8_t count;			/**< number of packets (1-NDEV_SEND_BATCH_MAX) */
+	uint8_t reserved[3];
+	cp_grant_id_t grant[NDEV_SEND_BATCH_MAX];	/**< one grant per packet */
+	uint16_t len[NDEV_SEND_BATCH_MAX];		/**< one length per packet */
+} mess_ndev_netdriver_send_batch;
+_ASSERT_MSG_SIZE(mess_ndev_netdriver_send_batch);
+
 typedef struct {
 	uint32_t id;
 
@@ -1885,6 +1903,14 @@ typedef struct {
 	uint8_t padding[48];
 } mess_netdriver_ndev_reply;
 _ASSERT_MSG_SIZE(mess_netdriver_ndev_reply);
+
+/* Batch reply: result = number of successfully sent packets (≥0) or error (<0). */
+typedef mess_netdriver_ndev_reply mess_netdriver_ndev_send_batch_reply;
+
+#define NDEV_BATCH_STATUS_OK_MASK	0x000000FFu
+#define NDEV_BATCH_RESULT_ERROR	(-1)
+
+_ASSERT_MSG_SIZE(mess_netdriver_ndev_send_batch_reply);
 
 typedef struct {
 	uint32_t id;
@@ -2847,6 +2873,7 @@ typedef struct noxfer_message {
 		mess_ndev_netdriver_init m_ndev_netdriver_init;
 		mess_ndev_netdriver_conf m_ndev_netdriver_conf;
 		mess_ndev_netdriver_transfer m_ndev_netdriver_transfer;
+		mess_ndev_netdriver_send_batch m_ndev_netdriver_send_batch;
 		mess_ndev_netdriver_status_reply m_ndev_netdriver_status_reply;
 		mess_netdriver_ndev_init_reply m_netdriver_ndev_init_reply;
 		mess_netdriver_ndev_reply m_netdriver_ndev_reply;

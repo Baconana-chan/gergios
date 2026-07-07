@@ -7,6 +7,8 @@ struct ethif;
 
 void ethif_init(void);
 
+unsigned int ethif_get_sendq(struct ethif * ethif);
+
 struct ethif *ethif_add(ndev_id_t id, const char * name, uint32_t caps);
 int ethif_enable(struct ethif * ethif, const char * name,
 	const struct ndev_hwaddr * hwaddr, uint8_t hwaddr_len, uint32_t caps,

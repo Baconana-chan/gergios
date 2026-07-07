@@ -270,6 +270,9 @@ struct tcp_pcb {
 #if LWIP_TCP_SACK_OUT
 #define TF_SACK        0x1000U /* Selective ACKs enabled */
 #endif
+#if LWIP_TSO
+#define TF_TSO         0x2000U /* TCP Segmentation Offload (TSO) enabled */
+#endif
 
   /* the rest of the fields are in host byte order
      as we have to do some math with them */

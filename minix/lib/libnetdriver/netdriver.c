@@ -13,6 +13,7 @@
  */
 #define NETDRIVER_SENDQ_MAX	8
 #define NETDRIVER_RECVQ_MAX	2
+#define NETDRIVER_BATCH_MAX	8
 
 /*
  * Maximum number of multicast addresses that can be copied in from the TCP/IP
@@ -428,6 +429,95 @@ do_transfer(const struct netdriver * __restrict ndp, const message * m_ptr,
 }
 
 /*
+ * Process a batch send request.  The message contains up to
+ * NDEV_SEND_BATCH_MAX single-fragment packets, each with its own grant.
+ * Process each packet sequentially through ndr_send().  Reply with the
+ * number of successfully transmitted packets.
+ */
+static void
+do_batch_send(const struct netdriver * __restrict ndp,
+	const message * __restrict m_ptr)
+{
+	unsigned int count, i;
+	message m;
+
+	count = m_ptr->m_ndev_netdriver_send_batch.count;
+
+	if (count == 0 || count > NETDRIVER_BATCH_MAX)
+		panic("netdriver: bad batch count: %u", count);
+
+	/*
+	 * If the driver is down, immediately abort the batch.
+	 */
+	if (!up) {
+		memset(&m, 0, sizeof(m));
+		m.m_type = NDEV_SEND_BATCH_REPLY;
+		m.m_netdriver_ndev_reply.id =
+		    m_ptr->m_ndev_netdriver_send_batch.id;
+		m.m_netdriver_ndev_reply.result = -1;
+
+		send_reply(m_ptr->m_source, &m);
+
+		return;
+	}
+
+	/*
+	 * Process each packet in the batch sequentially.
+	 * If ndr_send() returns SUSPEND, stop and report partial success.
+	 * The remaining packets will be retried by the upper layer.
+	 *
+	 * NOTE: Partial success (count_sent < count) is not yet handled
+	 * correctly by the ethif/ndev batch reply path — es_unsentp cannot
+	 * be rolled back after a partial batch.  Currently the ethif layer
+	 * only sends batches of size 1, so this is not triggered.  When
+	 * larger batches are used, the ndev_send_batch_reply handler must
+	 * also resync es_unsentp for the unsent packets.
+	 */
+	for (i = 0; i < count; i++) {
+		struct netdriver_data data;
+		cp_grant_id_t grant;
+		size_t size;
+		int r;
+
+		grant = m_ptr->m_ndev_netdriver_send_batch.grant[i];
+		size = (size_t)m_ptr->m_ndev_netdriver_send_batch.len[i];
+
+		if (size < NDEV_ETH_PACKET_MIN)
+			panic("netdriver: batch packet %u too small: %zu",
+			    i, size);
+
+		/* Build a single-grant netdriver_data for this packet. */
+		memset(&data, 0, sizeof(data));
+		data.endpt = m_ptr->m_source;
+		data.id = m_ptr->m_ndev_netdriver_send_batch.id;
+		data.count = 1;
+		data.size = size;
+		data.iovec[0].iov_grant = grant;
+		data.iovec[0].iov_size = size;
+
+		r = ndp->ndr_send(&data, size);
+
+		if (r == SUSPEND)
+			break;
+
+		if (r < 0)
+			panic("netdriver: batch send failure at packet %u: %d",
+			    i, r);
+	}
+
+	/*
+	 * Send batch reply with count of successfully sent packets.
+	 * Reuses the same m_netdriver_ndev_reply structure — result = count_sent.
+	 */
+	memset(&m, 0, sizeof(m));
+	m.m_type = NDEV_SEND_BATCH_REPLY;
+	m.m_netdriver_ndev_reply.id = m_ptr->m_ndev_netdriver_send_batch.id;
+	m.m_netdriver_ndev_reply.result = (int32_t)i;
+
+	send_reply(m_ptr->m_source, &m);
+}
+
+/*
  * Process a request to (re)configure the driver.
  */
 static void
@@ -815,6 +905,10 @@ netdriver_process(const struct netdriver * __restrict ndp,
 
 	case NDEV_SEND:
 		do_transfer(ndp, m_ptr, TRUE /*do_write*/);
+		break;
+
+	case NDEV_SEND_BATCH:
+		do_batch_send(ndp, m_ptr);
 		break;
 
 	case NDEV_RECV:

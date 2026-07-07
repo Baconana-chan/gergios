@@ -125,6 +125,13 @@
 #endif
 
 /* Forward declarations.*/
+/* The maximum number of bytes to pass as TSO segment size. */
+#if LWIP_TSO
+#define TCP_TSO_SEG_SIZE_MAX(pcb, seg)  ((seg)->len)
+#else
+#define TCP_TSO_SEG_SIZE_MAX(pcb, seg)  ((seg)->len)
+#endif
+
 static err_t tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb, struct netif *netif);
 static err_t tcp_output_control_segment_netif(const struct tcp_pcb *pcb, struct pbuf *p,
                                               const ip_addr_t *src, const ip_addr_t *dst,
@@ -416,9 +423,24 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
 
   LWIP_ERROR("tcp_write: invalid pcb", pcb != NULL, return ERR_ARG);
 
-  /* don't allocate segments bigger than half the maximum window we ever received */
-  mss_local = LWIP_MIN(pcb->mss, TCPWND_MIN16(pcb->snd_wnd_max / 2));
-  mss_local = mss_local ? mss_local : pcb->mss;
+  /*
+   * When TSO is enabled, allow segments up to TCP_TSO_MAX_SEG * MSS bytes.
+   * This allows the TCP stack to create super-sized segments that the netif
+   * driver (e.g., e1000 with TSE) will segment in hardware.  Without TSO,
+   * we limit segment size to half the maximum window we ever received, as
+   * before.
+   */
+#if LWIP_TSO
+  if (pcb->flags & TF_TSO) {
+    mss_local = LWIP_MIN(pcb->mss * TCP_TSO_MAX_SEG,
+                         TCPWND_MIN16(pcb->snd_wnd_max));
+    mss_local = LWIP_MIN(mss_local, 65535); /* IPv4 max IP payload */
+  } else
+#endif /* LWIP_TSO */
+  {
+    mss_local = LWIP_MIN(pcb->mss, TCPWND_MIN16(pcb->snd_wnd_max / 2));
+    mss_local = mss_local ? mss_local : pcb->mss;
+  }
 
   LWIP_ASSERT_CORE_LOCKED();
 

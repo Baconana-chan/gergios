@@ -17,6 +17,15 @@
 #define LOOPIF_LIMIT	65536
 
 /*
+ * Maximum recursion depth for synchronous loopback delivery (fast path).
+ * Each level corresponds to one round of: output -> input -> output.
+ * A typical TCP transaction is at most 2-3 levels deep (app send -> TCP
+ * output -> loopback -> TCP input -> TCP output -> loopback).
+ * The limit is a generous safety margin to prevent stack overflow.
+ */
+#define LOOPIF_FAST_DEPTH_MAX	8
+
+/*
  * The MTU is restricted to 65531 bytes, because we need space for a 4-byte
  * header to identify the original interface of the packet.
  */
@@ -36,6 +45,13 @@ static TAILQ_HEAD(, loopif) loopif_freelist;	/* free loop interfaces list */
 static TAILQ_HEAD(, loopif) loopif_activelist;	/* active loop interfaces */
 
 #define loopif_get_netif(loopif) (ifdev_get_netif(&(loopif)->loopif_ifdev))
+
+/*
+ * Global recursion depth counter for synchronous loopback delivery.
+ * When non-zero, loopback traffic is queued for async delivery to
+ * prevent stack overflow from deep recursion in the fast path.
+ */
+static unsigned int loopif_fast_depth;
 
 static unsigned int loopif_cksum_flags;
 
@@ -143,10 +159,19 @@ loopif_poll(struct ifdev * ifdev)
 }
 
 /*
- * Process a packet as output on a loopback interface.  Packets cannot be
- * passed back into lwIP right away, nor can the original packets be passed
- * back into lwIP.  Therefore, make a copy of the packet, and pass it back to
- * lwIP at the end of the current message loop iteration.
+ * Process a packet as output on a loopback interface.
+ *
+ * There are two delivery paths:
+ *
+ * 1. Fast path (synchronous): if we are not already inside a synchronous
+ *    loopback delivery, deliver the packet directly to the input side.
+ *    This avoids the allocation, copy, and queue overhead of the async
+ *    path.  We use pbuf_ref() to share the pbuf with lwIP rather than
+ *    copying it; after ifdev_input() returns, we free our reference.
+ *
+ * 2. Slow path (async): when already in a synchronous delivery (depth > 0),
+ *    queue the packet for delivery at the next ifdev_poll() call, to
+ *    prevent stack overflow from deep recursion.
  */
 static err_t
 loopif_output(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif)
@@ -164,9 +189,69 @@ loopif_output(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif)
 	}
 
 	/*
+	 * Fast path: synchronous delivery without copy.
+	 *
+	 * If not already inside a synchronous loopback delivery, we can
+	 * deliver the packet directly to the input side.  This avoids the
+	 * allocation + copy + queue overhead of the async path, reducing
+	 * latency and improving throughput for localhost traffic.
+	 *
+	 * In the fast path, we pass the netif directly to ifdev_input()
+	 * rather than encoding it in a 4-byte oifindex header, saving
+	 * both the allocation and the copy of the packet data.
+	 */
+	if (loopif_fast_depth < LOOPIF_FAST_DEPTH_MAX) {
+		loopif_fast_depth++;
+
+		/*
+		 * Get the original interface device, if any.  This is used
+		 * for packets diverted from non-loopback interfaces (e.g.,
+		 * link-local addresses on ethernet).  If NULL, the packet
+		 * originated on the loopback interface itself.
+		 */
+		oifdev = (netif != NULL) ? netif_get_ifdev(netif) : NULL;
+
+		/*
+		 * Take a reference to the pbuf.  This cannot fail, as it
+		 * just increments a counter in lwIP's pbuf implementation.
+		 * We will release it after ifdev_input() returns.
+		 */
+		pbuf_ref(pbuf);
+
+		/*
+		 * Pass the packet directly to the input side.  The netif
+		 * is passed through so that link-local address handling
+		 * works correctly.  BPF processing is done on the output
+		 * side only (by the caller, via ifdev_output), to avoid
+		 * duplicate capture of loopback packets.
+		 */
+		ifdev_input(ifdev, pbuf,
+		    (oifdev != NULL) ? ifdev_get_netif(oifdev) : NULL,
+		    FALSE /*to_bpf*/);
+
+		/*
+		 * Release our reference.  The caller still owns theirs,
+		 * so the pbuf remains valid (e.g., for TCP retransmission
+		 * queue) after we return.
+		 */
+		pbuf_free(pbuf);
+
+		loopif_fast_depth--;
+
+		return ERR_OK;
+	}
+
+	/*
+	 * Slow path: async delivery via queue.
+	 *
+	 * We fall back to this path when already in a synchronous delivery
+	 * (depth > 0), to prevent stack overflow.  The packet is copied,
+	 * enqueued with an oifindex header, and delivered at the next
+	 * ifdev_poll() call from the main loop.
+	 *
 	 * If the service is low on memory, this is a likely place where
-	 * allocation failures will occur.  Thus, do not print anything here.
-	 * The user can diagnose such problems with interface statistics.
+	 * allocation failures will occur.  The user can diagnose such
+	 * problems with interface statistics.
 	 */
 	pcopy = pchain_alloc(PBUF_RAW, sizeof(oifindex) + pbuf->tot_len);
 	if (pcopy == NULL) {

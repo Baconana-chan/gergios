@@ -69,10 +69,10 @@
 
 #define LABEL_MAX	16	/* FIXME: this should be in a system header */
 
-#define NDEV_SENDQ	2	/* minimum guaranteed send queue depth */
-#define NDEV_RECVQ	2	/* guaranteed receive queue depth */
-#define NREQ_SPARES	8	/* spare send queue (request) objects */
-#define NR_NREQ		((NDEV_SENDQ + NDEV_RECVQ) * NR_NDEV + NREQ_SPARES)
+#define NDEV_SENDQ	4	/* minimum guaranteed send queue depth (was 2) */
+#define NDEV_RECVQ	4	/* guaranteed receive queue depth (was 2) */
+#define NREQ_SPARES	16	/* spare send queue (request) objects (was 8) */
+#define NR_NREQ		((NDEV_SENDQ * NDEV_NUM_SENDQ + NDEV_RECVQ) * NR_NDEV + NREQ_SPARES)
 
 static SIMPLEQ_HEAD(, ndev_req) nreq_freelist;
 
@@ -95,17 +95,18 @@ static struct ndev {
 	endpoint_t ndev_endpt;		/* driver endpoint */
 	char ndev_label[LABEL_MAX];	/* driver label */
 	struct ethif *ndev_ethif;	/* ethif object, or NULL if init'ing */
-	struct ndev_queue ndev_sendq;	/* packet send and configure queue */
+	struct ndev_queue ndev_sendq[NDEV_NUM_SENDQ];/* software multi-queues */
 	struct ndev_queue ndev_recvq;	/* packet receive queue */
+	unsigned int ndev_send_next;	/* round-robin next send queue index */
 } ndev_array[NR_NDEV];
 
 static ndev_id_t ndev_max;		/* highest driver count ever seen */
 
 /*
  * This macro checks whether the network driver is active rather than
- * initializing.  See above for more information.
+ * initializing.  Returns TRUE if any send queue is active.
  */
-#define NDEV_ACTIVE(ndev)	((ndev)->ndev_sendq.nq_max > 0)
+#define NDEV_ACTIVE(ndev)	((ndev)->ndev_sendq[0].nq_max > 0)
 
 static int ndev_pending;		/* number of initializing drivers */
 
@@ -153,11 +154,19 @@ ndev_init(void)
 	/*
 	 * Not needed, just for ultimate safety: start off all queues with
 	 * wildly different request sequence numbers, to minimize the chance
-	 * that any two replies will ever be confused.
+	 * that any two replies will ever be confused.  With NDEV_NUM_SENDQ
+	 * software queues, each queue gets its own sequence number space.
 	 */
 	for (slot = 0; slot < __arraycount(ndev_array); slot++) {
-		ndev_array[slot].ndev_sendq.nq_head = slot << 21;
+		unsigned int q;
+
+		for (q = 0; q < NDEV_NUM_SENDQ; q++)
+			ndev_array[slot].ndev_sendq[q].nq_head =
+			    (slot << 21) | (q << 19);
+
 		ndev_array[slot].ndev_recvq.nq_head = (slot * 2 + 1) << 20;
+
+		ndev_array[slot].ndev_send_next = 0;
 	}
 
 	/* Subscribe to Data Store (DS) events from network drivers. */
@@ -346,7 +355,7 @@ ndev_send_init(struct ndev * ndev)
 
 	memset(&m, 0, sizeof(m));
 	m.m_type = NDEV_INIT;
-	m.m_ndev_netdriver_init.id = ndev->ndev_sendq.nq_head;
+	m.m_ndev_netdriver_init.id = ndev->ndev_sendq[0].nq_head;
 
 	if ((r = asynsend3(ndev->ndev_endpt, &m, AMF_NOREPLY)) != OK)
 		panic("asynsend to driver failed: %d", r);
@@ -377,8 +386,12 @@ ndev_up(const char * label, endpoint_t endpt)
 		}
 
 		if (!strcmp(ndev_array[slot].ndev_label, label)) {
-			/* Cancel any ongoing requests. */
-			ndev_queue_reset(&ndev_array[slot].ndev_sendq);
+			unsigned int q;
+
+			/* Cancel any ongoing requests on all queues. */
+			for (q = 0; q < NDEV_NUM_SENDQ; q++)
+				ndev_queue_reset(&ndev_array[slot].ndev_sendq[q]);
+
 			ndev_queue_reset(&ndev_array[slot].ndev_recvq);
 
 			if (ndev_array[slot].ndev_ethif != NULL) {
@@ -388,6 +401,7 @@ ndev_up(const char * label, endpoint_t endpt)
 			}
 
 			ndev_array[slot].ndev_endpt = endpt;
+			ndev_array[slot].ndev_send_next = 0;
 
 			/* Attempt to resume communication. */
 			ndev_send_init(&ndev_array[slot]);
@@ -414,13 +428,21 @@ ndev_up(const char * label, endpoint_t endpt)
 		ndev = &ndev_array[ndev_max++];
 	}
 
+	unsigned int q;
+
 	/* Initialize the slot. */
 	ndev->ndev_endpt = endpt;
 	strlcpy(ndev->ndev_label, label, sizeof(ndev->ndev_label));
 	ndev->ndev_ethif = NULL;
-	ndev_queue_init(&ndev->ndev_sendq);
+
+	for (q = 0; q < NDEV_NUM_SENDQ; q++)
+		ndev_queue_init(&ndev->ndev_sendq[q]);
+
 	ndev_queue_init(&ndev->ndev_recvq);
 
+	ndev->ndev_send_next = 0;
+
+	/* Send init on queue 0 only (driver has single init endpoint). */
 	ndev_send_init(ndev);
 
 	ndev_pending++;
@@ -432,9 +454,12 @@ ndev_up(const char * label, endpoint_t endpt)
 static void
 ndev_down(struct ndev * ndev)
 {
+	unsigned int q;
 
-	/* Cancel any ongoing requests. */
-	ndev_queue_reset(&ndev->ndev_sendq);
+	/* Cancel any ongoing requests on all queues. */
+	for (q = 0; q < NDEV_NUM_SENDQ; q++)
+		ndev_queue_reset(&ndev->ndev_sendq[q]);
+
 	ndev_queue_reset(&ndev->ndev_recvq);
 
 	/*
@@ -519,6 +544,7 @@ ndev_init_reply(struct ndev * ndev, const message * m_ptr)
 	struct ndev_hwaddr hwaddr;
 	uint8_t hwaddr_len, max_send, max_recv;
 	const char *name;
+	unsigned int q;
 	int enabled;
 
 	/*
@@ -526,7 +552,7 @@ ndev_init_reply(struct ndev * ndev, const message * m_ptr)
 	 * request, and that this is the reply to that request.
 	 */
 	if (NDEV_ACTIVE(ndev) ||
-	    m_ptr->m_netdriver_ndev_init_reply.id != ndev->ndev_sendq.nq_head)
+	    m_ptr->m_netdriver_ndev_init_reply.id != ndev->ndev_sendq[0].nq_head)
 		return;
 
 	/*
@@ -585,8 +611,13 @@ ndev_init_reply(struct ndev * ndev, const message * m_ptr)
 		 * direction) first, because enabling the interface may cause
 		 * the ethif layer to start sending requests immediately.
 		 */
-		ndev->ndev_sendq.nq_max = max_send;
-		ndev->ndev_sendq.nq_head++;
+		ndev->ndev_sendq[0].nq_max = max_send;
+		ndev->ndev_sendq[0].nq_head++;
+
+		for (q = 1; q < NDEV_NUM_SENDQ; q++) {
+			ndev->ndev_sendq[q].nq_max = max_send;
+			ndev->ndev_sendq[q].nq_head++;
+		}
 
 		/*
 		 * Limit the maximum number of concurrently pending receive
@@ -653,7 +684,7 @@ ndev_conf(ndev_id_t id, const struct ndev_conf * nconf)
 	assert(ndev->ndev_endpt != NONE);
 	assert(NDEV_ACTIVE(ndev));
 
-	if ((nreq = ndev_queue_get(&ndev->ndev_sendq, NDEV_CONF,
+	if ((nreq = ndev_queue_get(&ndev->ndev_sendq[0], NDEV_CONF,
 	    &seq)) == NULL)
 		return EBUSY;
 
@@ -706,7 +737,7 @@ ndev_conf(ndev_id_t id, const struct ndev_conf * nconf)
 	nreq->nreq_grant[0] = grant; /* may also be invalid */
 	nreq->nreq_grant[1] = GRANT_INVALID;
 
-	ndev_queue_add(&ndev->ndev_sendq, nreq);
+	ndev_queue_add(&ndev->ndev_sendq[0], nreq);
 
 	return OK;
 }
@@ -722,7 +753,7 @@ ndev_conf_reply(struct ndev * ndev, const message * m_ptr)
 	 * Was this the request we were waiting for?  If so, remove it from the
 	 * send queue.  Otherwise, ignore this reply message.
 	 */
-	if (!NDEV_ACTIVE(ndev) || !ndev_queue_remove(&ndev->ndev_sendq,
+	if (!NDEV_ACTIVE(ndev) || !ndev_queue_remove(&ndev->ndev_sendq[0],
 	    NDEV_CONF, m_ptr->m_netdriver_ndev_reply.id))
 		return;
 
@@ -794,16 +825,17 @@ ndev_transfer(struct ndev * ndev, const struct pbuf * pbuf, int do_send,
 }
 
 /*
- * Send a packet to the given network driver.  Return OK if the packet is sent
- * off to the driver, EBUSY if no (more) packets can be sent to the driver at
- * this time, or ENOMEM on grant allocation failure.
+ * Send a packet to the given network driver on a specific software send queue.
+ * Return OK if the packet is sent off to the driver, EBUSY if no (more)
+ * packets can be sent to the driver at this time, or ENOMEM on grant
+ * allocation failure.
  *
  * The use of 'pbuf' in this interface is a bit ugly, but it saves us from
  * having to go through an intermediate representation (e.g. an iovec array)
  * for the data being sent.  The same applies to ndev_receive().
  */
 int
-ndev_send(ndev_id_t id, const struct pbuf * pbuf)
+ndev_send(ndev_id_t id, unsigned int queue, const struct pbuf * pbuf)
 {
 	struct ndev *ndev;
 	struct ndev_req *nreq;
@@ -815,39 +847,191 @@ ndev_send(ndev_id_t id, const struct pbuf * pbuf)
 
 	assert(ndev->ndev_endpt != NONE);
 	assert(NDEV_ACTIVE(ndev));
+	assert(queue < NDEV_NUM_SENDQ);
 
-	if ((nreq = ndev_queue_get(&ndev->ndev_sendq, NDEV_SEND,
+	if ((nreq = ndev_queue_get(&ndev->ndev_sendq[queue], NDEV_SEND,
 	    &seq)) == NULL)
 		return EBUSY;
 
 	if ((r = ndev_transfer(ndev, pbuf, TRUE /*do_send*/, seq, nreq)) != OK)
 		return r;
 
-	ndev_queue_add(&ndev->ndev_sendq, nreq);
+	ndev_queue_add(&ndev->ndev_sendq[queue], nreq);
 
 	return OK;
 }
 
 /*
+ * Send a batch of up to NDEV_SEND_BATCH_MAX packets to a network driver
+ * in a single IPC message.  Each pbuf must be contiguous (single fragment).
+ *
+ * The batch uses a single queue entry.  On completion, the driver replies
+ * with the number of packets successfully transmitted.
+ */
+int
+ndev_send_batch(ndev_id_t id, unsigned int queue,
+	const struct pbuf * const * pbufs, unsigned int count)
+{
+	struct ndev *ndev;
+	struct ndev_req *nreq;
+	uint32_t seq;
+	message m;
+	cp_grant_id_t grant;
+	unsigned int i;
+	int r;
+
+	assert(id < __arraycount(ndev_array));
+	ndev = &ndev_array[id];
+
+	assert(ndev->ndev_endpt != NONE);
+	assert(NDEV_ACTIVE(ndev));
+	assert(queue < NDEV_NUM_SENDQ);
+	assert(count > 0 && count <= NDEV_SEND_BATCH_MAX);
+
+	/* Allocate a single queue entry for the whole batch. */
+	if ((nreq = ndev_queue_get(&ndev->ndev_sendq[queue], NDEV_SEND_BATCH,
+	    &seq)) == NULL)
+		return EBUSY;
+
+	memset(&m, 0, sizeof(m));
+	m.m_type = NDEV_SEND_BATCH;
+	m.m_ndev_netdriver_send_batch.id = seq;
+	m.m_ndev_netdriver_send_batch.count = (uint8_t)count;
+
+	/* Create one grant per packet.  Each pbuf must be contiguous. */
+	for (i = 0; i < count; i++) {
+		const struct pbuf *pbuf = pbufs[i];
+
+		assert(pbuf != NULL);
+		assert(pbuf->tot_len == pbuf->len);
+
+		grant = cpf_grant_direct(ndev->ndev_endpt,
+		    (vir_bytes)pbuf->payload, pbuf->len, CPF_READ);
+
+		if (!GRANT_VALID(grant)) {
+			while (i-- > 0)
+				(void)cpf_revoke(nreq->nreq_grant[i]);
+
+			return ENOMEM;
+		}
+
+		m.m_ndev_netdriver_send_batch.grant[i] = grant;
+		m.m_ndev_netdriver_send_batch.len[i] = pbuf->len;
+
+		nreq->nreq_grant[i] = grant;
+	}
+
+	if (i < __arraycount(nreq->nreq_grant))
+		nreq->nreq_grant[i] = GRANT_INVALID;
+
+	if ((r = asynsend3(ndev->ndev_endpt, &m, AMF_NOREPLY)) != OK)
+		panic("asynsend to driver failed: %d", r);
+
+	ndev_queue_add(&ndev->ndev_sendq[queue], nreq);
+
+	return OK;
+}
+
+/*
+ * Return the number of available (non-full) software send queues for a given
+ * network driver.  This allows the ethif layer to load-balance across queues.
+ */
+unsigned int
+ndev_send_avail(ndev_id_t id)
+{
+	struct ndev *ndev;
+	unsigned int q, avail;
+
+	assert(id < __arraycount(ndev_array));
+	ndev = &ndev_array[id];
+
+	assert(ndev->ndev_endpt != NONE);
+	assert(NDEV_ACTIVE(ndev));
+
+	avail = 0;
+	for (q = 0; q < NDEV_NUM_SENDQ; q++) {
+		if (ndev->ndev_sendq[q].nq_count < ndev->ndev_sendq[q].nq_max)
+			avail++;
+	}
+
+	return avail;
+}
+
+/*
  * The network device driver has sent a reply to a send request.
+ * Iterate over all software send queues to find the one that matches.
  */
 static void
 ndev_send_reply(struct ndev * ndev, const message * m_ptr)
 {
+	unsigned int q;
 
-	/*
-	 * Was this the request we were waiting for?  If so, remove it from the
-	 * send queue.  Otherwise, ignore this reply message.
-	 */
-	if (!NDEV_ACTIVE(ndev) || !ndev_queue_remove(&ndev->ndev_sendq,
-	    NDEV_SEND, m_ptr->m_netdriver_ndev_reply.id))
+	if (!NDEV_ACTIVE(ndev))
 		return;
 
-	/* Tell the ethif layer about the result of the transmission. */
-	assert(ndev->ndev_ethif != NULL);
+	/*
+	 * Each software send queue uses its own sequence number space.
+	 * Find which queue this reply belongs to.
+	 */
+	for (q = 0; q < NDEV_NUM_SENDQ; q++) {
+		if (ndev_queue_remove(&ndev->ndev_sendq[q], NDEV_SEND,
+		    m_ptr->m_netdriver_ndev_reply.id)) {
+			/* Tell the ethif layer about the result. */
+			assert(ndev->ndev_ethif != NULL);
 
-	ethif_sent(ndev->ndev_ethif,
-	    m_ptr->m_netdriver_ndev_reply.result);
+			ethif_sent(ndev->ndev_ethif,
+			    m_ptr->m_netdriver_ndev_reply.result);
+			return;
+		}
+	}
+}
+
+/*
+ * A network device driver sent a reply to a batch send request.
+ * The result indicates how many packets in the batch were sent.
+ */
+static void
+ndev_send_batch_reply(struct ndev * ndev, const message * m_ptr)
+{
+	unsigned int q, i;
+	int32_t result;
+
+	if (!NDEV_ACTIVE(ndev))
+		return;
+
+	result = m_ptr->m_netdriver_ndev_reply.result;
+
+	/*
+	 * Find which queue this batch reply belongs to.
+	 * The batch was queued as a single NDEV_SEND_BATCH entry.
+	 */
+	for (q = 0; q < NDEV_NUM_SENDQ; q++) {
+		if (ndev_queue_remove(&ndev->ndev_sendq[q], NDEV_SEND_BATCH,
+		    m_ptr->m_netdriver_ndev_reply.id)) {
+			unsigned int count_sent;
+
+			assert(ndev->ndev_ethif != NULL);
+
+			/*
+			 * result ≥ 0: number of successfully sent packets.
+			 * result < 0: entire batch failed, count=0.
+			 */
+			if (result >= 0)
+				count_sent = (unsigned int)result;
+			else
+				count_sent = 0;
+
+			/* Dequeue and notify ethif for each sent packet. */
+			for (i = 0; i < count_sent; i++)
+				ethif_sent(ndev->ndev_ethif, OK);
+
+			/* If the entire batch failed, signal error once. */
+			if (count_sent == 0 && result < 0)
+				ethif_sent(ndev->ndev_ethif, result);
+
+			return;
+		}
+	}
 }
 
 /*
@@ -1003,6 +1187,11 @@ ndev_process(const message * m_ptr, int ipc_status)
 
 	case NDEV_SEND_REPLY:
 		ndev_send_reply(ndev, m_ptr);
+
+		break;
+
+	case NDEV_SEND_BATCH_REPLY:
+		ndev_send_batch_reply(ndev, m_ptr);
 
 		break;
 

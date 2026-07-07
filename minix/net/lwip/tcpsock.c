@@ -1098,6 +1098,21 @@ tcpsock_event_recv(void * arg, struct tcp_pcb * pcb __unused,
 
 	len = (size_t)pbuf->tot_len;
 
+#if !defined(NDEBUG)
+	/*
+	 * Verify the TCP header using the safe Rust net-parse parser.
+	 * This assertion catches malformed TCP segments in debug builds.
+	 */
+	{
+		struct TcpHeaderFFI tcp_hdr;
+		int np_ret;
+
+		np_ret = net_parse_tcp_header(pbuf->payload, pbuf->len,
+		    &tcp_hdr);
+		assert(np_ret == NET_PARSE_OK);
+	}
+#endif /* !NDEBUG */
+
 	/*
 	 * Count the number of buffers that are now owned by us.  The new total
 	 * of buffers owned by us must not exceed the size of the memory pool.

@@ -26,13 +26,14 @@
  */
 
 /** Number of receive descriptors per card. */
-#define E1000_RXDESC_NR 256
+#define E1000_RXDESC_NR 512
 
 /** Number of transmit descriptors per card. */
-#define E1000_TXDESC_NR 256
+#define E1000_TXDESC_NR 512
 
-/** Size of each I/O buffer per descriptor. */
-#define E1000_IOBUF_SIZE 2048
+/** Size of each I/O buffer per descriptor.  Must be >= E1000_MAX_PACKET_SIZE.
+ *  Increased to 65536 to support TSO super-segments (up to 64KB). */
+#define E1000_IOBUF_SIZE 65536
 
 /** Debug verbosity. */
 #define E1000_VERBOSE 0
@@ -136,6 +137,17 @@ typedef struct e1000
     int tx_buffer_size;		  /**< Size of the transmit buffer. */
     phys_bytes tx_buff_phys;	  /**< Physical address of TX buffer (for descriptor init). */
     u8_t mac_addr[6];		  /**< MAC address (cached for PM resume). */
+    unsigned int flags;		  /**< Driver flags (E1000_FLAG_*). */
 } e1000_t;
+
+/**
+ * @name Driver Flags (e1000_t.flags)
+ * @{
+ */
+/** Enable TCP Segmentation Offload (TSO) support. */
+#define E1000_FLAG_TSO_ENABLED	0x0001u
+/**
+ * @}
+ */
 
 #endif /* __E1000_H */

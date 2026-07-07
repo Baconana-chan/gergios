@@ -121,6 +121,8 @@ pub(crate) mod platform {
     pub const NDEV_CAP_MCAST: u32 = 0x0001;
     pub const NDEV_CAP_BCAST: u32 = 0x0002;
     pub const NDEV_CAP_HWADDR: u32 = 0x0004;
+    pub const NDEV_CAP_CS_IP4_TX: u32 = 0x0010;
+    pub const NDEV_CAP_CS_IP4_RX: u32 = 0x0020;
 
     /// Netdevice modes
     pub const NDEV_MODE_BCAST: u32 = 0x0001;
@@ -188,6 +190,8 @@ pub(crate) mod platform {
     pub const NDEV_CAP_MCAST: u32 = 0x0001;
     pub const NDEV_CAP_BCAST: u32 = 0x0002;
     pub const NDEV_CAP_HWADDR: u32 = 0x0004;
+    pub const NDEV_CAP_CS_IP4_TX: u32 = 0x0010;
+    pub const NDEV_CAP_CS_IP4_RX: u32 = 0x0020;
     pub const NDEV_MODE_BCAST: u32 = 0x0001;
     pub const NDEV_MODE_PROMISC: u32 = 0x0002;
     pub const NDEV_MODE_MCAST_LIST: u32 = 0x0004;
@@ -512,6 +516,7 @@ pub fn debug_print(args: &[u8]) {
 pub use platform::{
     Netdriver, NetdriverData, NetdriverAddr,
     NDEV_CAP_MCAST, NDEV_CAP_BCAST, NDEV_CAP_HWADDR,
+    NDEV_CAP_CS_IP4_TX, NDEV_CAP_CS_IP4_RX,
     NDEV_MODE_BCAST, NDEV_MODE_PROMISC, NDEV_MODE_MCAST_LIST, NDEV_MODE_MCAST_ALL,
     NDEV_LINK_UP, NDEV_LINK_DOWN,
     IFM_ETHER, IFM_10_T, IFM_100_TX, IFM_1000_T, IFM_FDX, IFM_HDX,

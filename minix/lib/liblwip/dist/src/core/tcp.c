@@ -1910,6 +1910,11 @@ tcp_alloc(u8_t prio)
     pcb->tmr = tcp_ticks;
     pcb->last_timer = tcp_timer_ctr;
 
+#if LWIP_TSO
+    /* TSO is not enabled until we know the netif supports it */
+    pcb->flags &= ~TF_TSO;
+#endif /* LWIP_TSO */
+
     /* RFC 5681 recommends setting ssthresh arbitrarily high and gives an example
     of using the largest advertised receive window.  We've seen complications with
     receiving TCPs that use window scaling and/or window auto-tuning where the

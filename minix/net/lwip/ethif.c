@@ -65,7 +65,7 @@
 
 #include <net/if_media.h>
 
-#define ETHIF_MAX_MTU	1500		/* maximum MTU value for ethernet */
+#define ETHIF_MAX_MTU	9000		/* maximum MTU value for ethernet (jumbo frames) */
 #define ETHIF_DEF_MTU	ETHIF_MAX_MTU	/* default MTU value that we use */
 
 #define ETHIF_MCAST_MAX	8	/* maximum number of multicast addresses */
@@ -85,6 +85,7 @@ struct ethif {
 		struct pbuf **es_unsentp; /* ptr-ptr to first unsent request */
 		struct pbuf **es_tailp;	/* ptr-ptr for adding new requests */
 		unsigned int es_count;	/* buffer count, see ETHIF_PBUF_.. */
+		unsigned int es_next_q;	/* next ndev send queue index (round-robin) */
 	} ethif_snd;
 	struct {			/* receive queue (packets) */
 		struct pbuf *er_head;	/* first (oldest) request buffer */
@@ -379,6 +380,23 @@ ethif_can_conf(struct ethif * ethif)
 }
 
 /*
+ * Return the next software send queue index for this ethernet interface,
+ * advancing the round-robin counter for subsequent calls.
+ */
+unsigned int
+ethif_get_sendq(struct ethif * ethif)
+{
+	unsigned int queue;
+
+	queue = ethif->ethif_snd.es_next_q;
+
+	if (++ethif->ethif_snd.es_next_q >= NDEV_NUM_SENDQ)
+		ethif->ethif_snd.es_next_q = 0;
+
+	return queue;
+}
+
+/*
  * Return TRUE if we can and should try to pass the next unsent packet send
  * request to the ndev layer on this interface, or FALSE otherwise.
  */
@@ -453,6 +471,8 @@ ethif_poll(struct ifdev * ifdev)
 			    &ethif->ethif_wanted);
 	} else {
 		while (ethif_can_send(ethif)) {
+			unsigned int queue;
+
 			pref = *ethif->ethif_snd.es_unsentp;
 
 			if (pref->type == PBUF_REF)
@@ -460,7 +480,38 @@ ethif_poll(struct ifdev * ifdev)
 			else
 				pbuf = pref;
 
-			if (ndev_send(ethif->ethif_ndev, pbuf) == OK)
+			/*
+			 * Distribute packets across software send queues using
+			 * round-robin, for better throughput under load.
+			 */
+			queue = ethif_get_sendq(ethif);
+
+			/*
+			 * Try batch send for single-fragment packets.
+			 * On success (OK), advance the unsent pointer.
+			 * On EBUSY, stop the send loop — no point retrying
+			 * individually since the queue is full.
+			 * On ENOMEM, fall through to individual send which
+			 * may succeed with fewer concurrent grants.
+			 */
+			if (pbuf->next == NULL) {
+				int batch_r = ndev_send_batch(
+				    ethif->ethif_ndev,
+				    queue, &pbuf, 1);
+
+				if (batch_r == OK)
+					ethif->ethif_snd.es_unsentp =
+					    pchain_end(pref);
+				else if (batch_r == EBUSY)
+					break;
+				else if (ndev_send(ethif->ethif_ndev,
+				    queue, pbuf) == OK)
+					ethif->ethif_snd.es_unsentp =
+					    pchain_end(pref);
+				else
+					break;
+			} else if (ndev_send(ethif->ethif_ndev, queue,
+			    pbuf) == OK)
 				ethif->ethif_snd.es_unsentp =
 				    pchain_end(pref);
 			else
@@ -891,6 +942,7 @@ ethif_add(ndev_id_t id, const char * name, uint32_t caps)
 	ethif->ethif_snd.es_unsentp = &ethif->ethif_snd.es_head;
 	ethif->ethif_snd.es_tailp = &ethif->ethif_snd.es_head;
 	ethif->ethif_snd.es_count = 0;
+	ethif->ethif_snd.es_next_q = 0;
 
 	ethif->ethif_rcv.er_head = NULL;
 	ethif->ethif_rcv.er_tailp = &ethif->ethif_rcv.er_head;

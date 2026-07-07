@@ -1117,14 +1117,14 @@
 #define NDEV_CONF		(NDEV_RQ_BASE + 1)	/* configure driver */
 #define NDEV_SEND		(NDEV_RQ_BASE + 2)	/* send a packet */
 #define NDEV_RECV		(NDEV_RQ_BASE + 3)	/* receive a packet */
-#define NDEV_IOCTL		(NDEV_RQ_BASE + 4)	/* (reserved) */
+#define NDEV_SEND_BATCH		(NDEV_RQ_BASE + 4)	/* batch send multiple packets */
 #define NDEV_STATUS_REPLY	(NDEV_RQ_BASE + 5)	/* status reply */
 
 #define NDEV_INIT_REPLY		(NDEV_RS_BASE + 0)	/* initialize reply */
 #define NDEV_CONF_REPLY		(NDEV_RS_BASE + 1)	/* configure reply */
 #define NDEV_SEND_REPLY		(NDEV_RS_BASE + 2)	/* send reply */
 #define NDEV_RECV_REPLY		(NDEV_RS_BASE + 3)	/* receive reply */
-#define NDEV_IOCTL_REPLY	(NDEV_RS_BASE + 4)	/* (reserved) */
+#define NDEV_SEND_BATCH_REPLY	(NDEV_RS_BASE + 4)	/* batch send reply */
 #define NDEV_STATUS		(NDEV_RS_BASE + 5)	/* status report */
 
 /* Bits in the 'set' field of configuration requests. */

@@ -517,6 +517,18 @@ impl E1000 {
 
 impl E1000 {
     /// Send a packet. Returns OK or SUSPEND if queue is full.
+    ///
+    /// Supports two modes:
+    /// - **Normal path**: single legacy descriptor with optional IPv4 checksum offload.
+    /// - **TSO path** (Legacy TSE): single legacy descriptor with TSE bit set for
+    ///   hardware TCP segmentation.  The 82540EM/82545EM hardware automatically
+    ///   segments the super-segment into MSS-sized chunks, updating IP headers,
+    ///   TCP sequence numbers, and checksums — all without software intervention.
+    ///
+    /// TSO is triggered when:
+    ///   - Packet size >= E1000_TSO_MIN_SIZE (ETH_HDR + 20 IP + 20 TCP + 1460 MSS)
+    ///   - Ethertype == 0x0800 (IPv4)
+    ///   - IP protocol == 0x06 (TCP)
     pub fn send(&mut self, data: *mut ffi::NetdriverData, size: usize) -> c_int {
         if size > self.buf_size {
             return ffi::EINVAL;
@@ -531,16 +543,57 @@ impl E1000 {
             return ffi::SUSPEND; // queue full
         }
 
-        // Copy packet data into the TX buffer via netdriver_copyin
+        // Copy packet data into the TX buffer FIRST so we can inspect headers
         let buf_ptr = unsafe { self.tx_buffer.add(tail as usize * self.buf_size) };
         ffi::netdriver_copyin_ffi(data, 0, buf_ptr as *const core::ffi::c_void, size);
 
-        // Mark descriptor ready
+        #[allow(clippy::identity_op)]
+        const ETH_HDR_LEN: usize = 14;
+
+        // Determine if this is a TSO candidate: TCP over IPv4, large enough.
+        // Check: size >= ETH(14) + IP(20) + TCP(20) + MSS(1460) = 1514
+        let is_tcp_ipv4 = size >= (ETH_HDR_LEN + 20 + 20 + 1460)
+            && unsafe { *buf_ptr.add(12) } == 0x08
+            && unsafe { *buf_ptr.add(13) } == 0x00
+            && unsafe { *buf_ptr.add(ETH_HDR_LEN + 9) } == 0x06;
+
         unsafe {
             let desc = &mut *self.tx_desc.add(tail as usize);
             desc.status = 0;
             desc.length = size as u16;
-            desc.cmd = desc::TX_CMD_EOP | desc::TX_CMD_FCS | desc::TX_CMD_RS;
+            desc.special = 0;
+
+            if is_tcp_ipv4 {
+                // ============================================================
+                // TSO path: single legacy descriptor with TSE bit
+                // ============================================================
+                // Parse IP header length (IHL, lower nibble of byte at ETH+14)
+                // ip_hlen_raw is u8, cast to usize for arithmetic
+                let ip_hlen_raw = (unsafe { *buf_ptr.add(ETH_HDR_LEN) } & 0x0F) * 4;
+                let ip_hlen = if ip_hlen_raw < 20 { 20usize } else { ip_hlen_raw as usize };
+
+                desc.cmd = desc::TX_CMD_EOP | desc::TX_CMD_FCS | desc::TX_CMD_RS
+                    | desc::TX_CMD_IC | desc::TX_CMD_TSE;
+                desc.css = (ETH_HDR_LEN + ip_hlen) as u8;           // CSS: TCP header start
+                desc.cso = (ETH_HDR_LEN + ip_hlen + 16) as u8;      // CSO: TCP checksum field
+                desc.special = 1460;                                  // MSS for segmentation
+            } else {
+                // ============================================================
+                // Normal path: single legacy descriptor with optional IPv4
+                // checksum offload
+                // ============================================================
+                desc.cmd = desc::TX_CMD_EOP | desc::TX_CMD_FCS | desc::TX_CMD_RS;
+
+                // Enable IPv4 header checksum offload for IPv4 packets
+                if size >= (ETH_HDR_LEN + 2)
+                    && unsafe { *buf_ptr.add(12) } == 0x08
+                    && unsafe { *buf_ptr.add(13) } == 0x00
+                {
+                    desc.cmd |= desc::TX_CMD_IC;
+                    desc.css = ETH_HDR_LEN as u8;       // CSS: start of IP header
+                    desc.cso = (ETH_HDR_LEN + 10) as u8; // CSO: IP checksum field
+                }
+            }
         }
 
         // Advance tail to start transmission

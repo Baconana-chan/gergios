@@ -49,5 +49,10 @@ endif()
 # Suppress lwIP macro warnings
 target_compile_options(lwip PRIVATE -Wno-address)
 
+# Rust net-parse FFI integration (Phase 3)
+if(CARGO_EXECUTABLE)
+    add_rust_library(net-parse LINK_TO lwip)
+endif()
+
 # Install config file
 install(FILES lwip.conf DESTINATION /etc/system.conf.d RENAME lwip)

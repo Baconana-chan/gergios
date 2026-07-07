@@ -21,12 +21,18 @@ struct ndev_conf {
 	struct ndev_hwaddr nconf_hwaddr;	/* desired hardware address */
 };
 
+/* Number of software send queues per ndev (flow-based queue assignment). */
+#define NDEV_NUM_SENDQ		2
+
 void ndev_init(void);
 void ndev_check(void);
 void ndev_process(const message * m_ptr, int ipc_status);
 
 int ndev_conf(ndev_id_t id, const struct ndev_conf * nconf);
-int ndev_send(ndev_id_t id, const struct pbuf * pbuf);
+int ndev_send(ndev_id_t id, unsigned int queue, const struct pbuf * pbuf);
+int ndev_send_batch(ndev_id_t id, unsigned int queue,
+	const struct pbuf * const * pbufs, unsigned int count);
+unsigned int ndev_send_avail(ndev_id_t id);
 int ndev_can_recv(ndev_id_t id);
 int ndev_recv(ndev_id_t id, struct pbuf * pbuf);
 

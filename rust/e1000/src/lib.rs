@@ -62,7 +62,8 @@ unsafe extern "C" fn ndr_init(
         let mac = &mut *addr;
         dev.read_mac(mac);
 
-        *caps = ffi::NDEV_CAP_MCAST | ffi::NDEV_CAP_BCAST | ffi::NDEV_CAP_HWADDR;
+        *caps = ffi::NDEV_CAP_MCAST | ffi::NDEV_CAP_BCAST | ffi::NDEV_CAP_HWADDR
+            | ffi::NDEV_CAP_CS_IP4_TX | ffi::NDEV_CAP_CS_IP4_RX;
         *ticks = (ffi::get_sys_hz() / 10) as c_uint;
 
         *global_e1000() = Some(dev);

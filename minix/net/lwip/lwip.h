@@ -11,6 +11,9 @@
 #include "lwip/ip.h"
 #include "lwiphooks.h"
 
+/* Rust net-parse FFI for safe header parsing (Phase 3) */
+#include <net_parse.h>
+
 #include "addr.h"
 #include "ipsock.h"
 #include "ifdev.h"
