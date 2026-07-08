@@ -229,6 +229,15 @@ int do_mmap(message *m)
 		return EINVAL;
 	}
 
+	/* W^X enforcement: reject mappings with both write and execute
+	 * permissions. This prevents JIT spray and shellcode injection.
+	 * Use mprotect() to switch between write and execute as needed.
+	 */
+	if ((m->m_mmap.prot & (PROT_WRITE | PROT_EXEC)) ==
+	    (PROT_WRITE | PROT_EXEC)) {
+		return EPERM;
+	}
+
 	if(m->m_mmap.fd == -1 || (m->m_mmap.flags & MAP_ANON)) {
 		/* actual memory in some form */
 		mem_type_t *mt = NULL;
@@ -480,6 +489,100 @@ int do_get_refcount(message *m)
 
 	m->m_lsys_vm_getref.retc = cnt;
 	return r;
+}
+
+/*===========================================================================*
+ *				do_mprotect				     *
+ *===========================================================================*/
+int do_mprotect(message *m)
+{
+	int r, n;
+	struct vmproc *vmp;
+	vir_bytes addr, len, v;
+	int prot;
+
+	/* Self-mprotect: caller must be the target process. */
+	if ((r = vm_isokendpt(m->m_source, &n)) != OK) {
+		printf("VM: do_mprotect: bad endpoint %d\n", m->m_source);
+		return EINVAL;
+	}
+	vmp = &vmproc[n];
+
+	addr = (vir_bytes) m->m_mmap.addr;
+	len = (vir_bytes) m->m_mmap.len;
+	prot = m->m_mmap.prot;
+
+	if (addr % VM_PAGE_SIZE) {
+		return EINVAL;
+	}
+
+	if (len <= 0) {
+		return EINVAL;
+	}
+
+	/* Round up length to page boundary. */
+	if (len % VM_PAGE_SIZE)
+		len += VM_PAGE_SIZE - (len % VM_PAGE_SIZE);
+
+	/* W^X enforcement: reject both write and execute simultaneously.
+	 * Processes must use mprotect to switch between PROT_WRITE
+	 * and PROT_EXEC, not set both at once.
+	 */
+	if ((prot & (PROT_WRITE | PROT_EXEC)) == (PROT_WRITE | PROT_EXEC)) {
+		return EPERM;
+	}
+
+	/* Validate protection flags. */
+	if (prot & ~(PROT_READ | PROT_WRITE | PROT_EXEC | PROT_NONE)) {
+		return EINVAL;
+	}
+
+	/* Update page protections for each page in the range.
+	 * For each page, find its region, update VR_WRITABLE,
+	 * and rewrite the page table entry.
+	 *
+	 * Limitation: VR_WRITABLE is a region-level flag, not per-page.
+	 * Changing it affects the entire region. This is acceptable when
+	 * the whole region is being reprotected (e.g., text segment RX,
+	 * data segment RW), but incorrect for sub-range mprotect on
+	 * multi-purpose regions. Full region-splitting support would
+	 * require split_region() to be exposed from region.c.
+	 */
+	for (v = addr; v < addr + len; v += VM_PAGE_SIZE) {
+		struct vir_region *vr;
+		struct phys_region *pr;
+
+		if (!(vr = map_lookup(vmp, v, &pr))) {
+			/* POSIX: ENOMEM if any page is not mapped. */
+			return ENOMEM;
+		}
+
+		/* Reject direct physical or shared regions. */
+		if (vr->flags & (VR_DIRECT | VR_SHARED)) {
+			return EINVAL;
+		}
+
+		if (pr) {
+			/* Update writability based on protection. */
+			if (prot & PROT_WRITE) {
+				vr->flags |= VR_WRITABLE;
+			} else {
+				vr->flags &= ~VR_WRITABLE;
+			}
+
+			/* Write the updated page table entry.
+			 * map_ph_writept calls pt_writemap, which for x86_64
+			 * automatically sets the NX bit on writable pages
+			 * (HW W^X enforcement).
+			 */
+			if ((r = map_ph_writept(vmp, vr, pr)) != OK) {
+				printf("VM: do_mprotect: map_ph_writept failed\n");
+				return r;
+			}
+		}
+	}
+
+	return OK;
 }
 
 /*===========================================================================*

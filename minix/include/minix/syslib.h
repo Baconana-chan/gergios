@@ -53,6 +53,7 @@ int sys_statectl(int request, void* address, int length);
 int sys_privctl(endpoint_t proc_ep, int req, void *p);
 int sys_privquery_mem(endpoint_t proc_ep, phys_bytes physstart,
 	phys_bytes physlen);
+int sys_capctl(endpoint_t proc_ep, int op, uint64_t caps);
 int sys_setgrant(cp_grant_t *grants, int ngrants);
 
 int sys_vm_setbuf(phys_bytes base, phys_bytes size, phys_bytes high);

@@ -68,6 +68,7 @@ static const unsigned int NETBSD_TF_NODELAY = TF_NODELAY;
 #include "lwip.h"
 #include "tcpisn.h"
 #include "latency.h"
+#include "perf_alerts.h"
 
 #include "lwip/tcp.h"
 #include "lwip/priv/tcp_priv.h" /* for tcp_pcb_lists */
@@ -355,6 +356,9 @@ tcpsock_alloc_buf(void)
 	struct pbuf *pbuf;
 
 	pbuf = pbuf_alloc(PBUF_RAW, MEMPOOL_BUFSIZE, PBUF_RAM);
+
+	if (pbuf == NULL)
+		perf_alerts_oom();
 
 	assert(pbuf == NULL || pbuf->len == pbuf->tot_len);
 
@@ -1268,9 +1272,18 @@ tcpsock_event_err(void * arg, err_t err)
 
 		if (tcpsock_get_flags(tcp) & TCPF_CONNECTING) {
 			switch (err) {
-			case ERR_ABRT:	r = ETIMEDOUT;		break;
-			case ERR_RST:	r = ECONNREFUSED;	break;
+			case ERR_ABRT:
+				r = ETIMEDOUT;
+				perf_alerts_tcp_rst();
+				break;
+			case ERR_RST:
+				r = ECONNREFUSED;
+				perf_alerts_tcp_rst();
+				break;
 			}
+		} else {
+			if (err == ERR_RST)
+				perf_alerts_tcp_rst();
 		}
 
 		sockevent_set_error(tcpsock_get_sock(tcp), r);
@@ -1616,8 +1629,12 @@ tcpsock_connect(struct sock * sock, const struct sockaddr * addr,
 		err = tcp_connect(tcp->tcp_pcb, &dst_addr, dst_port,
 		    tcpsock_event_connected);
 
-		latency_record(&latency_tcp_connect,
-		    (sys_now() * 1000) - __us);
+		{
+			uint32_t __elapsed = (sys_now() * 1000) - __us;
+
+			perf_alerts_latency(__elapsed);
+			latency_record(&latency_tcp_connect, __elapsed);
+		}
 	}
 
 	/*
@@ -1935,6 +1952,10 @@ tcpsock_send(struct sock * sock, const struct sockdriver_data * data,
 
 		if (tcpsock_pcb_enqueue(tcp) &&
 		    (r = tcpsock_pcb_send(tcp, FALSE /*raise_error*/)) != OK) {
+			uint32_t __elapsed = (sys_now() * 1000) - __us;
+
+			perf_alerts_latency(__elapsed);
+			latency_record(&latency_tcp_send, __elapsed);
 			/*
 			 * That did not go well.  Return the error
 			 * immediately if we had not made any progress
@@ -1943,20 +1964,19 @@ tcpsock_send(struct sock * sock, const struct sockdriver_data * data,
 			 */
 			if (*offp > 0) {
 				sockevent_set_error(tcpsock_get_sock(tcp), r);
-
-				latency_record(&latency_tcp_send,
-				    (sys_now() * 1000) - __us);
 				*offp += off;
 				return OK;
 			} else {
-				latency_record(&latency_tcp_send,
-				    (sys_now() * 1000) - __us);
 				return r;
 			}
 		}
 
-		latency_record(&latency_tcp_send,
-		    (sys_now() * 1000) - __us);
+		{
+			uint32_t __elapsed2 = (sys_now() * 1000) - __us;
+
+			perf_alerts_latency(__elapsed2);
+			latency_record(&latency_tcp_send, __elapsed2);
+		}
 	}
 
 	*offp += off;

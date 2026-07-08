@@ -29,6 +29,9 @@ struct lwip_rate_limiter lwip_rl_ndp;
 /* Last tick counter (incremented by lwip_ratelimit_tick). */
 static u32_t ratelimit_global_tick;
 
+/* Optional callback for rate-limit drop notifications. */
+static lwip_ratelimit_alert_cb_t ratelimit_alert_cb;
+
 /* ------------------------------------------------------------------ */
 /* Token bucket implementation                                         */
 /* ------------------------------------------------------------------ */
@@ -87,9 +90,16 @@ lwip_rate_limiter_check(struct lwip_rate_limiter *rl)
 /* ------------------------------------------------------------------ */
 
 void
+lwip_ratelimit_set_alert_cb(lwip_ratelimit_alert_cb_t cb)
+{
+    ratelimit_alert_cb = cb;
+}
+
+void
 lwip_ratelimit_init(void)
 {
     ratelimit_global_tick = 0;
+    ratelimit_alert_cb = NULL;
 
     lwip_rate_limiter_init(&lwip_rl_icmp_errors,
         LWIP_RATELIMIT_ICMP_ERRORS_PER_SEC,
@@ -113,19 +123,34 @@ lwip_ratelimit_tick(void)
 int
 lwip_ratelimit_icmp_error(void)
 {
-    return lwip_rate_limiter_check(&lwip_rl_icmp_errors);
+    if (!lwip_rate_limiter_check(&lwip_rl_icmp_errors)) {
+        if (ratelimit_alert_cb != NULL)
+            ratelimit_alert_cb(0);
+        return 0;
+    }
+    return 1;
 }
 
 int
 lwip_ratelimit_arp(void)
 {
-    return lwip_rate_limiter_check(&lwip_rl_arp);
+    if (!lwip_rate_limiter_check(&lwip_rl_arp)) {
+        if (ratelimit_alert_cb != NULL)
+            ratelimit_alert_cb(1);
+        return 0;
+    }
+    return 1;
 }
 
 int
 lwip_ratelimit_ndp(void)
 {
-    return lwip_rate_limiter_check(&lwip_rl_ndp);
+    if (!lwip_rate_limiter_check(&lwip_rl_ndp)) {
+        if (ratelimit_alert_cb != NULL)
+            ratelimit_alert_cb(2);
+        return 0;
+    }
+    return 1;
 }
 
 #endif /* LWIP_RATELIMIT */

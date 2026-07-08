@@ -18,6 +18,7 @@
 #include <minix/type.h>
 #include <minix/ipc.h>
 #include <minix/rs.h>
+#include <minix/capability.h>
 #include <minix/syslib.h>
 #include <minix/bitmap.h>
 #include <minix/paths.h>
@@ -913,6 +914,81 @@ static void do_system(config_t *cpe, struct rs_start *rs_start)
 	}
 }
 
+/* Capability string-to-bit lookup table. */
+static const struct {
+	const char *name;
+	uint64_t bit;
+} capability_tab[] = {
+	{ CAP_STR_SYS_RAWIO,		CAP_SYS_RAWIO		},
+	{ CAP_STR_NET_RAW,		CAP_NET_RAW		},
+	{ CAP_STR_NET_BIND,		CAP_NET_BIND		},
+	{ CAP_STR_NET_ADMIN,		CAP_NET_ADMIN		},
+	{ CAP_STR_SYS_ADMIN,		CAP_SYS_ADMIN		},
+	{ CAP_STR_SYS_BOOT,		CAP_SYS_BOOT		},
+	{ CAP_STR_IPC_OWNER,		CAP_IPC_OWNER		},
+	{ CAP_STR_FS_MOUNT,		CAP_FS_MOUNT		},
+	{ CAP_STR_FS_CHOWN,		CAP_FS_CHOWN		},
+	{ CAP_STR_FS_DAC_OVERRIDE,	CAP_FS_DAC_OVERRIDE	},
+	{ CAP_STR_VM_MAP,		CAP_VM_MAP		},
+	{ CAP_STR_IRQ_ALLOC,		CAP_IRQ_ALLOC		},
+	{ CAP_STR_PCI_ACCESS,		CAP_PCI_ACCESS		},
+	{ NULL,				0			},
+};
+
+static void do_capabilities(config_t *cpe, struct rs_start *rs_start)
+{
+	int i;
+
+	for (; cpe; cpe = cpe->next)
+	{
+		if (cpe->flags & CFG_SUBLIST)
+		{
+			fatal("do_capabilities: unexpected sublist at %s:%d",
+				cpe->file, cpe->line);
+		}
+		if (cpe->flags & CFG_STRING)
+		{
+			fatal("do_capabilities: unexpected string at %s:%d",
+				cpe->file, cpe->line);
+		}
+
+		/* All capabilities? */
+		if (!strcmp(cpe->word, KW_ALL)) {
+			if (cpe->next) {
+				fatal("do_capabilities: %s must be alone in list"
+				    " at %s:%d", KW_ALL, cpe->file, cpe->line);
+			}
+			rs_start->rss_cap_effective = CAP_FULL;
+			rs_start->rss_cap_permitted = CAP_FULL;
+			return;
+		}
+
+		/* No capabilities? */
+		if (!strcmp(cpe->word, KW_NONE)) {
+			if (cpe->next) {
+				fatal("do_capabilities: %s must be alone in list"
+				    " at %s:%d", KW_NONE, cpe->file, cpe->line);
+			}
+			rs_start->rss_cap_effective = CAP_BASE;
+			rs_start->rss_cap_permitted = CAP_BASE;
+			return;
+		}
+
+		/* Look up capability by name. */
+		for (i = 0; capability_tab[i].name != NULL; i++) {
+			if (!strcmp(cpe->word, capability_tab[i].name))
+				break;
+		}
+		if (capability_tab[i].name == NULL) {
+			warning("do_capabilities: ignoring unknown capability"
+			    " '%s' at %s:%d", cpe->word, cpe->file, cpe->line);
+		} else {
+			rs_start->rss_cap_effective |= capability_tab[i].bit;
+			rs_start->rss_cap_permitted |= capability_tab[i].bit;
+		}
+	}
+}
+
 static void do_control(config_t *cpe, struct rs_start *rs_start)
 {
 	int nr_control = 0;
@@ -1138,6 +1214,11 @@ static void do_service(config_t *cpe, config_t *config, struct rs_config *rs_con
 		if (strcmp(cpe->word, KW_CONTROL) == 0)
 		{
 			do_control(cpe->next, rs_start);
+			continue;
+		}
+		if (strcmp(cpe->word, KW_CAPABILITIES) == 0)
+		{
+			do_capabilities(cpe->next, rs_start);
 			continue;
 		}
 		if (strcmp(cpe->word, KW_DOMAIN) == 0)

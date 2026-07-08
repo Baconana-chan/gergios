@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <assert.h>
 #include <minix/callnr.h>
+#include <minix/mac.h>
 #include "file.h"
 #include "path.h"
 #include <minix/vfsif.h>
@@ -275,6 +276,26 @@ int forbidden(struct fproc *rfp, struct vnode *vp, mode_t access_desired)
   /* If access desired is not a subset of what is allowed, it is refused. */
   r = OK;
   if ((perm_bits | access_desired) != perm_bits) r = EACCES;
+
+  /* MAC check for file access.
+   * The MAC policy daemon can override DAC permissions.
+   */
+  if (r == OK) {
+	mac_context_t mac_ctx;
+
+	memset(&mac_ctx, 0, sizeof(mac_ctx));
+	mac_ctx.file.mac_proc = rfp->fp_endpoint;
+	mac_ctx.file.mac_fs_ep = vp->v_fs_e;
+	mac_ctx.file.mac_uid = uid;
+	mac_ctx.file.mac_gid = gid;
+	mac_ctx.file.mac_access_desired = access_desired;
+	mac_ctx.file.mac_file_mode = bits;
+	mac_ctx.file.mac_file_uid = vp->v_uid;
+	mac_ctx.file.mac_file_gid = vp->v_gid;
+	if (mac_request(MAC_FILE_ACCESS, &mac_ctx) != MAC_ALLOW) {
+		r = EACCES;
+	}
+  }
 
   /* Check to see if someone is trying to write on a file system that is
    * mounted read-only.

@@ -204,15 +204,97 @@ void get_parameters(u64_t ebx, kinfo_t *cbi)
 	}
 }
 
+/* Check if RDRAND instruction is available via CPUID.
+ * ECX[30] = RDRAND support bit.
+ */
+static int __unpaged rdrand_available(void)
+{
+	u32_t eax, ebx, ecx, edx;
+	__asm__("cpuid"
+		: "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+		: "a"(1), "c"(0));
+	return (ecx & (1 << 30)) != 0;
+}
+
+/* Read a 64-bit random value from RDRAND (x86_64 native instruction).
+ * Returns 0 if RDRAND fails (CF=0 after instruction).
+ * Must only be called if rdrand_available() returns true.
+ */
+static u64_t __unpaged rdrand_read(void)
+{
+	u64_t val;
+	unsigned char ok;
+	/* RDRAND: rdrand %0 → CF=1 if valid, then setc captures CF */
+	__asm__ volatile(
+		"rdrand %0\n\t"
+		"setc %1\n\t"
+		: "=r" (val), "=qm" (ok)
+		:
+		: "cc");
+	if (!ok) return 0;
+	return val;
+}
+
+/* Declared in head.S (.unpaged.data) — read by head.S to get
+ * the computed KASLR virtual offset for the second relocation call. */
+extern u64_t kaslr_virt_offset_slot;
+
 kinfo_t *pre_init(u64_t ebx, u64_t magic)
 {
 	assert(magic == MULTIBOOT_INFO_MAGIC);
 
 	get_parameters(ebx, &kinfo);
 
+	/* Acquire KASLR entropy from RDRAND if available.
+	 * Falls back to 0 (no randomization) on CPUs without RDRAND
+	 * or if KASLR is not enabled (seed stays 0 from BSS init).
+	 */
+#if defined(KASLR) && KASLR == 1
+	if (rdrand_available()) {
+		kinfo.kaslr_seed = rdrand_read();
+		if (kinfo.kaslr_seed != 0) {
+			direct_print("KASLR: RDRAND seed acquired\n");
+		}
+
+		/* Compute Virtual KASLR offset from seed.
+		 * Range: 0 to 1022MB in 2MB steps (PDE granularity).
+		 * The linked VMA is 0xFFFF8000F0100000, so the kernel
+		 * can be mapped anywhere in the 0xFFFF8000F0100000 to
+		 * 0xFFFF8000F0100000 + 1022MB range, giving 511 possible
+		 * locations (0 + 511 * 2MB). The offset is 2MB-aligned
+		 * for compatibility with the existing big-page mapping.
+		 * This field is used by apply_relocations() (called from
+		 * head.S before we reach here) and by pg_mapkernel(). */
+		kinfo.kaslr_virt_offset = (kinfo.kaslr_seed & 0x1FF) * X86_64_BIG_PAGE_SIZE;
+
+#if defined(KASLR_PIE) && KASLR_PIE == 1
+		{
+			char dbg[128];
+			snprintf(dbg, sizeof(dbg),
+				"KASLR: PIE build, virt_offset=0x%lx\n",
+				(unsigned long)kinfo.kaslr_virt_offset);
+			/* Only print non-zero offset */
+			if (kinfo.kaslr_virt_offset != 0)
+				direct_print(dbg);
+		}
+#endif
+	} else {
+		direct_print("KASLR: RDRAND not available, KASLR disabled\n");
+	}
+#else
+	/* KASLR not enabled — seed stays 0 from BSS init */
+#endif
+
+	/* Store the computed virt_offset in the unpaged data slot
+	 * so head.S can read it for the second apply_relocations() call. */
+	kaslr_virt_offset_slot = kinfo.kaslr_virt_offset;
+
 	pg_clear();
 	pg_identity(&kinfo);
-	kinfo.freepde_start = pg_mapkernel();
+	/* Pass virt_offset to pg_mapkernel so it maps BOTH the linked
+	 * VMA (for current execution) and the new VMA (for post-relocation).
+	 * If offset is 0, only the linked VMA is mapped (no KASLR). */
+	kinfo.freepde_start = pg_mapkernel(kinfo.kaslr_virt_offset);
 	pg_load();
 	vm_enable_paging();
 

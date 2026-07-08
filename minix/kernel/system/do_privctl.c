@@ -13,6 +13,8 @@
 #include <signal.h>
 #include <string.h>
 #include <minix/endpoint.h>
+#include <minix/capability.h>
+#include <minix/mac.h>
 
 #if USE_PRIVCTL
 
@@ -84,6 +86,18 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	return(OK);
 
   case SYS_PRIV_SET_SYS:
+	/* MAC check for privilege setting. */
+	{
+		mac_context_t mac_ctx;
+		memset(&mac_ctx, 0, sizeof(mac_ctx));
+		mac_ctx.privctl.mac_caller = caller->p_endpoint;
+		mac_ctx.privctl.mac_target = rp->p_endpoint;
+		mac_ctx.privctl.mac_request = SYS_PRIV_SET_SYS;
+		if (mac_kernel_check(MAC_PRIVCTL_SET_SYS, &mac_ctx) != MAC_ALLOW) {
+			return EPERM;
+		}
+	}
+
 	/* Set a privilege structure of a blocked system process. */
 	if (! RTS_ISSET(rp, RTS_NO_PRIV)) return(EPERM);
 
@@ -156,6 +170,15 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	priv(rp)->s_nr_io_range= 0;
 	priv(rp)->s_nr_mem_range= 0;
 	priv(rp)->s_nr_irq= 0;
+
+	/* Initialize capabilities.
+	 * System processes start with base capabilities.
+	 * The caller (RS) will set the actual capabilities later via
+	 * SYS_CAPCTL or by providing a privilege structure with caps set.
+	 */
+	priv(rp)->s_cap_effective = CAP_BASE;
+	priv(rp)->s_cap_permitted = CAP_BASE;
+	priv(rp)->s_cap_bound = CAP_FULL;
 	priv(rp)->s_grant_table= 0;
 	priv(rp)->s_grant_entries= 0;
 	priv(rp)->s_grant_endpoint = rp->p_endpoint;
@@ -181,6 +204,11 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	 * process all the user processes share.
 	 */
 	priv(rp) = priv_addr(USER_PRIV_ID);
+
+	/* User processes get minimal capabilities. */
+	priv(rp)->s_cap_effective = CAP_BASE;
+	priv(rp)->s_cap_permitted = CAP_BASE;
+	priv(rp)->s_cap_bound = CAP_BASE;
 
 	return(OK);
 
@@ -363,6 +391,17 @@ static int update_priv(struct proc *rp, struct priv *priv)
   /* Copy kernel call mask. */
   memcpy(priv(rp)->s_k_call_mask, priv->s_k_call_mask,
   	sizeof(priv(rp)->s_k_call_mask));
+
+  /* Copy capability sets if caller provided them.
+   * Caps can only be a subset of the existing bounding set.
+   */
+  if (priv->s_cap_effective != 0 || priv->s_cap_permitted != 0) {
+	uint64_t new_eff = priv->s_cap_effective & priv(rp)->s_cap_bound;
+	uint64_t new_perm = priv->s_cap_permitted & priv(rp)->s_cap_bound;
+
+	priv(rp)->s_cap_effective = new_eff;
+	priv(rp)->s_cap_permitted = new_perm;
+  }
 
   return OK;
 }

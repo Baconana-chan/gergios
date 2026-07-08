@@ -33,6 +33,7 @@ typedef u64_t pt_entry_t;
 #define PTF_USER	X86_64_VM_USER
 #define PTF_GLOBAL	X86_64_VM_GLOBAL
 #define PTF_NOCACHE	(X86_64_VM_PWT | X86_64_VM_PCD)
+#define PTF_NX		X86_64_VM_NX		/* No-Execute (bit 63) */
 
 #define ARCH_VM_DIR_ENTRIES	X86_64_VM_DIR_ENTRIES   /* 512 */
 #define ARCH_BIG_PAGE_SIZE	X86_64_BIG_PAGE_SIZE    /* 2MB */
@@ -50,7 +51,7 @@ typedef u64_t pt_entry_t;
 /* For arch-specific PT routines to check if no bits outside
  * the regular flags are set.
  */
-#define PTF_ALLFLAGS   (PTF_READ|PTF_WRITE|PTF_PRESENT|PTF_USER|PTF_GLOBAL|PTF_NOCACHE)
+#define PTF_ALLFLAGS   (PTF_READ|PTF_WRITE|PTF_PRESENT|PTF_USER|PTF_GLOBAL|PTF_NOCACHE|PTF_NX)
 
 /* x86_64 page fault error code decoding */
 #define PFERR_NOPAGE(e)	(!((e) & X86_64_VM_PFE_P))

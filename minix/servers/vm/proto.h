@@ -79,6 +79,7 @@ int do_munmap(message *msg);
 int do_map_phys(message *msg);
 int do_unmap_phys(message *msg);
 int do_remap(message *m);
+int do_mprotect(message *m);
 int do_get_phys(message *m);
 int do_get_refcount(message *m);
 int do_vfs_mmap(message *m);

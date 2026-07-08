@@ -23,3 +23,4 @@
 #define KW_NET		"net"	/* ethernet driver type */
 #define KW_DESCR	"descr"	/* human-readable string */
 #define KW_DOMAIN	"domain"	/* socket domain (protocol family) */
+#define KW_CAPABILITIES	"capabilities"	/* capability set (libcap names) */

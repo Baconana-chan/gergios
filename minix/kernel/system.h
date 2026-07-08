@@ -211,5 +211,19 @@ int do_setscheduler(struct proc * caller, message *m_ptr);
 #define do_setscheduler NULL
 #endif
 
+int do_capctl(struct proc * caller, message *m_ptr);
+#if ! USE_CAPCTL
+#define do_capctl NULL
+#endif
+
+int do_audit(struct proc * caller, message *m_ptr);
+#if ! USE_AUDIT
+#define do_audit NULL
+#endif
+
+/* MAC (Mandatory Access Control) hooks. */
+int mac_kernel_check(int what, void *ctx);
+void mac_hook_init(void);
+
 #endif	/* SYSTEM_H */
 

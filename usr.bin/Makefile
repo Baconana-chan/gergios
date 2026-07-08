@@ -5,6 +5,7 @@
 
 SUBDIR= asa \
 	banner basename \
+	capsh \
 	bzip2 bzip2recover cal calendar \
 	checknr chpass cksum cmp col colcrt colrm \
 	column comm csplit ctags cut \

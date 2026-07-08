@@ -23,6 +23,7 @@ SRCS+= 	\
 	do_memset.c \
 	do_setgrant.c \
 	do_privctl.c \
+	mac_hooks.c \
 	do_safecopy.c \
 	do_safememset.c \
 	do_diagctl.c \

@@ -598,55 +598,88 @@ For full details, see:
 
 ---
 
-### 6. Security Model Modernization — 🟡 Planned for 1.0
+### 6. Security Model Modernization — 🟡 Planning complete (26) — 1.0+ target
 
 #### Current State
-- Unix-style permissions
-- No capability-based security
-- No mandatory access control
+- **Unix discretionary access control** (DAC) — uid/gid/permission bits для файлов
+- **Privilege system**: `sys_privctl()`, `struct priv`, `system.conf` — IPC/kernel-call/resource masks per system service
+- **RS IPC filtering**: whitelist-based `rs_ipc_filter_el`, `system.conf` `ipc`/`system`/`vm`/`io`/`irq` directives
+- **devman**: Device ownership with endpoints, BIND/UNBIND via IPC
+- **No capability-based security** (beyond system.conf static config)
+- **No mandatory access control (MAC)**
+- **No audit framework**
+- **No secure/measured boot**
+- **No TPM integration**
 
 #### Target State
-- Capability-based security
-- SELinux/AppArmor equivalent
-- Enhanced memory safety
-- **Full security audit** перед релизом (см. ROADMAP.md)
+- **Refined capability model**: Extend existing `system.conf` + `priv` into a full capability framework
+- **MAC framework**: Optional LSM-style hooks for SELinux-like policy enforcement
+- **Enhanced memory safety**: W^X, CFI, KASLR, sanitizer coverage
+- **Audit subsystem**: Unified audit log for security-relevant events
+- **Full security audit** перед 1.0 release
 
 #### Migration Steps
 
-**Phase 1: Design**
-- [ ] Design capability-based security model
-- [ ] Design MAC framework
-- [ ] Plan migration strategy
-- [ ] Evaluate existing frameworks
+**Phase 1: Foundation Audit & Quick Wins**
+- [x] Audit existing privilege model (priv.h, sys_privctl, system.conf, RS IPC filters) ✅
+- [x] Document current capabilities: `priv.h` flags (SYS_PROC, PREEMPTIBLE, VM_SYS_PROC, etc.), 
+      `system.conf` directives (ipc ALL/ALL_SYS/NONE/label, system ALL/BASIC/list, vm, io, irq),
+      RS `check_call_permission()` (root + control label), `add_forward_ipc`/`add_backward_ipc`
+- [x] W^X enforcement audit — verify kernel pages are NX, stack is non-executable ✅
+- [x] Stack canary verification — verify `-fstack-protector` flags across all builds ✅
 
-**Phase 2: Foundation**
-- [ ] Implement capability system
-- [ ] Implement MAC framework
-- [ ] Update kernel for security
-- [ ] Update servers for security
+**Phase 2: Capability Model Refinement**
+- [ ] Extend `system.conf` syntax:
+  - `capabilities` directive instead of flat `ipc`/`system`/`vm`/`io`/`irq`
+  - Named capability sets (e.g., `capability NET_ADMIN`, `capability SYS_RAWIO`)
+  - Capability inheritance rules for fork/exec
+- [ ] Add runtime capability query API — `cap_get_proc()`, `cap_set_proc()`
+- [ ] Add kernel-level capability enforcement in IPC hot paths
+- [ ] Add capability-aware audit logging
 
-**Phase 3: Integration**
-- [ ] Integrate with filesystem
-- [ ] Integrate with IPC
-- [ ] Integrate with drivers
-- [ ] Update userland tools
+**Phase 3: MAC Framework**
+- [ ] Design LSM-style hook points for MAC enforcement
+  - File open, IPC send, socket bind/connect, device access
+- [ ] Implement optional MAC module loader
+- [ ] Create reference policy (SELinux-policy-like)
+- [ ] Integrate with existing RS isolation policies
+- [ ] Add policy compilation tool (policy.language → binary policy)
 
-**Phase 4: Testing — Full Security Audit**
-- [ ] Аудит всей кодовой базы перед 1.0 release
-- [ ] Security testing
-- [ ] Performance testing
-- [ ] Compatibility testing
-- [ ] Documentation
+**Phase 4: Memory Safety Hardening**
+- [ ] KASLR — kernel address space layout randomization for x86_64
+- [ ] CFI — `-fsanitize=cfi` for Clang builds (already in LLVM tree)
+- [ ] W^X enforcement: map_pages() audit, no RWX pages
+- [ ] SafeStack — `-fsanitize=safe-stack` (already in LLVM)
+- [ ] ShadowCallStack for ARM64
+
+**Phase 5: Audit & Monitoring**
+- [ ] Create kernel audit event log (syslog + structured binary log)
+- [ ] Audit IPC messages (source, type, result)
+- [ ] Audit privilege changes (sys_privctl calls)
+- [ ] Audit device access (devman bind/unbind)
+- [ ] `auditctl`-like tool for runtime audit policy configuration
+- [ ] Log rotation and secure storage for audit trails
+
+**Phase 6: Integration Testing & Documentation**
+- [ ] Integration tests: capability policy loading, MAC enforcement, audit events
+- [ ] Performance benchmarks: measure overhead of capability checks, MAC hooks
+- [ ] Security audit of RS, devman, VFS, PM, kernel sys_privctl
+- [ ] Documentation: `docs/security-model.md`, `man 5 system.conf` (capabilities extended)
 
 #### Dependencies
-- C language modernization (for memory safety) ✅
-- Architecture migration ✅
+- Architecture migration ✅ (x86_64, ARM64)
+- C language modernization ✅ (C17 + Rust)
+- Build system migration ✅ (CMake + Ninja)
+- Driver model modernization ✅
 
 #### Risks
-- Complex security model
-- Performance impact
-- Compatibility issues
-- Learning curve
+- **Performance**: Capability checks in IPC hot path add latency (mitigation: inline checks for common paths)
+- **Complexity**: MAC policy language design is hard (mitigation: start simple, iterate)
+- **ABI breakage**: Capability API changes may break existing services (mitigation: backward-compat shim)
+- **Toolchain**: CFI/SafeStack requires Clang (mitigation: GCC fallback without CFI)
+
+#### Подробнее
+`planning/26_security_model_modernization.md` — полный план, LOC estimates, архитектура, design decisions.
 
 
 ---

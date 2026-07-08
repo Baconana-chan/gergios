@@ -654,8 +654,8 @@ rust/
 |--------|---------|
 | **tcpdump -i any** | Реализован: BPF any-list, cooked header (20 байт), "any" binding. ✅ |
 | **pcapng format** | Реализован: SHB+IDB+EPB writer, pcapng CLI tool. ✅ |
-| **WireShark rpcap** | Специфичный протокол, не критичен. |
-| **Performance alerts** | Требует интеграции с системой логирования. |
+| **WireShark rpcap** | Реализован: rpcapd daemon (TCP port 2002), AUTH/FINDALLIF/OPEN/STARTCAP/PACKET. ✅ |
+| **Performance alerts** | Реализован: syslog-based alerts с cooldown, 5 типов, RMIB config. ✅ |
 
 #### Phase 5 summary
 
@@ -690,11 +690,11 @@ rust/
 - [ ] **Long-running stability test**:
   - 48-hour iperf3 + ping + curl
   - Проверка: no memory leaks, no crashes, no packet loss growth
-- [ ] **Документация**:
-  - **`docs/networking-guide.md`** — настройка сети, интерфейсы, маршрутизация
-  - **`docs/network-architecture.md`** — архитектура lwIP service, IPC
-  - **`docs/network-performance.md`** — тюнинг производительности, буферы
-  - **`docs/network-security.md`** — firewall, WireGuard, IPsec
+- [x] **Документация**:
+  - **`docs/networking-guide.md`** — настройка сети, интерфейсы, маршрутизация ✅
+  - **`docs/network-architecture.md`** — архитектура lwIP service, IPC ✅
+  - **`docs/network-performance.md`** — тюнинг производительности, буферы ✅
+  - **`docs/network-security.md`** — firewall, WireGuard, IPsec ✅
 - [ ] **Примеры конфигурации**:
   - Статический IP + DHCP fallback
   - Мост (bridge) между e1000 и tap интерфейсом
@@ -836,8 +836,8 @@ rust/
 **Для 1.2 (Phases 5-6)**:
 - [x] Расширенная статистика (netstat -s, per-interface counters) ✅
 - [ ] 48-hour stability test PASS
-- [ ] Network documentation complete
-- [ ] Performance tuning guide
+- [x] Network documentation complete ✅
+- [x] Performance tuning guide ✅
 
 ---
 

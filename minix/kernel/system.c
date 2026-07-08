@@ -270,6 +270,12 @@ void system_init(void)
   /* RT scheduling */
   map(SYS_SETSCHEDULER, do_setscheduler); /* set scheduling class */
 
+  /* Capability control */
+  map(SYS_CAPCTL, do_capctl);		/* capability control */
+
+  /* Audit */
+  map(SYS_AUDIT, do_audit);		/* audit retrieval */
+
 }
 /*===========================================================================*
  *				get_priv				     *

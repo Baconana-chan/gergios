@@ -40,6 +40,8 @@
 #include "arch_proto.h"
 #include "sched_rt.h"
 #include <minix/syslib.h>
+#include <minix/capability.h>
+#include <minix/mac.h>
 
 /*
  * Kernel stub for __sigemptyset14.
@@ -561,13 +563,30 @@ static int do_sync_ipc(struct proc * caller_ptr, /* who made the call */
 		return EDEADSRCDST;
 	}
 
-	/* If the call is to send to a process, i.e., for SEND, SENDNB,
-	 * SENDREC or NOTIFY, verify that the caller is allowed to send to
-	 * the given destination. 
+	/* MAC check for IPC send operations.
+	 * If a MAC hook is registered, it can deny the IPC even if the
+	 * IPC mask and capabilities allow it.
 	 */
 	if (call_nr != RECEIVE)
 	{
-		if (!may_send_to(caller_ptr, src_dst_p)) {
+		mac_context_t mac_ctx;
+		memset(&mac_ctx, 0, sizeof(mac_ctx));
+		mac_ctx.ipc.mac_src = caller_ptr->p_endpoint;
+		mac_ctx.ipc.mac_dst = src_dst_e;
+		mac_ctx.ipc.mac_call_nr = call_nr;
+		if (mac_kernel_check(MAC_IPC_SEND, &mac_ctx) != MAC_ALLOW) {
+#if DEBUG_ENABLE_IPC_WARNINGS
+			printf(
+			"sys_call: MAC denied %s from %d to %d\n",
+				callname,
+				caller_ptr->p_endpoint, src_dst_e);
+#endif
+			return(ECALLDENIED);
+		}
+
+		/* Check IPC mask (CAP_IPC_OWNER bypasses). */
+		if (!(priv(caller_ptr)->s_cap_effective & CAP_IPC_OWNER) &&
+		    !may_send_to(caller_ptr, src_dst_p)) {
 #if DEBUG_ENABLE_IPC_WARNINGS
 			printf(
 			"sys_call: ipc mask denied %s from %d to %d\n",

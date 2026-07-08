@@ -47,6 +47,8 @@
 #define USE_MCONTEXT       1	/* enable getting/setting of machine context */
 
 #define USE_SETSCHEDULER   1	/* set scheduling class (RT priority) */
+#define USE_CAPCTL         1	/* capability control (SYS_CAPCTL) */
+#define USE_AUDIT          1	/* audit subsystem (SYS_AUDIT) */
 
 #if defined(__arm__)
 #define USE_PADCONF        1	/* configure pinmux */

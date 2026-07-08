@@ -47,6 +47,35 @@ typedef struct kinfo {
 	int vm_allocated_bytes; /* allocated by kernel to load vm */
 	int kernel_allocated_bytes;		/* used by kernel */
 	int kernel_allocated_bytes_dynamic;	/* used by kernel (runtime) */
+
+	/* KASLR: random seed from RDRAND at boot, 0 if not enabled.
+	 * Used to randomize kernel layout, pagetable placement,
+	 * stack positions, and for user-space ASLR entropy.
+	 * Written once during pre_init/limine_pre_init.
+	 */
+	u64_t kaslr_seed;
+
+	/* KASLR: physical offset applied by bootloader.
+	 * If the bootloader loaded the kernel at a different physical
+	 * address than the linked _kern_phys_base (0x100000), this
+	 * field contains the difference: actual_phys - linked_phys.
+	 * Zero when KASLR is not active or bootloader doesn't support
+	 * physical randomization. Written during limine_pre_init().
+	 * Used by pg_mapkernel() to map the kernel at its actual
+	 * physical location, and by VM for user-space ASLR.
+	 */
+	u64_t kaslr_phys_offset;
+
+	/* KASLR: virtual address offset for Virtual KASLR (Phase 3).
+	 * When compiling with -fPIE -pie and processing relocations at
+	 * boot, the kernel can run at a different virtual address than
+	 * linked. This field stores the offset: new_virt_base -
+	 * linked_virt_base. Zero when KASLR is not enabled, or when the
+	 * PIE infrastructure is active but VMA randomization is deferred.
+	 * Computed from kaslr_seed during pre_init/limine_pre_init.
+	 * Used by apply_relocations() and pg_mapkernel().
+	 */
+	u64_t kaslr_virt_offset;
 } kinfo_t;
 #endif /* _MINIX_SYSTEM */
 #endif

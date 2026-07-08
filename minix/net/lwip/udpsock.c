@@ -7,6 +7,7 @@
 #include "lwip/udp.h"
 #include "lwip_dtls.h"
 #include "latency.h"
+#include "perf_alerts.h"
 
 #include <netinet/udp.h>
 #include <netinet/ip_var.h>
@@ -620,7 +621,12 @@ udpsock_send(struct sock * sock, const struct sockdriver_data * data,
 		err = udp_sendto_if_src(udp->udp_pcb, pbuf, dst_addrp, dst_port,
 		    ifdev_get_netif(ifdev), src_addrp);
 
-		latency_record(&latency_udp_send, (sys_now() * 1000) - __us);
+		{
+			uint32_t __elapsed = (sys_now() * 1000) - __us;
+
+			perf_alerts_latency(__elapsed);
+			latency_record(&latency_udp_send, __elapsed);
+		}
 	}
 
 	udpsock_swap_opt(udp, &pktopt);

@@ -11,8 +11,8 @@ cmake_minimum_required(VERSION 3.20)
 
 # ─── Sources (lib/librefuse/) ──────────────────────────────────────
 set(REFUSE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/librefuse/refuse.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/librefuse/refuse_opt.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/librefuse/refuse.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/librefuse/refuse_opt.c
 )
 
 # ─── Library target ────────────────────────────────────────────────
@@ -22,7 +22,7 @@ add_library(librefuse STATIC
 
 # ─── Include paths ─────────────────────────────────────────────────
 target_include_directories(librefuse PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/librefuse
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/librefuse
 )
 
 # ─── Link dependencies ─────────────────────────────────────────────

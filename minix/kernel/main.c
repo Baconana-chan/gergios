@@ -15,6 +15,7 @@
 #include <machine/vmparam.h>
 #include <minix/u64.h>
 #include <minix/board.h>
+#include <minix/capability.h>
 #include <sys/reboot.h>
 #include "clock.h"
 #include "direct_utils.h"
@@ -141,6 +142,23 @@ void kmain(kinfo_t *local_cbi)
   /* Kernel may use bits of main memory before VM is started */
   kernel_may_alloc = 1;
 
+#if defined(KASLR) && KASLR == 1
+  /* Unmap the temporary linked VMA after KASLR has relocated the kernel.
+   * This closes a window where an attacker could use the known linked
+   * virtual address to access kernel memory. Only the randomized VMA
+   * remains mapped from now on.
+   *
+   * Only do this if KASLR actually moved the VMA (offset != 0).
+   * If offset is 0 (RDRAND failed, seed was zero), the linked VMA
+   * is the only mapping — unmapping it would crash the kernel.
+   */
+  if (kinfo.kaslr_virt_offset != 0) {
+	extern char _kern_vir_base, _kern_size;
+	pg_unmap_linked_vma((vir_bytes)&_kern_vir_base,
+		(vir_bytes)&_kern_size);
+  }
+#endif
+
   assert(sizeof(kinfo.boot_procs) == sizeof(image));
   memcpy(kinfo.boot_procs, image, sizeof(kinfo.boot_procs));
 
@@ -230,10 +248,26 @@ void kmain(kinfo_t *local_cbi)
                 kcalls = SRV_KC;                  /* allowed kernel calls */
                 priv(rp)->s_sig_mgr = SRV_SM;     /* signal manager */
                 rp->p_priority = SRV_Q;	          /* priority queue */
-                rp->p_quantum_size_ms = SRV_QT;   /* quantum size */
-            }
+                rp->p_quantum_size_ms = SRV_QT;   /* quantum size */	    /* Initialize capabilities for schedulable boot processes.
+	     * Kernel tasks get CAP_FULL (they need everything).
+	     * Root system process (RS) gets CAP_FULL as well — RS
+	     * will later set appropriate caps for other services.
+	     */
+	    if (iskerneln(proc_nr)) {
+		priv(rp)->s_cap_effective = CAP_FULL;
+		priv(rp)->s_cap_permitted = CAP_FULL;
+		priv(rp)->s_cap_bound = CAP_FULL;
+	    } else if (isrootsysn(proc_nr)) {
+		priv(rp)->s_cap_effective = CAP_FULL;
+		priv(rp)->s_cap_permitted = CAP_FULL;
+		priv(rp)->s_cap_bound = CAP_FULL;
+	    } else if (proc_nr == VM_PROC_NR) {
+		priv(rp)->s_cap_effective = CAP_FULL;
+		priv(rp)->s_cap_permitted = CAP_FULL;
+		priv(rp)->s_cap_bound = CAP_FULL;
+	    }
 
-            /* Fill in target mask. */
+	    /* Fill in target mask. */
             memset(&map, 0, sizeof(map));
 
             if (ipc_to_m == ALL_M) {

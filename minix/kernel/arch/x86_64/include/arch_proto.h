@@ -213,7 +213,8 @@ void pg_clear(void);
 void pg_identity(kinfo_t *);
 phys_bytes pg_load(void);
 void pg_map(phys_bytes phys, vir_bytes vaddr, vir_bytes vaddr_end, kinfo_t *cbi);
-int pg_mapkernel(void);
+int pg_mapkernel(u64_t virt_offset);
+void pg_unmap_linked_vma(vir_bytes vaddr, vir_bytes len);
 void pg_mapproc(struct proc *p, struct boot_image *ip, kinfo_t *cbi);
 
 /* gate table for IDT init */

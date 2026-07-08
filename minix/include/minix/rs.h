@@ -148,6 +148,10 @@ struct rs_start
 	 * non-smp sysytems
 	 */
 	int rss_cpu;
+
+	/* Capability-based security. */
+	uint64_t rss_cap_effective;
+	uint64_t rss_cap_permitted;
 };
 
 /* ACL information for access to PCI devices */

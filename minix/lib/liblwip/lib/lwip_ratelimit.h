@@ -89,6 +89,19 @@ void lwip_rate_limiter_init(struct lwip_rate_limiter *rl,
 int lwip_rate_limiter_check(struct lwip_rate_limiter *rl);
 
 /**
+ * Callback type for rate-limit drop notifications.
+ * Called when a packet is dropped due to rate limiting.
+ * The 'type' parameter identifies which limiter triggered (0=ICMP, 1=ARP, 2=NDP).
+ */
+typedef void (*lwip_ratelimit_alert_cb_t)(int type);
+
+/**
+ * Register a callback function that is invoked whenever a packet
+ * is dropped due to rate limiting.  Pass NULL to disable.
+ */
+void lwip_ratelimit_set_alert_cb(lwip_ratelimit_alert_cb_t cb);
+
+/**
  * Initialize all rate limiters.  Called during lwIP service init.
  */
 void lwip_ratelimit_init(void);

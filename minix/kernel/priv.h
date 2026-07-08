@@ -58,6 +58,11 @@ struct priv {
 
   int s_nr_irq;			/* allowed IRQ lines */
   int s_irq_tab[NR_IRQ];
+
+  /* Capability sets (Phase 2 Security Model). */
+  uint64_t s_cap_effective;	/* currently effective capabilities */
+  uint64_t s_cap_permitted;	/* permitted capabilities (superset) */
+  uint64_t s_cap_bound;	/* immutable bounding set */
   vir_bytes s_grant_table;	/* grant table address of process, or 0 */
   int s_grant_entries;		/* no. of entries, or 0 */
   endpoint_t s_grant_endpoint;  /* the endpoint the grant table belongs to */

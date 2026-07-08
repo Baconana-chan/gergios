@@ -6,6 +6,7 @@ SUBDIR+=	eepromread
 
 SUBDIR+=	netstat
 SUBDIR+=	pcapng
+SUBDIR+=	rpcapd
 SUBDIR+=	diff
 SUBDIR+=	grep
 SUBDIR+=	mined

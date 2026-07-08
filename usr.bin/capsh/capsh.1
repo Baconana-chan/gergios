@@ -1,0 +1,100 @@
+.\" $GergiOS$
+.Dd July 9, 2026
+.Dt CAPSH 1
+.Os GergiOS
+.Sh NAME
+.Nm capsh
+.Nd view and modify process capabilities
+.Sh SYNOPSIS
+.Nm
+.Fl -get
+.Nm
+.Fl -bound
+.Nm
+.Fl -set Ns = Ns Ar cap_list
+.Nm
+.Fl -decode Ns = Ns Ar hex
+.Nm
+.Fl -list
+.Nm
+.Fl -help
+.Sh DESCRIPTION
+The
+.Nm
+utility displays and modifies the capability sets of the calling process.
+.Pp
+Capabilities are named privileges that control access to sensitive
+operations (I/O ports, IRQ allocation, filesystem mount, etc.).
+See
+.Xr capabilities 7
+for a complete list.
+.Pp
+The following options are available:
+.Bl -tag -width "-set=cap_list"
+.It Fl -get
+Display the effective capability set of the current process as a hex
+mask and a list of capability names.
+.It Fl -bound
+Display the bounding set (the immutable upper limit on capabilities
+that may ever be granted to this process).
+.It Fl -set Ns = Ns Ar cap_list
+Set the effective capability set to the specified capabilities.
+.Ar cap_list
+is a comma-separated list of capability names
+(e.g.,
+.Li IPC_OWNER,NET_BIND )
+or a hex mask
+(e.g.,
+.Li 0x44 ) .
+.It Fl -decode Ns = Ns Ar hex
+Decode a hex capability mask into human-readable capability names
+without modifying any process state.
+.It Fl -list
+List all known capabilities with their names, bit positions, and masks,
+as well as the predefined capability sets
+.Pq CAP_BASE , CAP_SYSTEM , CAP_DRIVER , CAP_NETWORK , CAP_ADMIN , CAP_FULL .
+.It Fl -help
+Print a usage message and exit.
+.El
+.Pp
+Only one of
+.Fl -get ,
+.Fl -bound ,
+.Fl -set ,
+.Fl -decode ,
+or
+.Fl -list
+may be specified at a time.
+.Sh EXAMPLES
+.Bd -literal
+$ capsh --get
+effective    0x0044  (IPC_OWNER,NET_BIND)
+
+$ capsh --bound
+bounding     0x1fff  (SYS_RAWIO,NET_RAW,NET_BIND,NET_ADMIN,SYS_ADMIN,...)
+
+$ capsh --set=IPC_OWNER,NET_BIND
+capabilities set: 0x0044
+
+$ capsh --decode=0x1fff
+decode       0x1fff  (SYS_RAWIO,NET_RAW,NET_BIND,NET_ADMIN,SYS_ADMIN,...)
+
+$ capsh --list
+Known capabilities (13 total):
+  Name                  Bit    Mask
+  ----                  ---    ----
+  SYS_RAWIO             bit 0  0x0001
+  NET_RAW               bit 1  0x0002
+  ...
+.Ed
+.Sh DIAGNOSTICS
+.Ex -std
+.Sh SEE ALSO
+.Xr cap_get_proc 2 ,
+.Xr cap_set_proc 2 ,
+.Xr cap_get_bound 2 ,
+.Xr capabilities 7
+.Sh HISTORY
+The
+.Nm
+utility first appeared in GergiOS.

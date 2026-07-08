@@ -239,6 +239,68 @@ phys_bytes pg_alloc_page(kinfo_t *cbi)
 	panic("can't find free memory");
 }
 
+/*===========================================================================*
+ *                        pg_alloc_page_random                                *
+ *===========================================================================*/
+/* Allocate one page from a random memory region, using the KASLR seed.
+ * If the seed is 0 (KASLR not enabled), falls back to pg_alloc_page().
+ * Uses a simple xorshift64 PRNG seeded with kinfo.kaslr_seed, updating
+ * the seed in kinfo for subsequent calls to get different regions.
+ *
+ * This makes the physical page allocation pattern unpredictable,
+ * complicating physical-memory-based attacks (DMA, Rowhammer, etc.).
+ *
+ * Called during boot via pg_map(PG_ALLOCATEME) when KASLR is enabled.
+ */
+phys_bytes pg_alloc_page_random(kinfo_t *cbi)
+{
+	int m;
+	int valid_indices[MAXMEMMAP];
+	int n_valid = 0;
+	multiboot_memory_map_t *mmap;
+
+	assert(kernel_may_alloc);
+
+	/* Collect valid (non-empty, large enough) regions */
+	for(m = cbi->mmap_size - 1; m >= 0; m--) {
+		mmap = &cbi->memmap[m];
+		if(!mmap->mm_length || mmap->mm_length < X86_64_PAGE_SIZE)
+			continue;
+		valid_indices[n_valid++] = m;
+	}
+
+	if(n_valid == 0)
+		panic("can't find free memory");
+
+	/* If no seed or only one region, fall back to deterministic top-down */
+	if(cbi->kaslr_seed == 0 || n_valid <= 1) {
+		return pg_alloc_page(cbi);
+	}
+
+	/* XOR shift PRNG seeded with kaslr_seed */
+	u64_t seed = cbi->kaslr_seed;
+	seed ^= seed << 13;
+	seed ^= seed >> 7;
+	seed ^= seed << 17;
+
+	/* Pick random region */
+	int pick = (unsigned int)(seed % n_valid);
+	m = valid_indices[pick];
+
+	/* Update seed for subsequent calls */
+	cbi->kaslr_seed = seed;
+
+	mmap = &cbi->memmap[m];
+	assert(mmap->mm_length >= X86_64_PAGE_SIZE);
+	assert(!(mmap->mm_length % X86_64_PAGE_SIZE));
+	assert(!(mmap->mm_base_addr % X86_64_PAGE_SIZE));
+
+	mmap->mm_length -= X86_64_PAGE_SIZE;
+	cbi->kernel_allocated_bytes_dynamic += X86_64_PAGE_SIZE;
+
+	return mmap->mm_base_addr + mmap->mm_length;
+}
+
 void pg_identity(kinfo_t *cbi)
 {
 	uint32_t i;
@@ -260,14 +322,19 @@ void pg_identity(kinfo_t *cbi)
         }
 }
 
-int pg_mapkernel(void)
+int pg_mapkernel(u64_t virt_offset)
 {
-	int pde;
+	int pde, new_pde;
 	u64_t mapped = 0, kern_phys = kern_phys_start;
 
 	pg_utils_init_if_needed();
         assert(!(kern_vir_start % X86_64_BIG_PAGE_SIZE));
         assert(!(kern_phys % X86_64_BIG_PAGE_SIZE));
+
+	/* First pass: map kernel at linked VMA.
+	 * This mapping is temporary — the kernel executes from
+	 * this VMA during pre_init/limine_pre_init. It will be
+	 * replaced after relocation processing with the new VMA. */
         pde = kern_vir_start / X86_64_BIG_PAGE_SIZE;
 	while(mapped < kern_kernlen) {
 	        pagedir[pde] = kern_phys | X86_64_VM_PRESENT |
@@ -276,6 +343,27 @@ int pg_mapkernel(void)
 		kern_phys += X86_64_BIG_PAGE_SIZE;
 		pde++;
 	}
+
+	/* Second pass: if virtual offset is non-zero, also map
+	 * kernel at the new VMA (linked_VMA + offset).
+	 * After relocation processing, all absolute addresses
+	 * reference this new VMA. Both VMAs are mapped so the
+	 * long jump from linked to new VMA works seamlessly. */
+	if (virt_offset != 0) {
+		u64_t new_vir_start = kern_vir_start + virt_offset;
+		u64_t new_mapped = 0;
+		u64_t new_phys = kern_phys_start;
+
+		new_pde = new_vir_start / X86_64_BIG_PAGE_SIZE;
+		while (new_mapped < kern_kernlen) {
+			pagedir[new_pde] = new_phys | X86_64_VM_PRESENT |
+				X86_64_VM_BIGPAGE | X86_64_VM_WRITE;
+			new_mapped += X86_64_BIG_PAGE_SIZE;
+			new_phys += X86_64_BIG_PAGE_SIZE;
+			new_pde++;
+		}
+	}
+
 	return pde;
 }
 
@@ -380,4 +468,39 @@ void pg_info(phys_bytes *pagedir_ph, u64_t **pagedir_v)
 {
 	*pagedir_ph = vir2phys(pagedir);
 	*pagedir_v = pagedir;
+}
+
+/*===========================================================================*
+ *                        pg_unmap_linked_vma                                 *
+ *===========================================================================*/
+/* Remove the temporary linked (fixed) VMA mapping after KASLR has relocated
+ * the kernel to a new virtual address. This is a security measure — after
+ * VMA randomization (Phase 3), the old fixed VMA should be unmapped so
+ * attackers cannot use the known linked address to access kernel memory.
+ *
+ * Called from kmain() early in boot, after the relocation jump to the new
+ * VMA has completed. Clears all PDE entries covering the linked VMA range
+ * and performs a full TLB flush via CR3 reload.
+ *
+ * Parameters:
+ *   vaddr — linked virtual base address (e.g., 0xFFFF8000F0100000)
+ *   len   — total size of kernel image (from _kern_size)
+ */
+void pg_unmap_linked_vma(vir_bytes vaddr, vir_bytes len)
+{
+	int pde_start, pde_count, i;
+
+	if (len == 0)
+		return;
+
+	pde_start = vaddr / X86_64_BIG_PAGE_SIZE;
+	pde_count = (len + X86_64_BIG_PAGE_SIZE - 1) / X86_64_BIG_PAGE_SIZE;
+
+	/* Clear all PDEs for the linked VMA range */
+	for (i = 0; i < pde_count; i++) {
+		pagedir[pde_start + i] = 0;
+	}
+
+	/* Full TLB flush by reloading CR3 */
+	__asm__ volatile("mov %0, %%cr3" : : "r" (read_cr3()) : "memory");
 }

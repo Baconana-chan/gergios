@@ -40,7 +40,7 @@ void add_memmap(kinfo_t *cbi, u64_t addr, u64_t len);
 void cut_memmap(kinfo_t *cbi, phys_bytes start, phys_bytes end);
 void pg_clear(void);
 void pg_identity(kinfo_t *);
-int pg_mapkernel(void);
+int pg_mapkernel(u64_t virt_offset);
 phys_bytes pg_load(void);
 void vm_enable_paging(void);
 
@@ -417,6 +417,39 @@ void limine_get_parameters(kinfo_t *cbi)
 		/* HHDM offset is available if needed */
 	}
 
+	/* =================================================================
+	 * 7. KASLR: read actual physical base from Limine
+	 *
+	 * If the bootloader's limine.conf has `kaslr=yes` and the kernel
+	 * is a relocatable ELF, Limine loads the kernel at a random
+	 * physical address. We read the actual physical base from the
+	 * kernel address response and compute the offset.
+	 *
+	 * For the current non-PIE kernel, this offset will be 0 because
+	 * Limine only relocates PIE ELFs. The field is stored for:
+	 *   a) Phase 3 (PIE kernel + relocation processing)
+	 *   b) User-space ASLR entropy via VM server
+	 * =================================================================
+	 */
+	cbi->kaslr_phys_offset = 0;
+	if (_limine_kern_addr_req.response) {
+		u64_t actual_phys = _limine_kern_addr_req.response->physical_base;
+		if (actual_phys != kernbase) {
+			cbi->kaslr_phys_offset = actual_phys - kernbase;
+#if LIMINE_VERBOSE
+			{
+				char dbg[256];
+				snprintf(dbg, sizeof(dbg),
+					"KASLR: phys_offset=0x%lx (actual=0x%lx linked=0x%lx)\n",
+					(unsigned long)cbi->kaslr_phys_offset,
+					(unsigned long)actual_phys,
+					(unsigned long)kernbase);
+				direct_print(dbg);
+			}
+#endif
+		}
+	}
+
 #if LIMINE_VERBOSE
 	{
 		char dbg[256];
@@ -426,6 +459,37 @@ void limine_get_parameters(kinfo_t *cbi)
 		direct_print(dbg);
 	}
 #endif
+}
+
+/* Check if RDRAND instruction is available via CPUID.
+ * ECX[30] = RDRAND support bit.
+ */
+static int rdrand_available(void)
+{
+	u32_t eax, ebx, ecx, edx;
+	__asm__("cpuid"
+		: "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+		: "a"(1), "c"(0));
+	return (ecx & (1 << 30)) != 0;
+}
+
+/* Read a 64-bit random value from RDRAND (x86_64 native instruction).
+ * Returns 0 if RDRAND fails (CF=0 after instruction).
+ * Must only be called if rdrand_available() returns true.
+ */
+static u64_t rdrand_read(void)
+{
+	u64_t val;
+	unsigned char ok;
+	/* RDRAND: rdrand %0 → CF=1 if valid, then setc captures CF */
+	__asm__ volatile(
+		"rdrand %0\n\t"
+		"setc %1\n\t"
+		: "=r" (val), "=qm" (ok)
+		:
+		: "cc");
+	if (!ok) return 0;
+	return val;
 }
 
 /* =========================================================================
@@ -438,6 +502,10 @@ void limine_get_parameters(kinfo_t *cbi)
  * so no 32→64 bit transition is needed.
  * =========================================================================
  */
+/* Declared in head.S (.unpaged.data) — read by head.S to get
+ * the computed KASLR virtual offset for the second relocation call. */
+extern u64_t kaslr_virt_offset_slot;
+
 kinfo_t *limine_pre_init(void)
 {
 	/* Re-initialize the kinfo struct */
@@ -447,16 +515,56 @@ kinfo_t *limine_pre_init(void)
 	/* Fill kinfo from Limine responses */
 	limine_get_parameters(&kinfo);
 
+	/* Acquire KASLR entropy from RDRAND if available.
+	 * Falls back to 0 (no randomization) on CPUs without RDRAND
+	 * or if KASLR is not enabled (seed stays 0 from BSS init).
+	 */
+#if defined(KASLR) && KASLR == 1
+	if (rdrand_available()) {
+		kinfo.kaslr_seed = rdrand_read();
+		if (kinfo.kaslr_seed != 0) {
+			direct_print("KASLR: RDRAND seed acquired\n");
+		}
+
+		/* Compute Virtual KASLR offset from seed.
+		 * Same formula as in pre_init.c for the multiboot path:
+		 * offset = (seed & 0x1FF) * 2MB.
+		 * Provides 511 possible 2MB-aligned positions within 1GB. */
+		kinfo.kaslr_virt_offset = (kinfo.kaslr_seed & 0x1FF) * X86_64_BIG_PAGE_SIZE;
+
+		/* Store the computed offset in the unpaged data slot
+		 * so head.S can read it for the second apply_relocations() call. */
+		kaslr_virt_offset_slot = kinfo.kaslr_virt_offset;
+
+#if defined(KASLR_PIE) && KASLR_PIE == 1
+		if (kinfo.kaslr_virt_offset != 0) {
+			char dbg[128];
+			snprintf(dbg, sizeof(dbg),
+				"KASLR: PIE build, virt_offset=0x%lx\n",
+				(unsigned long)kinfo.kaslr_virt_offset);
+			direct_print(dbg);
+		}
+#endif
+	} else {
+		direct_print("KASLR: RDRAND not available, KASLR disabled\n");
+	}
+#else
+	/* KASLR not enabled — seed stays 0 from BSS init */
+#endif
+
 	/* Set up pagetables (shared with multiboot path):
 	 *   1. Clear existing page tables
 	 *   2. Create identity mapping for low memory (unpaged code)
-	 *   3. Map kernel to its high virtual address
+	 *   3. Map kernel to its high virtual address (BOTH linked and new VMA)
 	 *   4. Load the new page tables
 	 *   5. Enable paging
 	 */
 	pg_clear();
 	pg_identity(&kinfo);
-	kinfo.freepde_start = pg_mapkernel();
+	/* Pass virt_offset so pg_mapkernel maps BOTH linked VMA (for current
+	 * execution) and new VMA (for after relocation). If offset is 0,
+	 * only the linked VMA is mapped. */
+	kinfo.freepde_start = pg_mapkernel(kinfo.kaslr_virt_offset);
 	pg_load();
 	vm_enable_paging();
 

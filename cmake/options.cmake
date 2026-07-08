@@ -68,6 +68,30 @@ cmake_dependent_option(USE_MAGIC "Enable MAGIC runtime library" ON
 cmake_dependent_option(USE_ASR "Enable ASR rerandomization" ON
     "MKASR" OFF)
 
+# ============================================================================
+# Phase 4: Memory Safety Hardening options
+# ============================================================================
+
+# Control Flow Integrity (CFI) — requires Clang + LTO
+# Uses -fsanitize=cfi to prevent indirect call hijacking.
+option(SANITIZE_CFI "Enable Control Flow Integrity (-fsanitize=cfi, Clang+LTO)" OFF)
+
+# SafeStack — requires Clang
+# Uses -fsanitize=safe-stack to protect return addresses.
+option(SANITIZE_SAFESTACK "Enable SafeStack (-fsanitize=safe-stack, Clang)" OFF)
+
+# W^X enforcement — reject mmap with both PROT_WRITE and PROT_EXEC
+# This is enforced in the VM server (minix/servers/vm/mmap.c).
+option(ENFORCE_WX "Enable W^X enforcement (reject writable+executable mappings)" ON)
+
+# KASLR — Kernel Address Space Layout Randomization
+# Randomizes kernel base address and layout at boot using RDRAND entropy.
+# Requires RDRAND instruction support (x86_64).
+# Physical KASLR: randomize kernel physical location (requires Limine bootloader).
+# Virtual KASLR (future): PIE kernel with relocation processing.
+# See docs/kaslr.md for full design.
+option(KASLR "Enable Kernel Address Space Layout Randomization" OFF)
+
 # SMP (not from bsd.own.mk directly, but used in MINIX)
 option(CONFIG_SMP "Enable symmetric multiprocessing" OFF)
 set(CONFIG_MAX_CPUS "4" CACHE STRING "Maximum number of CPUs for SMP")

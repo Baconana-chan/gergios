@@ -13,7 +13,21 @@
 #include "ifstat.h"
 #include "tcp_ext.h"
 #include "latency.h"
+#include "perf_alerts.h"
 #include "mcast.h"
+
+/*
+ * Wrapper function for rate-limit drop alerts.
+ * Registered as a callback with lwip_ratelimit_set_alert_cb().
+ * The 'type' parameter identifies which limiter triggered
+ * (0=ICMP, 1=ARP, 2=NDP) but is not currently used by the alert.
+ */
+static void
+ratelimit_alert_wrapper(int type __unused)
+{
+
+	perf_alerts_rate_limit();
+}
 #include "ethif.h"
 #include "rtsock.h"
 #include "route.h"
@@ -115,6 +129,9 @@ expire_syn_cookie_timer(int arg __unused)
 
 	lwip_syn_cookie_tick();
 	lwip_ratelimit_tick();
+
+	/* Reset performance alert counters each tick. */
+	perf_alerts_tick();
 
 	/* Re-arm the timer for the next tick. */
 	set_timer(&syn_cookie_timer,
@@ -300,6 +317,13 @@ init(int type __unused, sef_init_info_t * init __unused)
 	lwip_ratelimit_init();
 
 	/*
+	 * Register the performance alert callback for rate-limit drops.
+	 * Called whenever a packet is dropped due to ICMP/ARP/NDP rate
+	 * limiting.
+	 */
+	lwip_ratelimit_set_alert_cb(ratelimit_alert_wrapper);
+
+	/*
 	 * Initialize the TCP MD5 signature module.  This registers the ext_arg
 	 * ID for per-connection MD5 key storage.  Must be done after
 	 * lwip_init() and before any TCP connections are established.
@@ -360,7 +384,15 @@ init(int type __unused, sef_init_info_t * init __unused)
 	latency_init();
 
 	/*
+	 * Initialize the performance alerts module.  Opens syslog and
+	 * registers the minix.lwip.alerts sysctl subtree.  Must be done
+	 * after mibtree_init().
+	 */
+	perf_alerts_init();
+
+	/*
 	 * Set up the periodic timer for SYN cookie secret rotation.
+	 * This timer also drives perf_alerts_tick() and the rate limiter.
 	 */
 	init_timer(&syn_cookie_timer);
 	set_timer(&syn_cookie_timer,

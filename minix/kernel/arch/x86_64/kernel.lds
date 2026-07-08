@@ -86,6 +86,23 @@ SECTIONS
 		__k_unpaged__kern_size = . - _kern_vir_base;
 		_kern_size = __k_unpaged__kern_size;
 	}
+
+	/* Phase 3: Virtual KASLR — ELF relocation sections.
+	 * When linked with -pie (KASLR=ON), the linker generates
+	 * .rela.dyn and .rela.plt sections containing R_X86_64_RELATIVE
+	 * relocations. These are processed at boot by apply_relocations()
+	 * to support dynamic virtual address randomization.
+	 * When KASLR=OFF (static link), these sections are empty.
+	 */
+	.rela.dyn ALIGN(8) : AT(ADDR(.rela.dyn) - _kern_offset) {
+		_rela_start = .;
+		*(.rela.dyn)
+		_rela_end = .;
+	}
+	.rela.plt ALIGN(8) : AT(ADDR(.rela.plt) - _kern_offset) {
+		*(.rela.plt)
+	}
+
 	_kern_end = _kern_phys_base + _kern_size;
 	__k_unpaged__kern_end = _kern_end;
 	_kern_end = __k_unpaged__kern_end;

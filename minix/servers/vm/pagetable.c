@@ -912,6 +912,15 @@ int pt_writemap(struct vmproc * vmp,
 		/* Entry we will write. */
 #if defined(__i386__) || defined(__x86_64__)
 		entry = (physaddr & ARCH_VM_ADDR_MASK) | flags;
+#if defined(__x86_64__)
+		/* Hardware W^X: writable pages are non-executable (set NX bit).
+		 * This enforces W^X at the MMU level — pages with write permission
+		 * automatically get the NX (No-Execute) bit set, preventing
+		 * code execution from writable memory.
+		 */
+		if (flags & PTF_WRITE)
+			entry |= PTF_NX;
+#endif
 #elif defined(__arm__)
 		entry = (physaddr & ARM_VM_PTE_MASK) | flags;
 #elif defined(__aarch64__)
@@ -924,6 +933,13 @@ int pt_writemap(struct vmproc * vmp,
 			maskedentry = pt->pt_pt[pde][pte];
 #if defined(__i386__) || defined(__x86_64__)
 			maskedentry &= ~(X86_64_VM_ACC|X86_64_VM_DIRTY);
+#if defined(__x86_64__)
+			/* NX bit is automatically set for writable pages by
+			 * pt_writemap; ignore it in verify to tolerate old
+			 * PTEs that predate NX enforcement.
+			 */
+			maskedentry &= ~PTF_NX;
+#endif
 #elif defined(__aarch64__)
 			maskedentry &= ~(AARCH64_VM_AF);
 #endif

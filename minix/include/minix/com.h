@@ -274,9 +274,11 @@
 #  define SYS_PADCONF (KERNEL_CALL + 57)	/* sys_padconf() */
 
 #  define SYS_SETSCHEDULER (KERNEL_CALL + 58)	/* sys_setscheduler() — RT class */
+#  define SYS_CAPCTL     (KERNEL_CALL + 59)	/* sys_capctl() — capability control */
+#  define SYS_AUDIT      (KERNEL_CALL + 60)	/* sys_audit() — audit retrieval */
 
 /* Total */
-#define NR_SYS_CALLS	59	/* number of kernel calls */
+#define NR_SYS_CALLS	61	/* number of kernel calls */
 
 #define SYS_CALL_MASK_SIZE BITMAP_CHUNKS(NR_SYS_CALLS)
 
@@ -357,6 +359,34 @@
 #   define GET_REGS	  24	/* get general process registers */
 #   define GET_CPUTICKS	  25	/* get per-state ticks for a cpu */
 #   define GET_IRQTHREAD_STATS 26	/* get per-IRQ thread statistics */
+
+/* Field names for SYS_CAPCTL. */
+#define CAPCTL_ENDPT	m1_i1	/* target endpoint */
+#define CAPCTL_OP	m1_i2	/* CAP_OP_* operation */
+#define CAPCTL_CAPS	m1_ull1	/* capability mask (uint64_t, via mess_1.m1ull1) */
+
+/* Field names for SYS_AUDIT. */
+#define AUDIT_OP	m1_i2	/* audit operation (AUDIT_OP_*) */
+#define AUDIT_COUNT	m1_i3	/* number of records (in/out) */
+#define AUDIT_ENABLE	m1_i4	/* enable/disable flag or status data */
+#define AUDIT_BUF	m1_p1	/* user virtual address for record buffer */
+
+/*===========================================================================*
+ *                Messages for Audit Daemon (auditd)		             *
+ *===========================================================================*/
+
+#define AUDITD_RQ_BASE		0x1C00	/* auditd message range */
+
+#define AUDITD_RQ_STATUS	(AUDITD_RQ_BASE + 0)	/* get auditd status */
+#define AUDITD_RQ_ENABLE	(AUDITD_RQ_BASE + 1)	/* enable audit logging */
+#define AUDITD_RQ_DISABLE	(AUDITD_RQ_BASE + 2)	/* disable audit logging */
+#define AUDITD_RQ_REOPEN	(AUDITD_RQ_BASE + 3)	/* reopen log file */
+#define AUDITD_RQ_POLL_NOW	(AUDITD_RQ_BASE + 4)	/* force immediate poll */
+
+/* Reply fields for AUDITD_RQ_STATUS. */
+#define AUDITD_STATUS_LOG	m4_l1	/* 1 if log is open */
+#define AUDITD_STATUS_ENABLED	m4_l2	/* 1 if audit is enabled */
+#define AUDITD_STATUS_POLL_MS	m4_l3	/* poll interval in ms */
 
 /* Subfunctions for SYS_PRIVCTL */
 #define SYS_PRIV_ALLOW		1	/* Allow process to run */
@@ -784,9 +814,10 @@
 #define VM_GETRUSAGE		(VM_RQ_BASE+47)
 
 #define VM_RS_PREPARE		(VM_RQ_BASE+48)
+#define VM_MPROTECT		(VM_RQ_BASE+49)
 
 /* Total. */
-#define NR_VM_CALLS				49
+#define NR_VM_CALLS				50
 #define VM_CALL_MASK_SIZE			BITMAP_CHUNKS(NR_VM_CALLS)
 
 /* not handled as a normal VM call, thus at the end of the reserved rage */
@@ -1163,6 +1194,20 @@
 #  define NDEV_LINK_UNKNOWN	0	/* link status is unknown, assume up */
 #  define NDEV_LINK_UP		1	/* link is up */
 #  define NDEV_LINK_DOWN	2	/* link is down */
+
+/*===========================================================================*
+ *                Messages for MAC Policy Daemon (macd)		     *
+ *===========================================================================*/
+
+#define MACD_RQ_BASE		0x1B00	/* MAC daemon message range */
+
+#define MACD_CHECK		(MACD_RQ_BASE + 0)	/* MAC check request */
+
+/* Field names for MACD_CHECK request. */
+#define MACD_WHAT		m4_l1	/* MAC_* hook type */
+#define MACD_SRC		m4_l2	/* source endpoint (endpoint_t) */
+#define MACD_DST		m4_l3	/* target/destination endpoint */
+#define MACD_CTX1		m4_l4	/* context word 1 (int) */
 
 /*===========================================================================*
  *		Internal codes used by several services			     *

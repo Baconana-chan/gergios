@@ -20,19 +20,19 @@ cmake_minimum_required(VERSION 3.20)
 
 # ─── Core puffs sources (lib/libpuffs/) ─────────────────────────────
 set(PUFFS_CORE_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/callcontext.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/creds.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/dispatcher.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/flush.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/framebuf.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/null.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/opdump.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/paths.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/pnode.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/puffs.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/requests.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/subr.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs/suspend.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/callcontext.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/creds.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/dispatcher.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/flush.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/framebuf.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/null.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/opdump.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/paths.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/pnode.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/puffs.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/requests.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/subr.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs/suspend.c
 )
 
 # ─── MINIX adapter sources (minix/lib/libpuffs/) ───────────────────
@@ -61,8 +61,8 @@ add_library(libpuffs STATIC
 # ─── Include paths ─────────────────────────────────────────────────
 target_include_directories(libpuffs PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../lib/libpuffs
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../sys
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../lib/libpuffs
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../sys
 )
 
 # ─── Compile definitions ───────────────────────────────────────────

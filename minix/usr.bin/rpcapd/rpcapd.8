@@ -1,0 +1,108 @@
+.\" $GergiOS$
+.Dd July 8, 2026
+.Dt RPCAPD 8
+.Os GergiOS
+.Sh NAME
+.Nm rpcapd
+.Nd remote packet capture daemon
+.Sh SYNOPSIS
+.Nm
+.Op Fl 46dh
+.Op Fl p Ar port
+.Op Fl u Ar username
+.Op Fl P Ar password
+.Sh DESCRIPTION
+.Nm
+is a daemon that implements the Remote Packet Capture Protocol (RPCAP),
+allowing remote clients such as Wireshark to capture packets from
+network interfaces on this host using the
+.Ic rpcap://
+protocol.
+.Pp
+The daemon listens for incoming TCP connections (default port 2002),
+authenticates the client, and serves packet capture data via the
+RPCAP protocol.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl 4
+Listen on IPv4 only.
+.It Fl 6
+Listen on IPv6 only.
+.It Fl d
+Run in foreground (do not daemonize).
+.It Fl u Ar username
+Require this username for authentication.
+Mutually exclusive with
+.Fl P
+(if one is specified, both should be).
+.It Fl P Ar password
+Require this password for authentication.
+Mutually exclusive with
+.Fl u
+(if one is specified, both should be).
+.It Fl p Ar port
+Listen on the specified TCP port instead of the default 2002.
+.It Fl h
+Display help and exit.
+.El
+.Sh PROTOCOL
+The RPCAP protocol works as follows:
+.Bl -enum
+.It
+The client connects to port 2002 and sends an
+.Dv AUTH_REQ
+message.
+The server supports both null authentication (no password, default)
+and password authentication (see
+.Fl u
+and
+.Fl P
+flags).
+.It
+After authentication, the client sends a
+.Dv FINDALLIF_REQ
+to list available network interfaces.
+.It
+To start capturing, the client sends
+.Dv OPEN_REQ
+(interface name) followed by
+.Dv STARTCAP_REQ
+(snapshot length, timeout, flags).
+.It
+Captured packets are streamed as
+.Dv PACKET
+messages over the same TCP connection.
+.It
+The client ends the capture with
+.Dv ENDCAP_REQ
+or closes the connection with
+.Dv CLOSE .
+.El
+.Sh FILES
+.Bl -tag -width /dev/bpf -compact
+.It Pa /dev/bpf
+Berkeley Packet Filter clone device
+.El
+.Sh EXAMPLES
+Run the daemon in the foreground on the default port:
+.Bd -literal -offset indent
+rpcapd -d
+.Ed
+.Pp
+Run with password authentication:
+.Bd -literal -offset indent
+rpcapd -d -u admin -P secret123
+.Ed
+.Pp
+Run on a custom port:
+.Bd -literal -offset indent
+rpcapd -p 2004
+.Ed
+.Sh SEE ALSO
+.Xr pcapng 1 ,
+.Xr tcpdump 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS.

@@ -42,6 +42,7 @@
 #define X86_64_VM_BIGPAGE		(1UL << 7)	/* alias: X86_64_VM_PAT */
 #define X86_64_VM_PAT			X86_64_VM_BIGPAGE
 #define X86_64_VM_GLOBAL		(1UL << 8)
+#define X86_64_VM_NX			(1UL << 63)	/* No-Execute (NX) bit */
 
 /* Big page size (2MB) */
 #define X86_64_BIG_PAGE_SIZE		(2 * 1024 * 1024)

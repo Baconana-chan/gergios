@@ -7,6 +7,7 @@
 #include "route.h"
 #include "bpfdev.h"
 #include "bpf_any.h"
+#include "perf_alerts.h"
 
 #include <net/if_media.h>
 
@@ -133,6 +134,7 @@ ifdev_input(struct ifdev * ifdev, struct pbuf * pbuf, struct netif * netif,
 
 	if (err != ERR_OK) {
 		ifdev->ifdev_data.ifi_iqdrops++;
+		perf_alerts_drop(ifdev->ifdev_name);
 		pbuf_free(pbuf);
 	}
 }

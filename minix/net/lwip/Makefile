@@ -7,7 +7,7 @@ SRCS=	lwip.c mempool.c pchain.c addr.c addrpol.c tcpisn.c mcast.c ipsock.c \
 	pktsock.c tcpsock.c udpsock.c rawsock.c ifdev.c ifaddr.c loopif.c \
 	ethif.c ndev.c rttree.c route.c rtsock.c lnksock.c lldata.c mibtree.c \
 	ifconf.c bpfdev.c bpf_filter.c util.c wg_sysctl.c \
-	ifstat.c tcp_ext.c latency.c
+	ifstat.c tcp_ext.c latency.c perf_alerts.c
 
 FILES=${PROG}.conf
 FILESNAME=${PROG}

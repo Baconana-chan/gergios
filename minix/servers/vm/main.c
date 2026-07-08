@@ -574,6 +574,9 @@ void init_vm(void)
 	/* getrusage */
 	CALLMAP(VM_GETRUSAGE, do_getrusage);
 
+	/* mprotect */
+	CALLMAP(VM_MPROTECT, do_mprotect);
+
 	/* Mark VM instances. */
 	num_vm_instances = 1;
 	vmproc[VM_PROC_NR].vm_flags |= VMF_VM_INSTANCE;

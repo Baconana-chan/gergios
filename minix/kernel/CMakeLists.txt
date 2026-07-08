@@ -29,6 +29,7 @@ option(CONFIG_SMP "Symmetric Multi-Processing support" OFF)
 # Sources (shared between architectures)
 #
 set(KERNEL_CORE_SOURCES
+    audit.c
     clock.c
     cpulocals.c
     drvqueue.c
@@ -125,6 +126,8 @@ elseif(MACHINE_ARCH STREQUAL "x86_64")
         arch/x86_64/memory.c         # VM: page table walk, copy, memset
         arch/x86_64/pg_utils.c       # Page table utilities (512 entries, 2MB pages)
         arch/x86_64/pre_init.c       # Boot-time kinfo + pagetable setup
+        arch/x86_64/relocate.c       # Phase 3: PIE relocation processing
+
         arch/x86_64/protect.c        # GDT/IDT setup, MMU init
         arch/x86_64/do_sdevio.c      # Safe device I/O
         arch/x86_64/apic.c           # APIC/IOAPIC driver (LAPIC, IOAPIC, timer, IPI)
@@ -314,8 +317,26 @@ if(MACHINE_ARCH STREQUAL "x86_64")
         -mcmodel=large
         -mno-red-zone
     )
+
+    # Phase 3: Virtual KASLR — compile as PIE to enable runtime
+    # virtual address relocation. Requires -fPIE for position-
+    # independent code with absolute references (mcmodel=large
+    # generates 64-bit immediates that get R_X86_64_RELATIVE
+    # relocations, applied at boot by apply_relocations()).
+    if(KASLR)
+        target_compile_options(kernel_objects PRIVATE -fPIE)
+    endif()
 elseif(MACHINE_ARCH STREQUAL "aarch64")
     target_compile_options(kernel_objects PRIVATE -mcmodel=large)
+    if(KASLR)
+        target_compile_options(kernel_objects PRIVATE -fPIE)
+    endif()
+endif()
+
+# Phase 3: Virtual KASLR — link as PIE to produce .rela.dyn
+# with R_X86_64_RELATIVE entries for boot-time relocation.
+if(KASLR)
+    target_compile_definitions(kernel_objects PRIVATE KASLR_PIE=1)
 endif()
 
 # Include paths
@@ -397,10 +418,17 @@ endif()
 # Build the kernel binary using the selected linker
 set(KERNEL_LDS "${CMAKE_CURRENT_SOURCE_DIR}/arch/${MACHINE_ARCH}/kernel.lds")
 
+# When KASLR is enabled, link as PIE to get .rela.dyn relocations.
+set(KERNEL_PIE_FLAG "")
+if(KASLR)
+    set(KERNEL_PIE_FLAG "-pie")
+endif()
+
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/kernel-${MACHINE_ARCH}
     COMMAND ${KERNEL_LINKER}
         -nostdlib
+        ${KERNEL_PIE_FLAG}
         -T "${KERNEL_LDS}"
         "$<$<BOOL:${MINIX_DESTDIR}>:-L${MINIX_DESTDIR}/usr/lib>"
         # Allow multiple symbol definitions (MINIX kernel has intentional

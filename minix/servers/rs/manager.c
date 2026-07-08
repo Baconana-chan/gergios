@@ -1529,17 +1529,28 @@ endpoint_t source;
   if(rs_start->rss_flags & RSS_SYS_BASIC_CALLS) {
       fill_call_mask(basic_kc, NR_SYS_CALLS,
           rp->r_priv.s_k_call_mask, KERNEL_CALL, FALSE);
-  }
+  }	/* Update VM call mask. Inherit basic VM calls. */
+	memcpy(rpub->vm_call_mask, rs_start->rss_vm,
+	    sizeof(rpub->vm_call_mask));
+	if(rs_start->rss_flags & RSS_VM_BASIC_CALLS) {
+	    fill_call_mask(basic_vmc, NR_VM_CALLS,
+	        rpub->vm_call_mask, VM_RQ_BASE, FALSE);
+	}
 
-  /* Update VM call mask. Inherit basic VM calls. */
-  memcpy(rpub->vm_call_mask, rs_start->rss_vm,
-      sizeof(rpub->vm_call_mask));
-  if(rs_start->rss_flags & RSS_VM_BASIC_CALLS) {
-      fill_call_mask(basic_vmc, NR_VM_CALLS,
-          rpub->vm_call_mask, VM_RQ_BASE, FALSE);
-  }
+	/* Update capabilities if provided. */
+	if(rs_start->rss_cap_effective != 0 ||
+	    rs_start->rss_cap_permitted != 0) {
+	    if(rs_verbose)
+	        printf("RS: edit_slot: setting capabilities"
+	            " 0x%llx/0x%llx for '%s'\n",
+	            (unsigned long long)rs_start->rss_cap_effective,
+	            (unsigned long long)rs_start->rss_cap_permitted,
+	            rpub->label);
+	    rp->r_priv.s_cap_effective = rs_start->rss_cap_effective;
+	    rp->r_priv.s_cap_permitted = rs_start->rss_cap_permitted;
+	}
 
-  /* Update control labels. */
+	/* Update control labels. */
   if(rs_start->rss_nr_control > 0) {
       int i, s;
       if (rs_start->rss_nr_control > RS_NR_CONTROL) {

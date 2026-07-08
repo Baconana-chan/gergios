@@ -36,6 +36,25 @@ add_compile_definitions(
     __LP64__
 )
 
+# Phase 4: Memory Safety Hardening — sanitizer options
+# CFI (Control Flow Integrity) requires Clang + LTO
+if(SANITIZE_CFI)
+    message(STATUS "CFI enabled: adding -flto -fsanitize=cfi")
+    add_compile_options(-flto -fsanitize=cfi)
+endif()
+
+# SafeStack requires Clang
+if(SANITIZE_SAFESTACK)
+    message(STATUS "SafeStack enabled: adding -fsanitize=safe-stack")
+    add_compile_options(-fsanitize=safe-stack)
+endif()
+
+# KASLR support
+if(KASLR)
+    message(STATUS "KASLR enabled: kernel address space layout randomization")
+    add_compile_definitions(KASLR=1)
+endif()
+
 # Disable ACPI for now (no x86_64 acpi.c implementation yet)
 # See arch/i386/acpi.c for reference — needs porting to x86_64.
 set(USE_ACPI OFF CACHE BOOL "ACPI power management support" FORCE)

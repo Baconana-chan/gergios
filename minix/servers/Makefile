@@ -5,7 +5,7 @@
 SUBDIR+=	ds input mib pm rs sched vfs vm
 
 .if ${MKIMAGEONLY} == "no"
-SUBDIR+=	ipc is devman
+SUBDIR+=	ipc is devman macd auditd
 .endif
 
 .include <bsd.subdir.mk>

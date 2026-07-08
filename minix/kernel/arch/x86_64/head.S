@@ -37,6 +37,7 @@
 IMPORT(pre_init)
 IMPORT(kmain)
 IMPORT(switch_to_user)
+IMPORT(apply_relocations)
 
 #ifdef USE_LIMINE
 IMPORT(limine_pre_init)
@@ -97,16 +98,89 @@ ENTRY(MINIX)
 	mov	$0xC0000102, %ecx	/* MSR IA32_KERNEL_GS_BASE */
 	wrmsr
 
+	/* Phase 3: Virtual KASLR — apply ELF relocations before any
+	 * paged C code runs. This processes .rela.dyn entries so that
+	 * absolute addresses can be adjusted for VMA randomization.
+	 *
+	 * FIRST CALL: with delta=0 (no-op, just verifies infrastructure).
+	 * SECOND CALL: after pre_init/limine_pre_init computes the
+	 * real offset, we call apply_relocations with the REAL delta.
+	 *
+	 * Parameters for apply_relocations: RDI=rela_phys, RSI=rela_count,
+	 * RDX=delta */
+
+	/* Compute and save kern_offset = _kern_vir_base - _kern_phys_base */
+	movabs	$_kern_vir_base, %r12
+	movabs	$_kern_phys_base, %r13
+	subq	%r13, %r12		/* R12 = kern_offset (save for later) */
+
+	/* Save _rela_start and _rela_end for second call */
+	movabs	$_rela_start, %r14	/* R14 = &_rela_start */
+	movabs	$_rela_end, %r15	/* R15 = &_rela_end */
+
+	/* FIRST CALL: rela_phys = &_rela_start - kern_offset */
+	mov	%r14, %rdi
+	subq	%r12, %rdi		/* RDI = physical addr of .rela.dyn */
+
+	/* rela_count = (_rela_end - _rela_start) / sizeof(Elf64_Rela) */
+	movq	%r15, %r13
+	subq	%r14, %r13		/* R13 = size of .rela.dyn in bytes */
+	movq	$24, %r11		/* sizeof(Elf64_Rela) = 24 */
+	movq	%r13, %rax
+	xorq	%rdx, %rdx
+	divq	%r11			/* RAX = count */
+	movq	%rax, %rsi		/* RSI = rela_count */
+
+	/* delta = 0 for first call */
+	xorq	%rdx, %rdx		/* RDX = delta = 0 */
+
+	movabs	$apply_relocations, %rax
+	call	*%rax
+
 	/* Call limine_pre_init() — reads Limine responses, sets up pagetables.
 	 * Use indirect call via register (movabs + call) because
 	 * limine_pre_init is at the HIGH VMA while we are executing
 	 * at the LOW VMA (unpaged section). A PC-relative call
-	 * would compute a 128TB offset that doesn't fit in 32 bits. */
+	 * would compute a 128TB offset that doesn't fit in 32 bits.
+	 *
+	 * pre_init creates new page tables with BOTH linked VMA and
+	 * new VMA mapped (if offset != 0). Then computes kaslr_virt_offset
+	 * and stores it in kaslr_virt_offset_slot (in .unpaged.data) for
+	 * head.S to read. */
 	movabs	$limine_pre_init, %rax
 	call	*%rax
 
+	/* SECOND CALL: apply relocations with the REAL delta.
+	 * Read kaslr_virt_offset from the unpaged data slot.
+	 * This slot was written by limine_pre_init. */
+	movq	kaslr_virt_offset_slot, %rdx	/* RDX = REAL delta */
+	cmpq	$0, %rdx
+	je	1f			/* Skip if zero (no randomization) */
+
+	/* Relocation parameters saved from first call */
+	mov	%r14, %rdi
+	subq	%r12, %rdi		/* RDI = rela_phys */
+
+	movq	%r15, %r13
+	subq	%r14, %r13		/* R13 = size */
+	movq	$24, %r11
+	movq	%r13, %rax
+	xorq	%rdx, %rdx
+	divq	%r11
+	movq	%rax, %rsi		/* RSI = rela_count */
+
+	movq	kaslr_virt_offset_slot, %rdx	/* RDX = REAL delta */
+	movabs	$apply_relocations, %rax
+	call	*%rax
+	/* After this call, all absolute addresses in .text and .data
+	 * have been patched by delta. The kernel now effectively runs
+	 * at linked_VMA + delta. Since the page tables (created by
+	 * limine_pre_init) map BOTH VMAs, execution continues
+	 * seamlessly at the linked VMA until the jump to kmain below. */
+1:
 	/* Switch to high-mapped stack and jump to kmain.
-	 * kmain is at the HIGH VMA — use indirect jump. */
+	 * After relocation, $kmain now contains the NEW VMA address.
+	 * The call jumps to the relocated kmain entry point. */
 	movabs	$k_initial_stktop, %rsp
 	push	$0
 	mov	%rax, %rdi
@@ -370,16 +444,79 @@ long_mode_entry:
 	wrmsr
 	
 	/* IA32_GS_BASE (0xC0000101) — NOT set, stays at 0 for user mode */
-	
+
+	/* Phase 3: Virtual KASLR — apply ELF relocations before calling
+	 * pre_init. Same two-call pattern as the Limine path above.
+	 * FIRST CALL: with delta=0 (no-op). SECOND CALL: after pre_init
+	 * with the REAL delta from kaslr_virt_offset_slot.
+	 * Parameters: RDI=rela_phys, RSI=rela_count, RDX=delta */
+
+	/* Compute and save kern_offset = _kern_vir_base - _kern_phys_base */
+	movabs	$_kern_vir_base, %r12
+	movabs	$_kern_phys_base, %r13
+	subq	%r13, %r12		/* R12 = kern_offset (save for later) */
+
+	/* Save _rela_start and _rela_end for second call */
+	movabs	$_rela_start, %r14	/* R14 = &_rela_start */
+	movabs	$_rela_end, %r15	/* R15 = &_rela_end */
+
+	/* FIRST CALL: rela_phys = &_rela_start - kern_offset */
+	mov	%r14, %rdi
+	subq	%r12, %rdi		/* RDI = physical addr of .rela.dyn */
+
+	/* rela_count = (_rela_end - _rela_start) / 24 */
+	movq	%r15, %r13
+	subq	%r14, %r13		/* R13 = size */
+	movq	$24, %r11
+	movq	%r13, %rax
+	xorq	%rdx, %rdx
+	divq	%r11			/* RAX = count */
+	movq	%rax, %rsi		/* RSI = rela_count */
+
+	/* delta = 0 for first call */
+	xorq	%rdx, %rdx		/* RDX = delta = 0 */
+
+	movabs	$apply_relocations, %rax
+	call	*%rax
+
 	/* Push multiboot info for pre_init */
 	mov	%rbx, %rdi		/* multiboot info struct */
-	mov	%rax, %rsi		/* multiboot magic (0x2BADB002) */	/* Call pre_init via indirect call (pre_init is at HIGH VMA). */
+	mov	%rax, %rsi		/* multiboot magic (0x2BADB002) */
+
+	/* Call pre_init via indirect call.
+	 * pre_init computes kaslr_virt_offset, stores in
+	 * kaslr_virt_offset_slot, creates new page tables with
+	 * BOTH linked and new VMA mapped. */
 	movabs	$pre_init, %rax
 	call	*%rax
 
+	/* SECOND CALL: apply relocations with the REAL delta.
+	 * Read offset from the slot written by pre_init. */
+	movq	kaslr_virt_offset_slot, %rdx	/* RDX = REAL delta */
+	cmpq	$0, %rdx
+	je	2f			/* Skip if zero */
+
+	/* Recompute parameters (R12, R14, R15 preserved from first call) */
+	mov	%r14, %rdi
+	subq	%r12, %rdi		/* RDI = rela_phys */
+
+	movq	%r15, %r13
+	subq	%r14, %r13		/* R13 = size */
+	movq	$24, %r11
+	movq	%r13, %rax
+	xorq	%rdx, %rdx
+	divq	%r11
+	movq	%rax, %rsi		/* RSI = rela_count */
+
+	movq	kaslr_virt_offset_slot, %rdx	/* RDX = REAL delta */
+	movabs	$apply_relocations, %rax
+	call	*%rax
+	/* Absolute addresses patched. kmain will be jumped to at
+	 * the NEW VMA address. Both VMAs are still mapped. */
+2:
 	/* pre_init returns the boot info pointer in %rax.
 	 * Switch to high-mapped stack and jump to kmain.
-	 * kmain is at HIGH VMA — use indirect jump. */
+	 * After relocation, $kmain contains the NEW VMA address. */
 	movabs	$k_initial_stktop, %rsp
 	push	$0
 	mov	%rax, %rdi
@@ -394,6 +531,14 @@ hang:
 load_stack:
 	.space 4096
 load_stack_start:
+
+/* Phase 3: Virtual KASLR — VMA offset slot.
+ * Written by pre_init / limine_pre_init after computing
+ * kaslr_virt_offset from the RDRAND seed.*/
+.section .unpaged.data, "aw"
+.balign 8
+kaslr_virt_offset_slot:
+	.quad 0
 
 /* High-mapped kernel stack (in BSS, accessed via high mapping). */
 .bss
