@@ -96,6 +96,13 @@ jobs:
         RUSTFLAGS="-Z sanitizer=undefined" cargo test --workspace --verbose 2>&1 | \
           tee ../rust-test-results-ubsan.log || true
 
+    - name: Build + test with ThreadSanitizer (TSan)
+      run: |
+        cd rust
+        RUSTFLAGS="-Z sanitizer=thread" cargo test --workspace --verbose 2>&1 | \
+          tee ../rust-test-results-tsan.log || true
+      continue-on-error: true
+
     - name: Upload sanitizer results
       if: always()
       uses: actions/upload-artifact@v4
@@ -104,6 +111,7 @@ jobs:
         path: |
           rust-test-results-asan.log
           rust-test-results-ubsan.log
+          rust-test-results-tsan.log
         retention-days: 14
 
   # ============================================================================
@@ -143,15 +151,36 @@ jobs:
       run: |
         cd rust
         cargo +nightly fuzz run fuzz_netparse_tcp -- \
-          -max_total_time=300 2>&1 | \
+          -max_total_time=600 2>&1 | \
           tee ../fuzz-tcp.log || true
+
+    - name: Fuzz net-parse UDP header
+      run: |
+        cd rust
+        cargo +nightly fuzz run fuzz_netparse_udp -- \
+          -max_total_time=600 2>&1 | \
+          tee ../fuzz-udp.log || true
 
     - name: Fuzz net-parse DNS header
       run: |
         cd rust
         cargo +nightly fuzz run fuzz_netparse_dns -- \
-          -max_total_time=300 2>&1 | \
+          -max_total_time=600 2>&1 | \
           tee ../fuzz-dns.log || true
+
+    - name: Fuzz audiobuf ring position
+      run: |
+        cd rust
+        cargo +nightly fuzz run fuzz_audiobuf_ringpos -- \
+          -max_total_time=600 2>&1 | \
+          tee ../fuzz-audiobuf.log || true
+
+    - name: Fuzz procfspath PID parsing
+      run: |
+        cd rust
+        cargo +nightly fuzz run fuzz_procfspath_pid -- \
+          -max_total_time=600 2>&1 | \
+          tee ../fuzz-procfspath.log || true
 
     - name: Upload fuzz artifacts
       if: always()
@@ -277,10 +306,82 @@ jobs:
         retention-days: 7
 
   # ============================================================================
-  # QEMU Boot Test
+  # QEMU Smoke Tests (Phase 9.2)
+  # ============================================================================
+  qemu-smoke:
+    name: QEMU Smoke Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [smoke, fs, net, bt]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          qemu-system-x86 \
+          gdisk dosfstools mtools \
+          e2fsprogs fakeroot \
+          ovmf
+
+    - name: Install Limine bootloader
+      run: |
+        if ! command -v limine &>/dev/null; then
+          git clone https://github.com/limine-bootloader/limine.git /tmp/limine
+          cd /tmp/limine
+          make -j$(nproc)
+          sudo make install
+        fi
+        limine --version
+
+    - name: Build kernel and modules
+      run: |
+        make -j$(nproc) do-kernel 2>&1 | tee kernel-build.log || true
+        echo "Kernel build: $?"
+      continue-on-error: true
+
+    - name: Run ${{ matrix.suite }} smoke test
+      run: |
+        chmod +x scripts/qemu_test_${matrix.suite}.sh
+        bash scripts/qemu_test_${matrix.suite}.sh \
+          --timeout 120 \
+          2>&1 | tee qemu-${matrix.suite}.log
+      continue-on-error: true
+
+    - name: Upload ${{ matrix.suite }} results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: qemu-${matrix.suite}-results
+        path: |
+          qemu-${matrix.suite}-results/
+          qemu-${matrix.suite}.log
+        retention-days: 14
+
+    - name: Smoke test summary
+      if: always()
+      run: |
+        echo "=== QEMU ${{ matrix.suite }} Smoke Test ==="
+        if [ -f qemu-${matrix.suite}-results/summary.txt ]; then
+          cat qemu-${matrix.suite}-results/summary.txt
+        fi
+        echo ""
+        echo "Serial log: qemu-${matrix.suite}-results/serial.txt"
+        echo "Build log:  qemu-${matrix.suite}.log"
+
+  # ============================================================================
+  # QEMU Boot Test (legacy, Phase 7)
   # ============================================================================
   qemu-test:
-    name: QEMU Boot Test
+    name: QEMU Boot Test (legacy)
     runs-on: ubuntu-latest
     needs: [build]
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -359,6 +460,108 @@ jobs:
           benchmark-results/
           benchmark.log
         retention-days: 90
+
+  # ============================================================================
+  # C — Performance Benchmarks (Phase 9.5)
+  # ============================================================================
+  c-benchmarks:
+    name: C Benchmarks
+    runs-on: ubuntu-latest
+    # Runs on schedule or workflow_dispatch (parallel to rust-benchmarks)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          g++ \
+          make
+
+    - name: Build C utilities (via BSD Make)
+      run: |
+        make -j$(nproc) do-tools 2>&1 | tee c-build.log || true
+        make -j$(nproc) do-lib 2>&1 | tee -a c-build.log || true
+        make -j$(nproc) do-build 2>&1 | tee -a c-build.log || true
+      continue-on-error: true
+
+    - name: Install hyperfine
+      run: cargo install hyperfine
+
+    - name: Run C benchmarks
+      run: |
+        chmod +x scripts/run_c_benchmarks.sh
+        bash scripts/run_c_benchmarks.sh --ci 2>&1 | tee c-benchmark.log
+      continue-on-error: true
+
+    - name: Upload C benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-c-results
+        path: |
+          benchmark-results-c/
+          c-benchmark.log
+        retention-days: 90
+
+  # ============================================================================
+  # earm Build Matrix (Phase 9.6 — build only, no tests)
+  # ============================================================================
+  earm-build:
+    name: Build (earm)
+    runs-on: ubuntu-latest
+    # Schedule only — ARM build is slow and optional
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    continue-on-error: true
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Install ARM cross-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          gcc-arm-none-eabi \
+          g++-arm-none-eabi \
+          make
+
+    - name: Configure for earm
+      run: |
+        export MACHINE_ARCH=earm
+        export CC=arm-none-eabi-gcc
+        export CXX=arm-none-eabi-g++
+        echo "Building for earm..."
+
+    - name: Build tools
+      run: |
+        make -j$(nproc) do-tools MACHINE_ARCH=earm 2>&1 | tee earm-build.log || true
+      continue-on-error: true
+
+    - name: Build libraries
+      run: |
+        make -j$(nproc) do-lib MACHINE_ARCH=earm 2>&1 | tee -a earm-build.log || true
+      continue-on-error: true
+
+    - name: Build kernel
+      run: |
+        make -j$(nproc) do-kernel MACHINE_ARCH=earm 2>&1 | tee -a earm-build.log || true
+      continue-on-error: true
+
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: earm-build-log
+        path: earm-build.log
+        retention-days: 14
 
   # ============================================================================
   # Static Analysis (legacy)

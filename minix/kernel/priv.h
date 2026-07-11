@@ -18,6 +18,14 @@
 #include "kernel/type.h"
 #include "kernel/ipc_filter.h"
 
+/* Additional includes for types used in this header.
+ * These are placed here (after kernel headers) to avoid
+ * circular include issues with arch-specific public headers. */
+#include <minix/type.h>
+#include <minix/timers.h>
+#include <signal.h>
+#include <machine/stackframe.h>
+
 struct priv {
   proc_nr_t s_proc_nr;		/* number of associated process */
   sys_id_t s_id;		/* index of this system structure */

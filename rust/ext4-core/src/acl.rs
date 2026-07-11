@@ -7,6 +7,8 @@
 //! The on-disk format is a reduced version of the kernel's internal ACL
 //! format, with version number set to `EXT4_ACL_VERSION` (0x02000000).
 
+use alloc::vec::Vec;
+
 use crate::types::*;
 
 // ─── Constants ─────────────────────────────────────────────────────────

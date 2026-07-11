@@ -9,18 +9,19 @@
 #   ./releasetools/build_ext4.sh clean              # Clean all build artifacts
 #
 # Prerequisites for cross-compilation:
-#   1. MINIX cross-toolchain installed (e.g., /opt/minix/toolchain)
-#   2. MINIX DESTDIR (sysroot) populated (e.g., /opt/minix/destdir)
-#   3. Environment variables:
-#       export MINIX_TOOLCHAIN=/opt/minix/toolchain
+#   1. Nightly Rust with rust-src component installed:
+#       rustup toolchain install nightly --component rust-src
+#   2. MINIX target spec installed to nightly sysroot:
+#       bash releasetools/setup_minix_sysroot.sh install-target
+#   3. (Optional) MINIX DESTDIR for linking executables:
 #       export MINIX_DESTDIR=/opt/minix/destdir
 #
 # Output:
-#   rust/ext4-core/target/<target>/release/libext4_core.a
+#   rust/target/<arch>-unknown-minix/release/libext4_core.a
 #   build/tools/nbmkfs.ext4 (host tool for release image creation)
 
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}"")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 RUST_DIR="${PROJECT_DIR}/rust"
 EXT4_CORE_DIR="${RUST_DIR}/ext4-core"
@@ -45,26 +46,28 @@ check_native() {
 
 check_cross() {
     local arch="$1"
-    local toolchain_prefix
-    case "${arch}" in
-        x86_64)  toolchain_prefix="x86_64-elf64-minix" ;;
-        aarch64) toolchain_prefix="aarch64-elf64-minix" ;;
-        *)
-            err "Unsupported architecture: ${arch} (use x86_64 or aarch64)"
-            exit 1 ;;
-    esac
-    if [ -z "${MINIX_TOOLCHAIN:-}" ]; then
-        err "MINIX_TOOLCHAIN not set!"; exit 1
+
+    # Verify nightly Rust is available (required for -Zbuild-std)
+    if ! cargo +nightly --version &>/dev/null; then
+        err "Nightly Rust not available! Run: rustup toolchain install nightly --component rust-src"
+        exit 1
     fi
-    if [ -z "${MINIX_DESTDIR:-}" ]; then
-        err "MINIX_DESTDIR not set!"; exit 1
+
+    # Verify target spec is installed
+    local sysroot; sysroot="$(rustc +nightly --print sysroot 2>/dev/null)"
+    if [ ! -f "${sysroot}/lib/rustlib/${arch}-unknown-minix/target.json" ]; then
+        err "Target spec not installed for ${arch}!"
+        err "Run: ./releasetools/setup_minix_sysroot.sh install-target"
+        exit 1
     fi
-    local linker="${MINIX_TOOLCHAIN}/bin/${toolchain_prefix}-gcc"
-    if [ ! -x "${linker}" ]; then
-        err "Linker not found: ${linker}"; exit 1
+
+    ok "Nightly Rust: $(cargo +nightly --version 2>&1 | head -1)"
+    ok "Target spec installed: ${arch}-unknown-minix"
+    if [ -n "${MINIX_DESTDIR:-}" ]; then
+        ok "MINIX sysroot: ${MINIX_DESTDIR}"
+    else
+        warn "MINIX_DESTDIR not set — needed for linking executables, not for --lib builds"
     fi
-    ok "Cross-linker found: ${linker}"
-    ok "MINIX sysroot: ${MINIX_DESTDIR}"
 }
 
 # ─── Build functions ─────────────────────────────────────
@@ -139,27 +142,15 @@ build_host() {
 
 build_cross() {
     local arch="$1"
-    local target_file="${RUST_DIR}/x86_64-unknown-minix.json"
-    local toolchain_prefix="x86_64-elf64-minix"
-
-    if [ "${arch}" = "aarch64" ]; then
-        target_file="${RUST_DIR}/aarch64-unknown-minix.json"
-        toolchain_prefix="aarch64-elf64-minix"
-        if [ ! -f "${target_file}" ]; then
-            err "Create ${target_file} first (see planning docs)"
-            exit 1
-        fi
-    fi
-
     info "Cross-compiling ext4-core staticlib for MINIX ${arch}..."
     cd "${EXT4_CORE_DIR}"
 
-    MINIX_TOOLCHAIN="${MINIX_TOOLCHAIN}" \
-    MINIX_DESTDIR="${MINIX_DESTDIR}" \
-    RUSTFLAGS="-C linker=${MINIX_TOOLCHAIN}/bin/${toolchain_prefix}-gcc" \
-    cargo build --release --lib --target "${target_file}" 2>&1 | tail -10
+    # NOTE: Requires nightly Rust with target spec installed.
+    # Run: ./releasetools/setup_minix_sysroot.sh install-target
+    RUSTFLAGS="-Zunstable-options" \
+    cargo +nightly build -Zbuild-std=core --release --lib --target "${arch}-unknown-minix" 2>&1 | tail -10
 
-    local target_dir; target_dir=$(basename "${target_file}" .json)
+    local target_dir="${arch}-unknown-minix"
     local lib="target/${target_dir}/release/libext4_core.a"
 
     if [ -f "${lib}" ]; then

@@ -248,10 +248,14 @@ void kmain(kinfo_t *local_cbi)
                 kcalls = SRV_KC;                  /* allowed kernel calls */
                 priv(rp)->s_sig_mgr = SRV_SM;     /* signal manager */
                 rp->p_priority = SRV_Q;	          /* priority queue */
-                rp->p_quantum_size_ms = SRV_QT;   /* quantum size */	    /* Initialize capabilities for schedulable boot processes.
+                rp->p_quantum_size_ms = SRV_QT;   /* quantum size */
+	    }
+
+	    /* Initialize capabilities for schedulable boot processes.
 	     * Kernel tasks get CAP_FULL (they need everything).
 	     * Root system process (RS) gets CAP_FULL as well — RS
 	     * will later set appropriate caps for other services.
+	     * Capabilities are set for ALL schedulable processes here.
 	     */
 	    if (iskerneln(proc_nr)) {
 		priv(rp)->s_cap_effective = CAP_FULL;

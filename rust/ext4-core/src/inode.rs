@@ -3,6 +3,8 @@
 //! ext4 inodes are 256 bytes on disk. The inode table is an array of inodes
 //! in each block group, pointed to by the group descriptor.
 
+use alloc::string::String;
+use alloc::string::ToString;
 use crate::types::*;
 use crate::journal::crc32c_le;
 

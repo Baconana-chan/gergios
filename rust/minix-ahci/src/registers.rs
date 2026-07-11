@@ -327,3 +327,138 @@ pub mod verbose {
     pub const DEV: u8 = 3;
     pub const REQ: u8 = 4;
 }
+
+// ============================================================================
+// C FFI test helpers — exported for FFI integration tests
+// ============================================================================
+
+/// Return the AHCI spec version as a u32 (0x01030000 = AHCI 1.3).
+/// Used by C FFI tests to verify linkage and register layout.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ahci_test_version() -> u32 {
+    0x0103_0000
+}
+
+/// Return the byte offset of an AHCI register by numeric ID.
+/// Used by C FFI tests to verify register layout consistency.
+///
+/// Register IDs:
+///   0 = HBA_CAP,    1 = HBA_GHC,    2 = HBA_IS,     3 = HBA_PI
+///   4 = HBA_VS,     5 = HBA_CAP2
+///   8 = PORT_CLB,   9 = PORT_CLBU,  10 = PORT_FB,   11 = PORT_FBU
+///   12 = PORT_IS,   13 = PORT_IE,   14 = PORT_CMD,  15 = PORT_TFD
+///   16 = PORT_SIG,  17 = PORT_SSTS, 18 = PORT_SCTL, 19 = PORT_SERR
+///   20 = PORT_SACT, 21 = PORT_CI
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ahci_test_reg_offset(reg_id: u32) -> u32 {
+    match reg_id {
+        // HBA registers (byte offset = index * 4)
+        0 => (hba::CAP * 4) as u32,
+        1 => (hba::GHC * 4) as u32,
+        2 => (hba::IS * 4) as u32,
+        3 => (hba::PI * 4) as u32,
+        4 => (hba::VS * 4) as u32,
+        5 => (hba::CAP2 * 4) as u32,
+        // Port registers (byte offset = index * 4 within port MMIO region)
+        8 => (port::CLB * 4) as u32,
+        9 => (port::CLBU * 4) as u32,
+        10 => (port::FB * 4) as u32,
+        11 => (port::FBU * 4) as u32,
+        12 => (port::IS * 4) as u32,
+        13 => (port::IE * 4) as u32,
+        14 => (port::CMD * 4) as u32,
+        15 => (port::TFD * 4) as u32,
+        16 => (port::SIG * 4) as u32,
+        17 => (port::SSTS * 4) as u32,
+        18 => (port::SCTL * 4) as u32,
+        19 => (port::SERR * 4) as u32,
+        20 => (port::SACT * 4) as u32,
+        21 => (port::CI * 4) as u32,
+        _ => 0xFFFFFFFF,
+    }
+}
+
+/// Return a key AHCI bitfield constant by ID.
+/// Used by C FFI tests to verify bitfield layout consistency.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ahci_test_bitfield(id: u32) -> u32 {
+    match id {
+        // HBA capabilities
+        0 => hba::CAP_SNCQ,
+        1 => hba::CAP_SCLO,
+        2 => hba::CAP_NCS_MASK,
+        3 => hba::GHC_AE,
+        4 => hba::GHC_HR,
+        // Port IS flags
+        5 => port::IS_TFES,
+        6 => port::IS_PRCS,
+        7 => port::IS_PCS,
+        8 => port::IS_DHRS,
+        // Port CMD flags
+        9 => port::CMD_ST,
+        10 => port::CMD_FRE,
+        11 => port::CMD_FR,
+        12 => port::CMD_CR,
+        13 => port::CMD_SUD,
+        // Port TFD flags
+        14 => port::TFD_BSY,
+        15 => port::TFD_DRQ,
+        16 => port::TFD_ERR,
+        // SSTS
+        17 => port::SSTS_DET_PHY,
+        18 => port::SSTS_DET_NONE,
+        // SERR
+        19 => port::SERR_DIAG_X,
+        20 => port::SERR_DIAG_N,
+        // FIS
+        21 => fis::TYPE_H2D as u32,
+        22 => fis::DEV_LBA as u32,
+        // Memory layout
+        23 => ATA_SECTOR_SIZE as u32,
+        24 => MAX_PORTS as u32,
+        25 => MAX_CMDS as u32,
+        _ => 0xFFFFFFFF,
+    }
+}
+
+#[cfg(test)]
+mod ffi_tests {
+    use super::*;
+
+    #[test]
+    fn ahci_test_version_returns_ahci_1_3() {
+        let version = unsafe { ahci_test_version() };
+        assert_eq!(version, 0x0103_0000);
+    }
+
+    #[test]
+    fn ahci_test_reg_offsets_are_correct() {
+        unsafe {
+            // HBA registers (byte offsets = index * 4)
+            assert_eq!(ahci_test_reg_offset(0), hba::CAP * 4);   // HBA_CAP
+            assert_eq!(ahci_test_reg_offset(1), hba::GHC * 4);   // HBA_GHC
+            assert_eq!(ahci_test_reg_offset(2), hba::IS * 4);    // HBA_IS
+            assert_eq!(ahci_test_reg_offset(3), hba::PI * 4);    // HBA_PI
+            assert_eq!(ahci_test_reg_offset(12), port::IS * 4);  // PORT_IS
+            assert_eq!(ahci_test_reg_offset(14), port::CMD * 4); // PORT_CMD
+
+            // Unknown ID
+            assert_eq!(ahci_test_reg_offset(99), 0xFFFFFFFF);
+        }
+    }
+
+    #[test]
+    fn ahci_test_bitfields_are_correct() {
+        unsafe {
+            assert_eq!(ahci_test_bitfield(0), hba::CAP_SNCQ);
+            assert_eq!(ahci_test_bitfield(3), hba::GHC_AE);
+            assert_eq!(ahci_test_bitfield(5), port::IS_TFES);
+            assert_eq!(ahci_test_bitfield(9), port::CMD_ST);
+            assert_eq!(ahci_test_bitfield(14), port::TFD_BSY);
+            assert_eq!(ahci_test_bitfield(17), port::SSTS_DET_PHY);
+            assert_eq!(ahci_test_bitfield(21), fis::TYPE_H2D as u32);
+            assert_eq!(ahci_test_bitfield(23), ATA_SECTOR_SIZE as u32);
+            assert_eq!(ahci_test_bitfield(99), 0xFFFFFFFF);
+        }
+    }
+}

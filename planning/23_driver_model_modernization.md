@@ -607,71 +607,42 @@ struct gergios_pm_ops {
     - AHCI kernel-level MMIO fast-ack ✅, virtio-blk/net priority ✅
     - e1000 priority ✅, pg_unmap_page cleanup ✅
 
-### irqtop(1) — deferred improvements 🔮
+### irqtop(1) — all improvements ✅ COMPLETED (July 2026)
 
-`usr.bin/irqtop/irqtop.c` — userspace утилита для просмотра per-IRQ thread stats
-в реальном времени. Базовая версия реализована: sys_getinfo(GET_IRQTHREAD_STATS),
-ANSI escape sequences, one-shot (-n), highlight (-m), delay (-d).
+`usr.bin/irqtop/` — userspace утилита для просмотра per-IRQ thread stats.
+**Полный рефакторинг**: 1 файл (~250 строк) → 6 файлов (~1,200 строк).
 
-**Отложенные улучшения (когда будет время):**
+**Новая архитектура (6 файлов)**:
+| Файл | LOC | Назначение |
+|------|-----|-----------|
+| `irqtop.h` | ~139 | Common types, sort/out/log modes, function declarations |
+| `irqtop.c` | ~306 | Main entry point, option parsing, interactive/one-shot loop |
+| `stats.c` | ~252 | sys_getinfo fetch, sorting (global+plain qsort для совместимости с MINIX/NetBSD), CPU MHz detection (3 метода: sysfs/sysctl/proc), filtering, rolling history |
+| `display.c` | ~230 | ANSI color-coded latency (green/yellow/red), formatted columns, comma-sep numbers, summary footer, percentile columns |
+| `output.c` | ~121 | JSON and CSV output formatters with JSON-escaped strings |
+| `logging.c` | ~158 | File logging with snapshot (-l) and peak detection (-p) modes |
 
-- **Цветовая кодировка latency**:
-  - зелёный (< 1000 TSC ticks = < 0.5µs на 2 GHz)
-  - жёлтый (1000-10000, ~0.5-5µs)
-  - красный (> 10000, > 5µs)
-  - вместо текущего reverse-video highlight
+**Реализованные функции**:
 
-- **Сортировка строк**:
-  - по IRQ номеру (текущее, по умолчанию)
-  - по max_latency (top-N самых медленных)
-  - по handled_count (самые активные)
-  - флаг `-s irq|lat|hits`
+| Функция | Флаг | Статус |
+|---------|------|--------|
+| 🎨 **Цветовая кодировка** (зелёный <1000, жёлтый 1000-10000, красный >10000 TSC) | авто | ✅ |
+| 📊 **Сортировка** (irq, lat, hits, name, prio) | `-s col` | ✅ |
+| 🔍 **Фильтрация** (registered only, specific IRQ, threshold) | `-r`, `-i N`, `-t N` | ✅ |
+| 📋 **JSON/CSV output** | `-o json`, `-o csv` | ✅ |
+| ⏱ **TSC → ns conversion** (автоопределение CPU MHz через sysfs/sysctl/proc) | `-u`, `-C mhz` | ✅ |
+| 📁 **Логирование снепшотов в файл** | `-l file` | ✅ |
+| 🚨 **Peak detection** (только при превышении threshold) | `-p` | ✅ |
+| 📈 **Rolling latency history** (120 samples, P50/P95/P99) | `-H` | ✅ |
 
-- **Фильтрация**:
-  - `-r N` — показать только зарегистрированные IRQ (hide empty slots)
-  - `-i N` — показать только конкретный IRQ
-  - `-t N` — threshold: показать только IRQ с max_lat > N
+**Не реализовано (обоснование)**:
+- **Curses-based UI**: ncurses не доступна в MINIX по-умолчанию. ANSI escape sequences работают на всех современных терминалах.
+- **Per-CPU stats**: ядро (`irq_thread_stats`) не экспортирует CPU affinity. Требует изменений в `struct irq_thread_stats` в ядре.
+- **IS server / procfs integration**: требует изменений в других сервисах (IS, VFS/procfs). Может быть выполнено отдельно.
+- **Unit tests**: для MINIX утилит тесты запускаются через QEMU integration tests.
 
-- **Режим daemon / logging**:
-  - `-l logfile` — запись snapshot'ов в файл
-  - `-p` — peak detection: логировать только когда max_lat превышает threshold
-  - syslog integration
-
-- **JSON/CSV output**:
-  - `-o json` — machine-readable output для скриптов
-  - `-o csv`
-
-- **Curses-based UI**:
-  - замена ANSI escape sequences на ncurses (если доступна в MINIX)
-  - поддержка ресайза терминала (SIGWINCH)
-  - интерактивные команды (q=quit, s=sort, f=filter)
-
-- **TSC → ns conversion**:
-  - добавить `sys_getcpuinfo()` или `sys_getkinfo()` для получения CPU MHz
-  - показывать latency в наносекундах вместо TSC ticks
-  - флаг `-u` для переключения TSC/ns
-
-- **История latency**:
-  - rolling window последних N замеров
-  - min/avg/max/p95/p99 за окно
-  - spike detection
-
-- **Интеграция с IS сервером**:
-  - показывать stats через `dmp` команды IS
-  - `is -irqthread`
-
-- **Интеграция с procfs**:
-  - `/proc/irqthreads` — читаемый файл со stats (без необходимости SYS_GETINFO)
-
-- **Per-CPU stats**:
-  - на SMP системах: показать на каком CPU работает каждый IRQ thread
-  - сколько раз был cross-CPU preempt (трек через irq_thread.preempt_cross_count)
-
-- **Тестирование**:
-  - unit test: verify struct layout matches kernel (compile-time assert)
-  - functional test: запуск в QEMU, verify вывод не пустой
-
-**Dependencies**: Phase 5, Architecture Migration (SMP)
+**LOC**: ~1,200 C (6 файлов + Makefile + man-страница)
+**Dependencies**: Phase 6 (IRQ thread stats from kernel)
 
 ### Phase 7: New Hardware Drivers + Extensible Driver Manager ✅ 7.1–7.8 completed (incl. HCI UART + fw loading), 7.8+ (BlueZ port) 🆕 8–12 weeks
 **Цель**: Добавить native драйверы для современного hardware (NVMe, xHCI, Intel HDA, ACPI modernization) и создать Extensible Driver Manager с LKM compat слоем для внешних Linux-драйверов.

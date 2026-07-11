@@ -3,6 +3,9 @@
 //! The group descriptor table follows the superblock and contains metadata
 //! about each block group: block/inode bitmaps, inode table location, etc.
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::types::*;
 
 /// Serialize a group descriptor into a raw buffer (32 or 64 bytes).

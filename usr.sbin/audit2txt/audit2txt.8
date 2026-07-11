@@ -1,0 +1,111 @@
+.\"	$GergiOS: audit2txt.8,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt AUDIT2TXT 8
+.Os GergiOS
+.Sh NAME
+.Nm audit2txt
+.Nd format audit log files for human reading
+.Sh SYNOPSIS
+.Nm
+.Op Fl f
+.Op Fl t Ar type
+.Op Fl p Ar endpoint
+.Op Ar file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility reads audit log files produced by
+.Xr auditd 8
+and formats them as a human-readable, aligned table.
+.Pp
+The input format is pipe-delimited text:
+.Bd -literal -offset indent
+serial|timestamp_ticks|type_name|result|subject|object|extra_hex
+.Ed
+.Pp
+The output format is:
+.Bd -literal -offset indent
+[HH:MM:SS.mmm]  TYPE           subj=X  obj=Y  result=NAME  extra
+.Ed
+.Pp
+If no
+.Ar file
+is given, or if
+.Ar file
+is
+.Sq - ,
+standard input is read.
+Each file is processed in sequence.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl f
+Follow mode.
+After reading existing content,
+.Nm
+waits for new records to be appended, similar to
+.Xr tail 1
+.Fl f .
+Useful for monitoring live audit logs.
+.It Fl t Ar type
+Filter output to show only events of the given
+.Ar type .
+Valid types include:
+.Cm AUTH_SUCCESS ,
+.Cm AUTH_FAILURE ,
+.Cm PRIV_CHANGE ,
+.Cm IPC_DENIED ,
+.Cm FILE_DENIED ,
+.Cm DEVICE_BIND ,
+.Cm SYSCALL_AUTH ,
+.Cm MAC_VIOLATION ,
+.Cm SERVICE_START ,
+.Cm SERVICE_CRASH .
+.It Fl p Ar endpoint
+Filter output to show only events that involve the given process
+.Ar endpoint
+(either as subject or object).
+.It Fl h
+Show usage summary.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width /var/log/audit/audit.log -compact
+.It Pa /var/log/audit/audit.log
+Default audit log file.
+.El
+.Sh EXAMPLES
+Display the entire current audit log:
+.Bd -literal -offset indent
+audit2txt /var/log/audit/audit.log
+.Ed
+.Pp
+Monitor live audit events:
+.Bd -literal -offset indent
+audit2txt -f /var/log/audit/audit.log
+.Ed
+.Pp
+Show only denied file access events:
+.Bd -literal -offset indent
+audit2txt -t FILE_DENIED /var/log/audit/audit.log
+.Ed
+.Pp
+Show all events involving process endpoint 2 (RS):
+.Bd -literal -offset indent
+audit2txt -p 2 /var/log/audit/audit.log
+.Ed
+.Pp
+View all rotated logs:
+.Bd -literal -offset indent
+audit2txt /var/log/audit/audit.log.*
+.Ed
+.Sh SEE ALSO
+.Xr auditd 8 ,
+.Xr auditctl 8 ,
+.Xr auditd.conf 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS 1.0.

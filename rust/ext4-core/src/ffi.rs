@@ -4,10 +4,15 @@
 //! The FFI uses raw C-compatible types and avoids Rust panics from crossing
 //! the FFI boundary (using `catch_unwind`).
 
+use alloc::vec;
+
 use core::ffi::{c_char, c_int, c_void};
 use core::slice;
 
 use crate::types::*;
+
+// Allow snake_case for C-compatible FFI callback type names.
+#![allow(non_camel_case_types)]
 
 // ─── Error code mapping ──────────────────────────────────────────────
 
@@ -1248,8 +1253,8 @@ pub unsafe extern "C" fn ext4_unlink(
     let dir_inode_table_block = gd.inode_table(&sb);
     let inodes_per_block = block_size as u64 / inode_size as u64;
     let dir_block_offset = dir_index as u64 / inodes_per_block;
-    let dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
-    let dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
+    let _dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
+    let _dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
 
     // write_block closure
     let mut wb = move |block_nr: u64, data: &[u8]| -> Ext4Result<()> {
@@ -1726,7 +1731,7 @@ pub unsafe extern "C" fn ext4_rmdir(
     };
 
     // ── Step 2: Look up name in parent dir ──────────────────────────
-    let (target_ino, file_type) = match crate::dir::lookup_in_dir(
+    let (target_ino, _file_type) = match crate::dir::lookup_in_dir(
         &sb, &dir_inode, dir_ino, name_str,
         |block: u64, buf: &mut [u8]| {
             match crate::extent::extent_lookup(&sb, &dir_inode, block, &mut reader) {
@@ -1806,8 +1811,8 @@ pub unsafe extern "C" fn ext4_rmdir(
     let dir_inode_table_block = dir_gd.inode_table(&sb);
     let inodes_per_block = block_size as u64 / inode_size as u64;
     let dir_block_offset = dir_index as u64 / inodes_per_block;
-    let dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
-    let dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
+    let _dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
+    let _dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
 
     // Re-read parent inode (it may have been modified by insert_in_dir in another call)
     let mut dir_inode_for_update = match crate::block::read_inode(&sb, &dir_groups, dir_ino, &mut reader) {

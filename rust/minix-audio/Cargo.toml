@@ -1,0 +1,12 @@
+[package]
+name = "minix-audio"
+version = "0.1.0"
+edition = "2021"
+description = "Audio playback and mixing for GergiOS — PCM playback via /dev/audio, WAV loader, sound synthesis"
+
+[dependencies]
+libc = "0.2"
+
+[features]
+default = []
+std = []

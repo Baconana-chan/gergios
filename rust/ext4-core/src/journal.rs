@@ -29,6 +29,11 @@
 //! 2. For each, read the data blocks and write them to final FS locations
 //! 3. Advance s_start to reclaim journal space
 
+use alloc::string::String;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::format;
+
 use crate::types::*;
 
 // ─── Constants ──────────────────────────────────────────────────────
@@ -1093,7 +1098,7 @@ where
     // 2. Write data blocks
     for (dest, data, flags) in blocks {
         let dev_block = (first + pos) % maxlen;
-        let mut buf = data.clone();
+        let buf = data.clone();
         // Caller must set JBD2_FLAG_ESCAPE and zero the first 4 bytes if the
         // block starts with JBD2_MAGIC_NUMBER. We write the data as-is to the journal.
         // On checkpoint, if JBD2_FLAG_ESCAPE is set, unescape_block will restore the magic.

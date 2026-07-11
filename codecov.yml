@@ -1,0 +1,102 @@
+# codecov.yml — Multilingual coverage configuration
+#
+# Phase 9.5: C Coverage & Benchmarks
+# See planning/28_testing_framework_migration.md
+#
+# Supports two languages:
+#   - Rust: cargo llvm-cov (via .github/workflows/coverage.yml)
+#   - C:    gcov/lcov (via scripts/run_c_coverage.sh or scripts/generate_coverage.sh)
+#
+# References:
+#   - https://docs.codecov.com/docs/codecovyml-reference
+#   - https://docs.codecov.com/docs/flags
+
+codecov:
+  branch: main
+  require_ci_to_pass: false
+  notify:
+    wait_for_ci: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "50...80"
+  status:
+    project:
+      default:
+        enabled: true
+        target: auto
+        threshold: 2%
+        flags:
+          - rust
+      c-coverage:
+        enabled: true
+        target: 30%
+        threshold: 5%
+        flags:
+          - c
+          - unittests
+    patch:
+      default:
+        enabled: true
+        target: auto
+        threshold: 5%
+
+flags:
+  rust:
+    paths:
+      - rust/
+    carryforward: true
+    statuses:
+      - type: project
+        target: 60%
+  c:
+    paths:
+      - minix/kernel/
+      - minix/servers/
+      - minix/lib/
+      - minix/fs/
+      - minix/drivers/
+      - minix/net/
+    carryforward: true
+    statuses:
+      - type: project
+        target: 30%
+  unittests:
+    paths:
+      - tests/
+    carryforward: true
+  benchmarks:
+    paths:
+      - scripts/run_benchmarks.sh
+      - scripts/run_c_benchmarks.sh
+    carryforward: false
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+  hide_project_coverage: false
+
+github_checks:
+  annotations: true
+
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: yes
+      macro: yes
+
+ignore:
+  - "external/*"
+  - "gnu/*"
+  - "tests/*"
+  - "rust/target/*"
+  - "build/*"
+  - "*.md"
+  - "*.yml"
+  - "*.yaml"

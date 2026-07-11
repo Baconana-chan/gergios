@@ -499,6 +499,86 @@ mod errno {
     pub const EINVAL: i32 = -22;
 }
 
+// ============================================================================
+// C FFI test verification functions
+// ============================================================================
+
+/// Return a version identifier: 0x00010000 (legacy virtio 0.9.5 / pre-1.0).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virtio_test_version() -> u32 {
+    0x00010000
+}
+
+/// Return virtio register offset by register ID (0..=8).
+/// Returns 0xFFFFFFFF for unknown IDs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virtio_test_reg_offset(reg_id: u32) -> u32 {
+    match reg_id {
+        0 => HOST_F_OFF as u32,
+        1 => GUEST_F_OFF as u32,
+        2 => QADDR_OFF as u32,
+        3 => QSIZE_OFF as u32,
+        4 => QSEL_OFF as u32,
+        5 => QNOTIFY_OFF as u32,
+        6 => DEV_STATUS_OFF as u32,
+        7 => ISR_STATUS_OFF as u32,
+        8 => DEV_SPECIFIC_OFF as u32,
+        _ => 0xFFFFFFFF,
+    }
+}
+
+/// Return a bitfield/constant value by bitfield ID (0..=28).
+/// Returns 0xFFFFFFFF for unknown IDs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn virtio_test_bitfield(bf_id: u32) -> u32 {
+    match bf_id {
+        // Status flags (0-3)
+        0 => STATUS_ACK as u32,
+        1 => STATUS_DRV as u32,
+        2 => STATUS_DRV_OK as u32,
+        3 => STATUS_FAIL as u32,
+        // Feature flags (4-5)
+        4 => F_INDIRECT_DESC,
+        // Vring descriptor flags (5-7)
+        5 => crate::queue::VRING_DESC_F_NEXT as u32,
+        6 => crate::queue::VRING_DESC_F_WRITE as u32,
+        7 => crate::queue::VRING_DESC_F_INDIRECT as u32,
+        // Vring struct sizes (8-9)
+        8 => core::mem::size_of::<crate::queue::VringDesc>() as u32,
+        9 => core::mem::size_of::<crate::queue::VringUsedElem>() as u32,
+        // Virtio-net feature bits (10-29)
+        10 => crate::net::VIRTIO_NET_F_CSUM,
+        11 => crate::net::VIRTIO_NET_F_GUEST_CSUM,
+        12 => crate::net::VIRTIO_NET_F_MAC,
+        13 => crate::net::VIRTIO_NET_F_GSO,
+        14 => crate::net::VIRTIO_NET_F_STATUS,
+        15 => crate::net::VIRTIO_NET_F_CTRL_VQ,
+        16 => crate::net::VIRTIO_NET_F_MRG_RXBUF,
+        // Net status flags (17-18)
+        17 => crate::net::VIRTIO_NET_S_LINK_UP as u32,
+        18 => crate::net::VIRTIO_NET_S_ANNOUNCE as u32,
+        // Header struct sizes (19-20)
+        19 => core::mem::size_of::<crate::net::VirtioNetHdr>() as u32,
+        20 => core::mem::size_of::<crate::net::VirtioNetHdrMrgRxbuf>() as u32,
+        // Header flags (21-22)
+        21 => crate::net::VIRTIO_NET_HDR_F_NEEDS_CSUM as u32,
+        22 => crate::net::VIRTIO_NET_HDR_F_DATA_VALID as u32,
+        // GSO types (23-26)
+        23 => crate::net::VIRTIO_NET_HDR_GSO_NONE as u32,
+        24 => crate::net::VIRTIO_NET_HDR_GSO_TCPV4 as u32,
+        25 => crate::net::VIRTIO_NET_HDR_GSO_TCPV6 as u32,
+        26 => crate::net::VIRTIO_NET_HDR_GSO_ECN as u32,
+        // Queue indices (27-29)
+        27 => crate::net::RX_Q as u32,
+        28 => crate::net::TX_Q as u32,
+        29 => crate::net::CTRL_Q as u32,
+        // Driver constants (30-31)
+        30 => crate::driver::BUF_PACKETS as u32,
+        31 => crate::driver::MAX_PACK_SIZE as u32,
+        _ => 0xFFFFFFFF,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -517,5 +597,28 @@ mod tests {
         assert_eq!(QSEL_OFF, 0x000E);
         assert_eq!(DEV_STATUS_OFF, 0x0012);
         assert_eq!(DEV_SPECIFIC_OFF, 0x0014);
+    }
+
+    #[test]
+    fn test_ffi_version() {
+        let v = unsafe { virtio_test_version() };
+        assert_eq!(v, 0x00010000);
+    }
+
+    #[test]
+    fn test_ffi_reg_offsets() {
+        assert_eq!(unsafe { virtio_test_reg_offset(0) }, 0x0000);
+        assert_eq!(unsafe { virtio_test_reg_offset(6) }, 0x0012);
+        assert_eq!(unsafe { virtio_test_reg_offset(8) }, 0x0014);
+        assert_eq!(unsafe { virtio_test_reg_offset(99) }, 0xFFFFFFFF);
+    }
+
+    #[test]
+    fn test_ffi_bitfields() {
+        assert_eq!(unsafe { virtio_test_bitfield(0) }, 0x01); // STATUS_ACK
+        assert_eq!(unsafe { virtio_test_bitfield(5) }, 1);    // VRING_DESC_F_NEXT
+        assert_eq!(unsafe { virtio_test_bitfield(8) }, 16);   // VringDesc size
+        assert_eq!(unsafe { virtio_test_bitfield(19) }, 10);  // VirtioNetHdr size
+        assert_eq!(unsafe { virtio_test_bitfield(99) }, 0xFFFFFFFF);
     }
 }

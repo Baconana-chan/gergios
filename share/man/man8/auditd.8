@@ -1,0 +1,110 @@
+.Dd July 9, 2026
+.Dt AUDITD 8
+.Os GergiOS
+.Sh NAME
+.Nm auditd
+.Nd security event auditing daemon
+.Sh SYNOPSIS
+.Nm auditd
+.Sh DESCRIPTION
+.Nm
+is the system security audit daemon for GergiOS. It periodically polls
+the kernel's audit ring buffer via the
+.Xr SYS_AUDIT 2
+system call, writing events to the audit log.
+.Pp
+.Nm
+is started automatically by the reincarnation server (RS) at boot time,
+as configured in
+.Pa /etc/system.conf .
+.Pp
+The daemon supports the following operations, triggered by IPC messages
+from
+.Xr auditctl 8 :
+.Bl -tag -width indent
+.It Sy Status
+Returns audit log state, enabled status, and poll interval.
+.It Sy Enable/Disable
+Toggles audit logging on or off.
+.It Sy Force poll
+Immediately reads the kernel ring buffer.
+.It Sy Reopen log
+Closes and reopens the log file (for external log rotation).
+.It Sy Force rotation
+Triggers log rotation by size/time check.
+.El
+.Sh CONFIGURATION
+Configuration is read from
+.Pa /etc/auditd.conf :
+.Bd -literal -offset indent
+# Audit log path
+log_path = /var/log/audit/audit.log
+
+# Poll interval in milliseconds (default: 10000)
+poll_interval_ms = 10000
+
+# Rotate when log exceeds this size (default: 10 MB)
+rotate_size_mb = 10
+
+# Rotate every N seconds (default: 3600 = 1 hour)
+rotate_interval_s = 3600
+
+# Delete logs older than N days (default: 30)
+max_days = 30
+.Ed
+.Sh LOG ROTATION
+.Nm
+supports automatic log rotation triggered by either:
+.Bl -bullet -compact
+.It
+Log file size exceeding
+.Nm rotate_size_mb .
+.It
+Time elapsed since last rotation exceeding
+.Nm rotate_interval_s .
+.El
+.Pp
+Rotated logs are named
+.Pa audit.log.YYYYMMDD_HHMMSS .
+Old logs are automatically cleaned up after
+.Nm max_days .
+.Pp
+The kernel ring buffer holds 1024 entries regardless of rotation state.
+Overflow discards the oldest entries.
+.Sh LOG FORMAT
+The log is pipe-delimited text:
+.Bd -literal -offset indent
+serial|ticks|type|result|subject|object|extra
+.Ed
+.Pp
+Event types:
+.Bl -column "AUDIT_MAC_VIOLATION" "Value" "Description" -offset indent
+.It Sy Type Ta Value Ta Description
+.It AUTH_SUCCESS Ta 0 Ta Successful authentication
+.It AUTH_FAILURE Ta 1 Ta Failed authentication
+.It PRIV_CHANGE Ta 2 Ta Capability/privilege change
+.It IPC_DENIED Ta 3 Ta IPC send denied
+.It FILE_DENIED Ta 4 Ta File access denied
+.It DEVICE_BIND Ta 5 Ta Device bound/unbound
+.It SYSCALL_AUTH Ta 6 Ta Kernel call authorised
+.It MAC_VIOLATION Ta 7 Ta MAC policy violation
+.It SERVICE_START Ta 8 Ta Service started/stopped
+.It SERVICE_CRASH Ta 9 Ta Service crash
+.El
+.Sh FILES
+.Bl -tag -width /var/log/audit/audit.log -compact
+.It Pa /etc/auditd.conf
+Configuration file.
+.It Pa /var/log/audit/audit.log
+Audit log file.
+.El
+.Sh SEE ALSO
+.Xr auditctl 8 ,
+.Xr audit2txt 8 ,
+.Xr audit 2 ,
+.Xr system.conf 5 ,
+.Xr macd 8
+.Sh HISTORY
+The
+.Nm
+daemon first appeared in GergiOS 1.0.

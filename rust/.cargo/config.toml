@@ -1,0 +1,29 @@
+# .cargo/config.toml — MINIX Rust workspace configuration
+#
+# Cross-compilation for MINIX targets:
+#
+#   # Nightly-based approach (recommended):
+#   rustup toolchain install nightly --component rust-src
+#   bash releasetools/setup_minix_sysroot.sh install-target
+#   RUSTFLAGS="-Zunstable-options" cargo +nightly build -Zbuild-std=core --target x86_64-unknown-minix --lib
+#
+# Requires:
+#   - Nightly Rust (for -Zbuild-std support with custom targets)
+#   - clang (for cross-compilation to ELF, via target JSON spec)
+#   - MINIX DESTDIR (sysroot) with headers + libraries (for linking executables)
+#
+# Custom target specs are installed to the nightly sysroot by:
+#   ./releasetools/setup_minix_sysroot.sh install-target
+
+[build]
+# Don't set target globally — let individual invocations decide via --target
+
+[target.x86_64-unknown-minix]
+# Linker is specified in the target JSON spec (rust/x86_64-unknown-minix.json)
+# No additional configuration needed here — the target JSON handles:
+#   - linker: clang
+#   - pre-link-args: --target=x86_64-unknown-elf, -nostdlib, -static, -rtlib=compiler-rt
+#   - post-link-args: -lc, -lsys, -lminc, -ltimers (require MINIX_DESTDIR)
+
+[target.aarch64-unknown-minix]
+# Same pattern for ARM64, see rust/aarch64-unknown-minix.json

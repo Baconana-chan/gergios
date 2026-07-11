@@ -50,11 +50,40 @@ struct mac_rule {
 };
 
 /*===========================================================================*
+ *                    Binary policy format constants                        *
+ *===========================================================================*/
+
+#define MAC_BIN_MAGIC    0x4D414350   /* "MACP" in ASCII */
+#define MAC_BIN_VERSION  1
+
+struct mac_policy_header {
+	uint32_t magic;
+	uint32_t version;
+	uint32_t num_rules;
+};
+
+struct mac_rule_bin {
+	int32_t  action;
+	int32_t  op_type;
+	char     from_label[32];
+	char     to_label[32];
+};
+
+/*===========================================================================*
  *                    API                                                      *
  *===========================================================================*/
 
-/* Initialize the policy engine: load rules from /etc/macd.conf. */
+/* Initialize the policy engine: try binary /etc/macd.policy first,
+ * fall back to text /etc/macd.conf. */
 void policy_init(void);
+
+/* Load rules from a compiled binary policy file (mac-compile output).
+ * Returns number of rules loaded, or negative on error.
+ */
+int policy_load_binary(const char *path);
+
+/* Return the number of loaded policy rules via 'count'. */
+void policy_count_rules(int *count);
 
 /* Evaluate a MAC check request against the rule list.
  * Returns MAC_ALLOW or MAC_DENY.

@@ -3,9 +3,9 @@
 
 # MINIX:
 MAN=	\
-	\
-	\
-	\
+	auditd.8 \
+	bt-tool.8 \
+	minix-admin.8 \
 	rc.8 rc.subr.8 \
 	\
 	

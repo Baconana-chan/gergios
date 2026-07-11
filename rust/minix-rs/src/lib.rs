@@ -374,6 +374,160 @@ pub fn syscall(_who: Endpoint, _nr: i32, _msg: &mut Message) -> i32 {
     -78
 }
 
+// ============================================================================
+// MINIX Daemon Framework — SEF + raw IPC
+// ============================================================================
+// These are the low-level FFI bindings needed by a MINIX system service.
+// The actual functions are part of the MINIX libc.
+
+/// SEF startup — must be called first in main() after setting callbacks.
+#[cfg(target_os = "minix")]
+pub fn sef_startup() {
+    extern "C" {
+        fn sef_startup();
+    }
+    unsafe { sef_startup() }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn sef_startup() {}
+
+/// Receive an IPC message (SEF wrapper).
+/// Returns 0 on success, negative errno on error.
+#[cfg(target_os = "minix")]
+pub fn sef_receive(src: Endpoint, msg: &mut Message) -> i32 {
+    extern "C" {
+        fn sef_receive_status(src: Endpoint, msg: *mut Message, status: *mut i32) -> i32;
+    }
+    unsafe { sef_receive_status(src, msg as *mut Message, core::ptr::null_mut()) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn sef_receive(_src: Endpoint, _msg: &mut Message) -> i32 {
+    // On host, pretend we received NOTIFY_MESSAGE from RS to trigger shutdown
+    0
+}
+
+/// Send an IPC message (raw). Blocks until the message is delivered.
+#[cfg(target_os = "minix")]
+pub fn ipc_send(dest: Endpoint, msg: &mut Message) -> i32 {
+    extern "C" {
+        fn _ipc_send(dest: Endpoint, msg: *mut Message) -> i32;
+    }
+    unsafe { _ipc_send(dest, msg as *mut Message) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn ipc_send(_dest: Endpoint, _msg: &mut Message) -> i32 {
+    0
+}
+
+/// Receive an IPC message (raw). Blocks until a message arrives.
+#[cfg(target_os = "minix")]
+pub fn ipc_receive(src: Endpoint, msg: &mut Message) -> i32 {
+    extern "C" {
+        fn _ipc_receive(src: Endpoint, msg: *mut Message, status: *mut i32) -> i32;
+    }
+    unsafe { _ipc_receive(src, msg as *mut Message, core::ptr::null_mut()) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn ipc_receive(_src: Endpoint, _msg: &mut Message) -> i32 {
+    0
+}
+
+/// Send a notification (asynchronous, non-blocking).
+#[cfg(target_os = "minix")]
+pub fn ipc_notify(dest: Endpoint) -> i32 {
+    extern "C" {
+        fn _ipc_notify(dest: Endpoint) -> i32;
+    }
+    unsafe { _ipc_notify(dest) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn ipc_notify(_dest: Endpoint) -> i32 {
+    0
+}
+
+/// Send a message and receive a reply (combined).
+#[cfg(target_os = "minix")]
+pub fn ipc_sendrec(src_dest: Endpoint, msg: &mut Message) -> i32 {
+    extern "C" {
+        fn _ipc_sendrec(src_dest: Endpoint, msg: *mut Message) -> i32;
+    }
+    unsafe { _ipc_sendrec(src_dest, msg as *mut Message) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn ipc_sendrec(_src_dest: Endpoint, _msg: &mut Message) -> i32 {
+    0
+}
+
+/// SEF callback type for fresh initialization.
+pub type SefInitCb = Option<unsafe extern "C" fn(i32, *mut SefInitInfo) -> i32>;
+
+/// SEF init info structure (mirrors C `sef_init_info_t` in minix/sef.h).
+#[repr(C)]
+pub struct SefInitInfo {
+    pub flags: i32,
+    pub rproctab_gid: i32,
+    pub endpoint: Endpoint,
+    pub old_endpoint: Endpoint,
+    pub restarts: i32,
+    pub init_buff_start: *mut core::ffi::c_void,
+    pub init_buff_cleanup_start: *mut core::ffi::c_void,
+    pub init_buff_len: usize,
+    pub copy_flags: i32,
+    pub prepare_state: i32,
+}
+
+/// Register the SEF fresh init callback.
+#[cfg(target_os = "minix")]
+pub fn sef_setcb_init_fresh(cb: unsafe extern "C" fn(i32, *mut SefInitInfo) -> i32) {
+    extern "C" {
+        fn sef_setcb_init_fresh(cb: unsafe extern "C" fn(i32, *mut SefInitInfo) -> i32);
+    }
+    unsafe { sef_setcb_init_fresh(cb) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn sef_setcb_init_fresh(_cb: unsafe extern "C" fn(i32, *mut SefInitInfo) -> i32) {}
+
+/// Register the SEF signal handler callback.
+#[cfg(target_os = "minix")]
+pub fn sef_setcb_signal_handler(cb: unsafe extern "C" fn(i32)) {
+    extern "C" {
+        fn sef_setcb_signal_handler(cb: unsafe extern "C" fn(i32));
+    }
+    unsafe { sef_setcb_signal_handler(cb) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn sef_setcb_signal_handler(_cb: unsafe extern "C" fn(i32)) {}
+
+/// Set a one-shot alarm timer. When the timer expires, the calling process
+/// receives SIGALRM. The delay is in system ticks (typically 10ms at HZ=100).
+///
+/// Returns OK (0) on success, or a negative errno.
+///
+/// This is a kernel call (SYS_SETALARM = KERNEL_CALL + 24).
+///
+/// `abs_time`: if non-zero, `delay` is interpreted as an absolute system time.
+/// If zero, the alarm fires after `delay` ticks.
+#[cfg(target_os = "minix")]
+pub fn sys_setalarm(delay: usize, abs_time: i32) -> i32 {
+    extern "C" {
+        fn sys_setalarm(delay: usize, abs_time: i32) -> i32;
+    }
+    unsafe { sys_setalarm(delay, abs_time) }
+}
+
+#[cfg(not(target_os = "minix"))]
+pub fn sys_setalarm(_delay: usize, _abs_time: i32) -> i32 {
+    0 // Stub: always succeeds on host
+}
+
 // ---------------------------------------------------------------------------
 // IPC convenience wrappers
 // ---------------------------------------------------------------------------

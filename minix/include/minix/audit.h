@@ -20,7 +20,7 @@
 #define _MINIX_AUDIT_H
 
 #include <minix/endpoint.h>
-#include <minix/types.h>
+#include <minix/type.h>
 
 /* Audit event types. */
 #define AUDIT_AUTH_SUCCESS    1	/* Successful authentication */
@@ -54,6 +54,7 @@ struct audit_record {
 #define AUDIT_OP_GET_COUNT	1	/* get number of available records */
 #define AUDIT_OP_RETRIEVE	2	/* copy records to user-supplied buffer */
 #define AUDIT_OP_STATUS		3	/* get audit subsystem status */
+#define AUDIT_OP_LOG		4	/* log event from user-space server */
 
 #ifndef __ASSEMBLY__
 

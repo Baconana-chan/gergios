@@ -1,0 +1,11 @@
+[package]
+name = "gertoys"
+version = "0.1.0"
+edition = "2021"
+description = "Consolidated BSD games utilities (bcd, morse, caesar, number, pig, ppt, random)"
+
+[[bin]]
+name = "gertoys"
+path = "src/main.rs"
+
+[dependencies]

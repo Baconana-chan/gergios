@@ -1,0 +1,12 @@
+[package]
+name = "bt-tool"
+version = "0.1.0"
+edition = "2024"
+description = "Bluetooth control CLI for GergiOS — scan, pair, connect, info"
+
+[[bin]]
+name = "bt-tool"
+path = "src/main.rs"
+
+[dependencies]
+minix-rs = { path = "../../rust/minix-rs" }

@@ -1,0 +1,82 @@
+.\"	$GergiOS: macctl.8,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt MACCTL 8
+.Os GergiOS
+.Sh NAME
+.Nm macctl
+.Nd control MAC enforcement at runtime
+.Sh SYNOPSIS
+.Nm
+.Cm status
+.Nm
+.Cm on
+.Nm
+.Cm off
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the MAC (Mandatory Access Control) policy daemon
+.Xr macd 8 .
+It allows the administrator to enable or disable MAC enforcement
+at runtime without restarting the daemon.
+.Pp
+When enforcement is disabled,
+.Xr macd 8
+returns
+.Dv MAC_ALLOW
+for all policy checks, effectively allowing all operations.
+The policy rules are still loaded and can be inspected, but they
+are not enforced.
+.Pp
+The commands are as follows:
+.Bl -tag -width indent
+.It Cm status
+Show whether MAC enforcement is currently enabled or disabled,
+and how many policy rules are loaded.
+.It Cm on
+Enable MAC enforcement.
+All subsequent MAC policy checks will be evaluated against the
+loaded rules.
+.It Cm off
+Disable MAC enforcement.
+All subsequent MAC policy checks will return
+.Dv MAC_ALLOW
+without consulting the policy engine.
+.It Fl h
+Show usage summary.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width /etc/macd.conf -compact
+.It Pa /etc/macd.conf
+Text-format MAC policy file.
+.It Pa /etc/macd.policy
+Binary-format MAC policy file (compiled by mac-compile).
+.El
+.Sh EXAMPLES
+Check whether MAC is currently enforcing:
+.Bd -literal -offset indent
+macctl status
+.Ed
+.Pp
+Disable MAC enforcement temporarily (e.g., for debugging):
+.Bd -literal -offset indent
+macctl off
+.Ed
+.Pp
+Re-enable MAC enforcement:
+.Bd -literal -offset indent
+macctl on
+.Ed
+.Sh SEE ALSO
+.Xr macd 8 ,
+.Xr mac-compile 8 ,
+.Xr macd.conf 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS 1.0.

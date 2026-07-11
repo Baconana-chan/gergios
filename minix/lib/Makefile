@@ -26,6 +26,7 @@ SUBDIR+=	libsffs
 SUBDIR+=	libsockdriver
 SUBDIR+=	libsockevent
 SUBDIR+=	libtimers
+SUBDIR+=	libbluetooth
 SUBDIR+=	libusb
 SUBDIR+=	libvtreefs
 

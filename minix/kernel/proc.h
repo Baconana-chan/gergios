@@ -15,7 +15,10 @@
  * struct proc, be sure to change sconst.h to match.
  */
 #include <minix/com.h>
+#include <minix/ipc.h>
 #include <minix/portio.h>
+#include <machine/archtypes.h>
+#include <machine/stackframe.h>
 #include "const.h"
 #include "priv.h"
 

@@ -1,0 +1,11 @@
+[package]
+name = "proptest-helpers"
+version = "0.1.0"
+edition = "2024"
+description = "Shared proptest strategies for GergiOS components — IPC, ext4, network, Bluetooth"
+
+[dependencies]
+proptest = { version = "1", default-features = false, features = ["std", "fork"] }
+minix-rs = { path = "../minix-rs" }
+ext4-core = { path = "../ext4-core" }
+minix-bt-stack = { path = "../minix-bt-stack" }

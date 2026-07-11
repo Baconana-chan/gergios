@@ -31,6 +31,11 @@ SUBDIR= asa \
 	tput \
 	tr true tsort tty ul	uname unexpand unifdef \
 	irqtop \
+	\
+	mac-compile \
+	\
+	macctl \
+	bt-tool \
 
 	uniq units unvis unzip users \
 	uudecode uuencode uuidgen vis \

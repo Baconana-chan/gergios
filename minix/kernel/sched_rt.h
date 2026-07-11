@@ -70,4 +70,23 @@ static inline void sched_rt_proc_init(struct proc *p)
 	p->p_rt_priority = 0;
 }
 
+/* Real-time scheduling class operations.
+ * Set a process to an RT scheduling class (SCHED_FIFO or SCHED_RR).
+ * Returns OK on success, EINVAL for invalid arguments.
+ */
+int sched_rt_set_class(struct proc *p, int sched_class,
+    int rt_prio, int rr_quantum);
+
+/* Check whether a newly-enqueued RT process should preempt the
+ * currently running process. Returns 1 if preemption is needed.
+ */
+int sched_rt_may_preempt(const struct proc *current,
+    const struct proc *new_proc);
+
+/* Handle quantum expiry for RT processes.
+ * Returns 1 if quantum was handled (process gets renewed quantum),
+ * 0 if caller should fall through to normal SCHED_OTHER handling.
+ */
+int sched_rt_handle_quantum(struct proc *p);
+
 #endif /* SCHED_RT_H */

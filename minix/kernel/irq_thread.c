@@ -27,6 +27,8 @@
  */
 
 #include "irq_thread.h"
+#include "kernel/kernel.h"
+#include "debug.h"
 #include "sched_rt.h"
 #include "proc.h"
 #include "clock.h"
@@ -191,8 +193,8 @@ static void irq_thread_entry(void)
             "movq %%r15, %6\n\t"
             "leaq 1f(%%rip), %7\n\t"
             : "=m" (self->p_reg.sp),
-              "=m" (self->p_reg.rbx),
-              "=m" (self->p_reg.rbp),
+              "=m" (self->p_reg.bx),
+              "=m" (self->p_reg.fp),
               "=m" (self->p_reg.r12),
               "=m" (self->p_reg.r13),
               "=m" (self->p_reg.r14),

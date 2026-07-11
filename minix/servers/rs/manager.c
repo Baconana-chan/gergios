@@ -13,6 +13,8 @@
 
 #include "kernel/proc.h"
 
+#include <minix/audit.h>
+
 static int run_script(struct rproc *rp);
 
 /*===========================================================================*
@@ -85,16 +87,28 @@ struct rproc *rp;
 {
 /* Check if the caller has permission to execute a particular call. */
   struct rprocpub *rpub;
-  int call_allowed;
+  int call_allowed;	/* Caller should be either root or have control privileges. */
+	call_allowed = caller_is_root(caller);
+	if(rp) {
+	    call_allowed |= caller_can_control(caller, rp);
+	}
+	if(!call_allowed) {
+	    endpoint_t target_ep;
 
-  /* Caller should be either root or have control privileges. */
-  call_allowed = caller_is_root(caller);
-  if(rp) {
-      call_allowed |= caller_can_control(caller, rp);
-  }
-  if(!call_allowed) {
-      return EPERM;
-  }
+	    target_ep = (rp != NULL) ? rp->r_pub->endpoint : NONE;
+	    {
+		message audit_msg;
+
+		memset(&audit_msg, 0, sizeof(audit_msg));
+		audit_msg.AUDIT_OP = AUDIT_OP_LOG;
+		audit_msg.AUDIT_LOG_TYPE = AUDIT_IPC_DENIED;
+		audit_msg.AUDIT_LOG_RESULT = EPERM;
+		audit_msg.AUDIT_LOG_SUBJECT = caller;
+		audit_msg.AUDIT_LOG_OBJECT = (char *)(intptr_t)target_ep;
+		_kernel_call(SYS_AUDIT, &audit_msg);
+	    }
+	    return EPERM;
+	}
 
   if(rp) {
       rpub = rp->r_pub;

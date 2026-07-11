@@ -170,9 +170,30 @@ int do_audit(struct proc *caller, message *m_ptr)
 
 	case AUDIT_OP_STATUS:
 	{
-		/* Return buffer size and current write position. */
+		/* Return buffer size and current write position.
+		 * Only use m1_i1..m1_i3 + m1_p1 (noxfer_message-safe). */
 		m_ptr->AUDIT_COUNT = AUDIT_BUFFER_ENTRIES;
-		m_ptr->AUDIT_ENABLE = (int)audit_write_idx;
+		m_ptr->m1_i1 = (int)audit_write_idx;	/* write position */
+		return OK;
+	}
+
+	case AUDIT_OP_LOG:
+	{
+		/* Log an event from a user-space server.
+		 * Kernel's noxfer_message only has m1_i1..m1_i3 + m1_p1
+		 * (no m1_i4). Subject is passed via m1_p1 (as intptr).
+		 * Object defaults to NONE since we only have one
+		 * pointer-sized field available. */
+		uint32_t log_type;
+		int log_result;
+		endpoint_t log_subject;
+
+		log_type = (uint32_t)m_ptr->m1_i1;
+		log_result = (int)m_ptr->m1_i3;
+		log_subject = (endpoint_t)(intptr_t)m_ptr->m1_p1;
+
+		audit_log(log_type, log_result, log_subject,
+		    NONE, NULL, 0);
 		return OK;
 	}
 

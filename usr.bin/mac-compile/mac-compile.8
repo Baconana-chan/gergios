@@ -1,0 +1,102 @@
+.\"	$GergiOS: mac-compile.8,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt MAC-COMPILE 8
+.Os GergiOS
+.Sh NAME
+.Nm mac-compile
+.Nd compile MAC policy rules into binary format
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar output
+.Op Fl v
+.Op Ar input_file
+.Sh DESCRIPTION
+The
+.Nm
+utility reads MAC policy rules in human-readable format
+from
+.Ar input_file
+(or stdin) and compiles them into a compact binary format
+that the MAC policy daemon
+.Xr macd 8
+can load quickly at startup.
+.Pp
+The compiled policy is significantly faster to load because
+.Xr macd 8
+does not need to re-parse text or resolve service labels at
+startup time.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o Ar output
+Write compiled policy to
+.Ar output
+instead of stdout.
+.It Fl v
+Verbose mode: print a summary of the number of rules compiled
+and the output size.
+.It Fl h
+Show usage summary.
+.El
+.Sh INPUT FORMAT
+The input format is identical to
+.Pa /etc/macd.conf :
+.Bd -literal -offset indent
+# This is a comment
+<allow|deny> <op> [from <label>] [to <label>]
+.Ed
+.Pp
+Supported operations:
+.Bl -column "PRIVCTL_SET_SYS" "Description" -offset indent
+.It Sy Op Ta Sy Description
+.It ALL      Ta Matches all operations
+.It IPC_SEND Ta IPC send
+.It IPC_RECEIVE Ta IPC receive
+.It FILE_ACCESS Ta File access (open/read/write/execute)
+.It PRIVCTL_SET_SYS Ta Setting system privileges
+.It DEVICE_BIND Ta Device driver binding
+.It PROC_FORK Ta Process fork
+.It PROC_EXEC Ta Process exec
+.It PROC_KILL Ta Signal delivery
+.It RAWIO    Ta Raw I/O access
+.El
+.Pp
+Labels are service names from
+.Pa /etc/system.conf
+(e.g., vfs, pm, rs, init).
+The special label
+.Sy ANY
+matches all endpoints.
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width /etc/macd.policy -compact
+.It Pa /etc/macd.conf
+Default text-format policy file.
+.It Pa /etc/macd.policy
+Default binary-format policy file (compiled output).
+.El
+.Sh EXAMPLES
+Compile the default policy:
+.Bd -literal -offset indent
+mac-compile -o /etc/macd.policy /etc/macd.conf
+.Ed
+.Pp
+Validate a policy file without writing output (check for errors):
+.Bd -literal -offset indent
+mac-compile /etc/macd.conf > /dev/null
+.Ed
+.Pp
+Compile with verbose output:
+.Bd -literal -offset indent
+mac-compile -v -o /etc/macd.policy /etc/macd.conf
+.Ed
+.Sh SEE ALSO
+.Xr macd 8 ,
+.Xr macd.conf 5 ,
+.Xr mac-compile 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS 1.0.

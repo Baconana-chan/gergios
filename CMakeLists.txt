@@ -437,10 +437,11 @@ if(NOT MACHINE_ARCH STREQUAL "aarch64")
     add_subdirectory(minix/net)
 endif()
 
-# Phase 5: Rust driver libraries (staticlib for AHCI and e1000)
+# Phase 5: Rust driver libraries (staticlib for AHCI, e1000, ext4-core)
 if(CARGO_EXECUTABLE)
     add_rust_library(minix-ahci)
     add_rust_library(e1000)
+    add_rust_library(ext4-core)
 endif()
 
 # Rust userland utilities (Phase 3)
@@ -481,6 +482,42 @@ if(CARGO_EXECUTABLE)
     add_rust_test(audio-buf)
     add_rust_test(procfs-path)
     add_rust_test(net-parse)
+    add_rust_test(ext4-core)
+endif()
+
+# ============================================================================
+# Phase 9.5: Coverage custom target (gcov/lcov)
+# ============================================================================
+
+if(MKCOVERAGE)
+    find_program(LCOV_EXECUTABLE lcov)
+    find_program(GENHTML_EXECUTABLE genhtml)
+
+    if(LCOV_EXECUTABLE AND GENHTML_EXECUTABLE)
+        add_custom_target(coverage
+            COMMAND ${CMAKE_COMMAND} -E echo "Generating C code coverage report..."
+            COMMAND ${LCOV_EXECUTABLE} --directory ${CMAKE_BINARY_DIR}
+                --base-directory ${CMAKE_SOURCE_DIR}
+                --capture
+                --output-file ${CMAKE_BINARY_DIR}/coverage/coverage.raw.info
+                --quiet
+            COMMAND ${LCOV_EXECUTABLE} --remove ${CMAKE_BINARY_DIR}/coverage/coverage.raw.info
+                '/usr/*' '/opt/*' '*/tests/*' '*/external/*' '*/gnu/*' '*/rust/*'
+                --output-file ${CMAKE_BINARY_DIR}/coverage/coverage.filtered.info
+                --quiet
+            COMMAND ${GENHTML_EXECUTABLE} ${CMAKE_BINARY_DIR}/coverage/coverage.filtered.info
+                --output-directory ${CMAKE_BINARY_DIR}/coverage/html
+                --title "GergiOS C Code Coverage"
+                --legend --show-details
+                --quiet
+            COMMAND ${CMAKE_COMMAND} -E echo "Coverage report: ${CMAKE_BINARY_DIR}/coverage/html/index.html"
+            COMMENT "Generating C code coverage report (gcov/lcov)"
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        message(STATUS "Coverage target enabled: make coverage")
+    else()
+        message(STATUS "lcov/genhtml not found — coverage target disabled")
+    endif()
 endif()
 
 # Tests

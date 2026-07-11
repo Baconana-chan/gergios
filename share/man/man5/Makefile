@@ -9,7 +9,7 @@ MAN=	\
 	\
 	hosts.5 ifconfig.if.5 \
 	locale.alias.5 \
-	\
+	mac-policy.5 \
 	\
 	\
 	nsswitch.conf.5 \

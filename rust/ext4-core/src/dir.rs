@@ -9,6 +9,8 @@
 //! Algorithm: CRC-32C(seed + dir_ino (4B LE) + i_generation (4B LE) +
 //!            zeroed_block[..block_size - tail_size])
 
+use alloc::vec;
+
 use crate::types::*;
 use crate::journal::crc32c_le;
 
@@ -154,7 +156,7 @@ impl<'a> Iterator for DirEntryIter<'a> {
             let name_len = self.data[self.pos + 6] as usize;
             let file_type = self.data[self.pos + 7];
 
-            let actual_len = EXT4_DIR_ENTRY_MIN_SIZE + name_len;
+            let _actual_len = EXT4_DIR_ENTRY_MIN_SIZE + name_len;
             let mut name = [0u8; 255];
             let copy_len = core::cmp::min(name_len, 255);
             name[..copy_len].copy_from_slice(&self.data[self.pos + 8..self.pos + 8 + copy_len]);
@@ -769,8 +771,9 @@ pub fn expand_dir<FR, FW, FA, FE>(
     sb: &Ext4Superblock,
     inode: &mut Ext4Inode,
     dir_ino: u32,
-    mut read_block: FR,
+    _read_block: FR,
     mut write_block: FW,
+
     mut alloc_block: FA,
     mut write_inode: FE,
 ) -> Ext4Result<u64>

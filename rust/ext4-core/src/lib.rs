@@ -7,17 +7,40 @@
 //! - Extent tree traversal (depth 0-3)
 //! - Directory entry reading (linear + htree fallback)
 //!
+//! ## no_std compatibility
+//!
+//! This crate is `no_std` with `alloc` for cross-compilation.
+//! When targeting a MINIX kernel driver (staticlib), the C host
+//! provides malloc/free. For native builds, `std` is available
+//! through the default feature set.
+//!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use ext4_core::{Ext4Superblock, parse_superblock};
 //!
 //! // Read the superblock from a raw device (offset 1024)
 //! let mut block = vec![0u8; 4096];
 //! // ... fill block from device at offset 1024 ...
 //! let sb = parse_superblock(&block).unwrap();
-//! println!("Block size: {}", sb.block_size());
+//! let block_size = sb.block_size();
 //! ```
+
+#![no_std]
+
+// Global allocator (wraps C malloc/free) and panic handler.
+// Required when building with -Zbuild-std=core,alloc for a custom target.
+// For native builds, this never conflicts because the library is no_std.
+mod allocator;
+
+extern crate alloc;
+
+// Re-export common alloc types for convenience
+pub use alloc::vec::Vec;
+pub use alloc::string::String;
+pub use alloc::string::ToString;
+pub use alloc::format;
+pub use alloc::boxed::Box;
 
 mod types;
 pub mod superblock;
@@ -26,8 +49,9 @@ pub mod inode;
 pub mod extent;
 pub mod dir;
 pub mod block;
+#[allow(non_camel_case_types)]
 pub mod ffi;
-pub mod alloc;
+pub mod block_alloc;
 pub mod ialloc;
 pub mod journal;
 pub mod xattr;

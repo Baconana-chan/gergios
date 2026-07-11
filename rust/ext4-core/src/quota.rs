@@ -6,6 +6,8 @@
 //! Quota tracking: updates block/inode usage on allocation/free,
 //! enforces limits before allowing new allocations.
 
+use alloc::vec::Vec;
+
 use crate::types::*;
 
 // ─── Constants ─────────────────────────────────────────────────────────
@@ -317,7 +319,7 @@ where
     // but for now we use the flat array assumption common on
     // smaller filesystems.
 
-    let mut entries = Vec::new();
+    let entries = Vec::new();
     let _ = _read_block; // Placeholder — full implementation pending
     Ok(entries)
 }

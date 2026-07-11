@@ -4,6 +4,9 @@
 //! indirect block maps of ext2/3. The extent tree root is stored in i_block[0..3]
 //! of the inode (first 12 bytes).
 
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::types::*;
 
 /// Traverse the extent tree to find the physical block for a given logical block.

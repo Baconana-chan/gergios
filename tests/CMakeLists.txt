@@ -10,10 +10,21 @@
 
 include(CTest)
 
-# Only enable if MKATF is ON
+# ============================================================================
+# Phase 9.4: Catch2 standalone tests (host-compilable, no MINIX deps)
+# These can run WITHOUT MKATF because they use Catch2, not ATF/Kyua.
+# ============================================================================
+
+# Enable Catch2 standalone tests even without MKATF
+option(MK_CATCH2 "Build Catch2 standalone tests (Phase 9.4+)" ON)
+
+if(MK_CATCH2)
+    message(STATUS "Catch2 standalone tests enabled (MK_CATCH2=ON)")
+endif()
+
+# Only ATF/Kyua tests require MKATF
 if(NOT MKATF)
-    message(STATUS "Testing disabled (MKATF=OFF)")
-    return()
+    message(STATUS "ATF/Kyua tests disabled (MKATF=OFF); Catch2 standalone tests are still enabled if MK_CATCH2=ON")
 endif()
 
 # ============================================================================
@@ -114,13 +125,58 @@ add_test(
 )
 
 # ============================================================================
-# Future: integration tests
+# Phase 9.1: ext4-core C FFI integration tests (Catch2)
 # ============================================================================
 
-# TODO: Add integration tests when cmake builds are complete:
-# - minix/tests/blocktest
-# - minix/tests/ddekit
-# - minix/tests/ds
-# - minix/tests/fbdtest
-# - minix/tests/rmibtest
-# - minix/tests/safecopy
+if(TARGET rust_ext4-core)
+    add_subdirectory(ext4_ffi)
+endif()
+
+# Phase 9.1: Bluetooth IPC message encoding tests (standalone, no MINIX deps)
+add_subdirectory(bt_ffi)
+
+# Phase 9.1: Driver FFI tests (AHCI register layout via rust_minix-ahci)
+if(TARGET rust_minix-ahci)
+    add_subdirectory(driver_ffi)
+endif()
+
+# ============================================================================
+# Phase 9.4: C Test Migration — Catch2 standalone tests
+# ============================================================================
+
+if(MK_CATCH2)
+    # TCP socket wire-format tests (migrated from ATF test91)
+    add_subdirectory(tcp)
+
+    # RAW socket ICMP/IPv6 wire-format tests (migrated from ATF test92)
+    add_subdirectory(raw)
+
+    # IPv6 address/DAD semantics tests (migrated from ATF test93)
+    add_subdirectory(ipv6)
+
+    # BPF packet filter VM/program tests (migrated from ATF test94)
+    add_subdirectory(bpf)
+
+    # Block device I/O semantics tests (migrated from ATF blocktest)
+    add_subdirectory(blocktest)
+
+    # Phase 9.4b: Data Store key-value semantics tests
+    add_subdirectory(ds)
+
+    # Phase 9.4b: RMIB sysctl node tree tests
+    add_subdirectory(rmibtest)
+
+    # Phase 9.4b: Safecopy grant-based IPC tests
+    add_subdirectory(safecopy)
+endif()
+
+# ============================================================================
+# Convenience target: run all Phase 9.4 standalone tests
+# ============================================================================
+
+if(MK_CATCH2)
+    add_custom_target(check-phase9
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure -L phase9
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()

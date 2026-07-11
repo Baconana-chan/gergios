@@ -1,0 +1,88 @@
+.\" $GergiOS: bt-tool.8,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt BT-TOOL 8
+.Os GergiOS
+.Sh NAME
+.Nm bt-tool
+.Nd Bluetooth control utility
+.Sh SYNOPSIS
+.Nm
+.Ic scan
+.Nm
+.Ic scan-stop
+.Nm
+.Ic devices
+.Nm
+.Ic connect
+.Ar bdaddr
+.Nm
+.Ic disconnect
+.Ar handle
+.Nm
+.Ic connections
+.Nm
+.Ic name
+.Ar name
+.Nm
+.Ic discoverable
+.Ar on|off
+.Nm
+.Ic connectable
+.Ar on|off
+.Nm
+.Ic status
+.Nm
+.Ic pair
+.Ar bdaddr
+.Nm
+.Ic unpair
+.Ar bdaddr
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+utility communicates with the Bluetooth daemon
+.Pq bluetoothd
+to manage Bluetooth on GergiOS.
+.Pp
+The commands are as follows:
+.Bl -tag -width "disconnect handle"
+.It Ic scan
+Start device discovery (inquiry scan).
+.It Ic scan-stop
+Stop device discovery.
+.It Ic devices
+List discovered remote devices.
+.It Ic connect Ar bdaddr
+Connect to a remote device by its Bluetooth address
+(in format XX:XX:XX:XX:XX:XX).
+.It Ic disconnect Ar handle
+Disconnect from a remote device by its HCI connection handle.
+.It Ic connections
+List active Bluetooth connections.
+.It Ic name Ar name
+Set the local Bluetooth device name.
+.It Ic discoverable Ar on|off
+Enable or disable discoverability (inquiry scan).
+.It Ic connectable Ar on|off
+Enable or disable connectability (page scan).
+.It Ic status
+Show Bluetooth daemon status.
+.It Ic pair Ar bdaddr
+Initiate pairing with a remote device.
+.It Ic unpair Ar bdaddr
+Remove pairing with a remote device.
+.It Fl h
+Show usage information.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr bluetoothd 8 ,
+.Xr bluetooth 3
+.Sh HISTORY
+The
+.Nm
+command appeared in GergiOS Phase 8.6.

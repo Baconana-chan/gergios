@@ -3,6 +3,8 @@
 //! Provides functions to locate block group data structures
 //! (superblock backups, group descriptor tables, inode tables).
 
+use alloc::vec;
+
 use crate::types::*;
 
 /// Determine if a block group should have a backup superblock.

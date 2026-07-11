@@ -222,7 +222,8 @@ int do_audit(struct proc * caller, message *m_ptr);
 #endif
 
 /* MAC (Mandatory Access Control) hooks. */
-int mac_kernel_check(int what, void *ctx);
+#include <minix/mac.h>
+int mac_kernel_check(int what, mac_context_t *ctx);
 void mac_hook_init(void);
 
 #endif	/* SYSTEM_H */

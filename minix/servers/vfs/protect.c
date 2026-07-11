@@ -297,6 +297,19 @@ int forbidden(struct fproc *rfp, struct vnode *vp, mode_t access_desired)
 	}
   }
 
+  /* If access was denied, log the event via kernel audit buffer. */
+  if (r == EACCES) {
+	message audit_msg;
+
+	memset(&audit_msg, 0, sizeof(audit_msg));
+	audit_msg.AUDIT_OP = AUDIT_OP_LOG;
+	audit_msg.AUDIT_LOG_TYPE = AUDIT_FILE_DENIED;
+	audit_msg.AUDIT_LOG_RESULT = EACCES;
+	audit_msg.AUDIT_LOG_SUBJECT = rfp->fp_endpoint;
+	audit_msg.AUDIT_LOG_OBJECT = (char *)(intptr_t)vp->v_fs_e;
+	_kernel_call(SYS_AUDIT, &audit_msg);
+  }
+
   /* Check to see if someone is trying to write on a file system that is
    * mounted read-only.
    */

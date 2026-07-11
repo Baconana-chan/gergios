@@ -12,6 +12,7 @@ SUBDIR= arp \
 	\
 	\
 	i2cscan inetd installboot \
+	auditctl \
 	\
 	depmod \
 	\
@@ -35,6 +36,8 @@ SUBDIR= arp \
 	traceroute \
 	unlink user \
 	vipw vnconfig \
+	\
+	audit2txt \
 	\
 	zdump zic
 

@@ -7,6 +7,7 @@
 
 # MINIX:
 MAN=	\
+	capabilities.7 \
 	nls.7 \
 	\
 	

@@ -1,0 +1,126 @@
+.Dd July 9, 2026
+.Dt CAPABILITIES 7
+.Os GergiOS
+.Sh NAME
+.Nm capabilities
+.Nd GergiOS capability model overview
+.Sh DESCRIPTION
+GergiOS implements a capability-based security model as a refinement
+of the existing kernel privilege system. Capabilities provide
+fine-grained control over privileged operations.
+.Pp
+Capabilities are stored as a 64-bit bitmask with 13 defined bits.
+Each bit represents a specific privilege.
+.Sh CAPABILITY LIST
+.Bl -tag -width CAP_FS_DAC_OVERRIDE -compact
+.It Sy CAP_SYS_RAWIO
+(bit 0) Direct I/O port access. Required for device drivers that
+access hardware I/O ports.
+.It Sy CAP_NET_RAW
+(bit 1) Raw socket access. Required for AF_PACKET sockets.
+.It Sy CAP_NET_BIND
+(bit 2) Bind to privileged ports (<1024). Required for daemons
+listening on standard service ports.
+.It Sy CAP_NET_ADMIN
+(bit 3) Network interface configuration. Required for
+.Xr ifconfig 8 ,
+.Xr route 8 .
+.It Sy CAP_SYS_ADMIN
+(bit 4) System administration. Required for RS control operations.
+.It Sy CAP_SYS_BOOT
+(bit 5) System reboot/shutdown. Required for
+.Xr reboot 8 ,
+.Xr shutdown 8 .
+.It Sy CAP_IPC_OWNER
+(bit 6) Bypass IPC send masks. Allows sending IPC to any process.
+.It Sy CAP_FS_MOUNT
+(bit 7) Mount/umount filesystems. Required for
+.Xr mount 8 ,
+.Xr umount 8 .
+.It Sy CAP_FS_CHOWN
+(bit 8) Change file ownership. Required for
+.Xr chown 8 .
+.It Sy CAP_FS_DAC_OVERRIDE
+(bit 9) Bypass file permission checks (DAC override).
+.It Sy CAP_VM_MAP
+(bit 10) Map physical memory. Required for device DMA operations.
+.It Sy CAP_IRQ_ALLOC
+(bit 11) Allocate IRQ lines. Required for interrupt handling.
+.It Sy CAP_PCI_ACCESS
+(bit 12) PCI configuration space access.
+.El
+.Sh CAPABILITY SETS
+Predefined sets for common service types:
+.Bl -tag -width network
+.It Sy base
+No capabilities. For unprivileged user processes.
+.It Sy system
+.Nm CAP_NET_BIND , CAP_IPC_OWNER .
+For standard system servers.
+.It Sy driver
+.Nm CAP_SYS_RAWIO , CAP_IRQ_ALLOC , CAP_VM_MAP .
+For device drivers.
+.It Sy network
+.Nm CAP_NET_RAW , CAP_NET_ADMIN , CAP_NET_BIND .
+For network services.
+.It Sy admin
+.Nm CAP_SYS_ADMIN , CAP_SYS_BOOT , CAP_FS_MOUNT .
+For administrative tools.
+.It Sy all
+All 13 capabilities. For core services (RS, VM, PM).
+.El
+.Sh INHERITANCE RULES
+.Bl -bullet -compact
+.It
+.Nm fork() :
+Child inherits parent's effective, permitted, and bounding sets.
+.It
+.Nm exec() :
+Effective and permitted sets reset to bounding set.
+Bounding set unchanged.
+.It
+.Nm setuid(0) :
+No automatic capability elevation. Requires
+.Nm CAP_SYS_ADMIN
+to raise capabilities.
+.El
+.Sh API
+.Bd -literal -offset indent
+#include <sys/capability.h>
+
+int cap_get_proc(cap_t *caps);
+int cap_set_proc(const cap_t *caps);
+int cap_get_bound(cap_t *caps);
+.Ed
+.Pp
+.Nm cap_t
+is a 64-bit unsigned integer.
+.Nm cap_get_proc
+returns the current process's effective capabilities.
+.Nm cap_set_proc
+sets the effective and permitted capabilities
+(can only drop privileges unless CAP_SYS_ADMIN is held).
+.Nm cap_get_bound
+returns the bounding set.
+.Sh CONFIGURATION
+Capabilities are assigned to services in
+.Pa /etc/system.conf
+using the
+.Ic capabilities
+directive:
+.Bd -literal -offset indent
+service myapp
+{
+    capabilities NET_BIND IPC_OWNER;
+    # or: capabilities ALL;
+    # or: capabilities NONE;
+}
+.Ed
+.Sh SEE ALSO
+.Xr cap_get_proc 2 ,
+.Xr cap_set_proc 2 ,
+.Xr system.conf 5 ,
+.Xr mac-policy 5 ,
+.Xr macctl 8
+.Sh HISTORY
+The GergiOS capability model first appeared in GergiOS 1.0.

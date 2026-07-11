@@ -9,3 +9,6 @@ name = "minix_rs"
 
 [dependencies]
 # no dependencies — this is a low-level FFI crate
+
+[dev-dependencies]
+proptest = { version = "1", default-features = false, features = ["std"] }

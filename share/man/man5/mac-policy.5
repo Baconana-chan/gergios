@@ -1,0 +1,125 @@
+.Dd July 9, 2026
+.Dt MAC-POLICY 5
+.Os GergiOS
+.Sh NAME
+.Nm mac-policy
+.Nd MAC policy configuration file format
+.Sh DESCRIPTION
+The
+.Nm
+file format is used by the MAC (Mandatory Access Control) framework
+in GergiOS to define access control rules. The policy is loaded by
+the
+.Xr macd 8
+daemon at startup and can be reloaded via SIGHUP.
+.Pp
+Policy files reside in
+.Pa /etc/macd.conf
+(text format) or optionally
+.Pa /etc/macd.policy
+(compiled binary format, see
+.Xr mac-compile 8 ) .
+.Sh SYNTAX
+Policy files use a simple line-based syntax:
+.Bl -tag -width indent
+.It Sy Comments
+Lines starting with
+.Ql #
+are comments and are ignored.
+.It Sy Allow ALL
+.Pp
+.Dl allow ALL;
+.Pp
+Disables MAC enforcement (compat mode). All operations are permitted.
+.It Sy Allow/Deny rules
+.Pp
+.Dl allow OPERATION from SOURCE to TARGET;
+.Dl deny OPERATION from SOURCE to TARGET;
+.El
+.Sh OPERATIONS
+The following operation types are supported:
+.Bl -tag -width PRIVCTL_SET_SYS
+.It Sy IPC_SEND
+IPC message send between processes.
+.It Sy PRIVCTL_SET_SYS
+Privilege level change via
+.Xr sys_privctl 2 .
+.It Sy PROC_FORK
+Process fork.
+.It Sy PROC_EXEC
+Process exec.
+.It Sy PROC_KILL
+Process signal delivery.
+.It Sy FILE_ACCESS
+File open/read/write access.
+.It Sy DEVICE_BIND
+Device bind/unbind.
+.It Sy RAWIO
+Raw I/O port access.
+.It Sy ALL
+Matches any operation type.
+.El
+.Sh SOURCE AND TARGET
+Source and target are endpoint labels. The following forms are accepted:
+.Bl -tag -width indent
+.It Sy any
+Matches any process endpoint.
+.It Sy self
+Matches the calling process.
+.It Sy label
+A service label from
+.Pa /etc/system.conf
+(e.g.,
+.Ic pm ,
+.Ic vfs ,
+.Ic rs ) .
+.El
+.Sh FILES
+.Bl -tag -width /etc/macd.policy -compact
+.It Pa /etc/macd.conf
+Default MAC policy configuration file (text format).
+.It Pa /etc/macd.policy
+Optional compiled MAC policy (binary format).
+.El
+.Sh EXAMPLES
+.Ss Compat mode (MAC disabled)
+.Bd -literal -offset indent
+# Allow everything (MAC disabled)
+allow ALL;
+.Ed
+.Ss Strict per-service policy
+.Bd -literal -offset indent
+# Core services
+allow IPC_SEND from pm to vfs;
+allow IPC_SEND from pm to vm;
+allow IPC_SEND from pm to ds;
+allow PRIVCTL_SET_SYS from rs to any;
+allow PROC_KILL from pm to any;
+allow PROC_FORK from pm to any;
+allow PROC_EXEC from pm to any;
+
+# Filesystem access
+allow FILE_ACCESS from vfs to mfs;
+allow FILE_ACCESS from vfs to ext4;
+allow FILE_ACCESS from vfs to ext2;
+
+# Device binding
+allow DEVICE_BIND from rs to devman;
+allow DEVICE_BIND from devman to ahci;
+allow DEVICE_BIND from devman to virtio_blk;
+
+# Default deny (implicit)
+.Ed
+.Ss Compile policy for better performance
+.Bd -literal -offset indent
+$ mac-compile -o /etc/macd.policy /etc/macd.conf
+$ kill -HUP $(cat /var/run/macd.pid)
+.Ed
+.Sh SEE ALSO
+.Xr macd 8 ,
+.Xr mac-compile 8 ,
+.Xr macctl 8 ,
+.Xr system.conf 5 ,
+.Xr auditd 8
+.Sh HISTORY
+The GergiOS MAC framework first appeared in GergiOS 1.0.

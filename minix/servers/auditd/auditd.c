@@ -4,14 +4,22 @@
  * via the SYS_AUDIT kernel call and writes structured audit records
  * to /var/log/audit/audit.log.
  *
+ * Phase 5.5: Log rotation — auto-rotate by size (default 10MB) or
+ * time (1 hour), cleanup logs older than 30 days.
+ *
  * Design:
  * - Uses SEF startup (standard MINIX service pattern)
  * - Periodic polling via sys_setalarm() + SIGALRM signal handler
  * - Writes one record per line to log file
- * - Supports auditctl IPC for enable/disable/status/reopen
+ * - Supports auditctl IPC for enable/disable/status/reopen/rotate
+ * - Auto-rotation: checks log size and time after each poll cycle
+ * - Retention: deletes logs older than N days on each rotation
  *
  * Log format (text, one record per line):
  *   serial|time|type|result|subject|object|extra_hex
+ *
+ * Rotated log naming:
+ *   /var/log/audit/audit.log.YYYYMMDD_HHMMSS
  *
  * Communication:
  *   Kernel audit: _kernel_call(SYS_AUDIT, &msg)
@@ -44,6 +52,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <time.h>
+#include <dirent.h>
 
 /* Default paths. */
 #define AUDITD_CONF_PATH    "/etc/auditd.conf"
@@ -53,18 +63,33 @@
 /* Default poll interval (HZ ticks ≈ 100Hz = 10ms per tick). */
 #define AUDITD_POLL_INTERVAL    (10 * sys_hz())  /* ~10 seconds */
 
+/* Default rotation settings. */
+#define AUDITD_ROTATE_SIZE_KB   (10 * 1024)    /* 10 MB */
+#define AUDITD_ROTATE_INTERVAL  (3600 * sys_hz())  /* 1 hour in ticks */
+#define AUDITD_MAX_DAYS         30
+
 /* Buffer for retrieving records from the kernel. */
 static struct audit_record audit_records[AUDIT_BUFFER_ENTRIES];
 
 /* Runtime configuration. */
 static struct {
 	char log_path[256];
-	clock_t poll_interval;	/* ticks between polls */
-	int enabled;		/* 0 = paused, 1 = active */
+	clock_t poll_interval;		/* ticks between polls */
+	int enabled;			/* 0 = paused, 1 = active */
+
+	/* Rotation settings. */
+	int rotate_size_kb;		/* rotate when log exceeds this (KB) */
+	clock_t rotate_interval_ticks;	/* ticks between forced rotations */
+	int max_days;			/* delete logs older than this */
+	clock_t last_rotate_time;	/* ticks of last rotation */
 } auditd_cfg = {
 	.log_path = AUDITD_LOG_PATH,
 	.poll_interval = AUDITD_POLL_INTERVAL,
 	.enabled = 1,
+	.rotate_size_kb = AUDITD_ROTATE_SIZE_KB,
+	.rotate_interval_ticks = AUDITD_ROTATE_INTERVAL,
+	.max_days = AUDITD_MAX_DAYS,
+	.last_rotate_time = 0,
 };
 
 /* Log file descriptor. */
@@ -111,6 +136,19 @@ static int open_log(void)
 }
 
 /*===========================================================================*
+ *                    Write a raw message to the log                        *
+ *===========================================================================*/
+static void write_raw(const char *buf, int len)
+{
+	if (log_fd >= 0 && buf != NULL && len > 0) {
+		if (write(log_fd, buf, (size_t)len) < 0) {
+			close(log_fd);
+			log_fd = open_log();
+		}
+	}
+}
+
+/*===========================================================================*
  *                    Write one audit record to log                         *
  *===========================================================================*/
 static void write_record(const struct audit_record *rec)
@@ -142,13 +180,163 @@ static void write_record(const struct audit_record *rec)
 	    rec->ar_object,
 	    extra_hex);
 
-	if (n > 0 && log_fd >= 0) {
-		if (write(log_fd, buf, (size_t)n) < 0) {
-			/* Write failed — try reopening log. */
-			close(log_fd);
-			log_fd = open_log();
+	if (n > 0)
+		write_raw(buf, n);
+}
+
+/*===========================================================================*
+ *                    Rotate log file                                       *
+ *===========================================================================*
+ * Close the current log, rename it with a timestamp, and open a new one.
+ * Also cleans up old logs after rotation.
+ */
+static int rotate_log(void)
+{
+	char new_path[sizeof(auditd_cfg.log_path) + 32];
+	time_t now;
+	struct tm tm_buf;
+	const char *base;
+	int r;
+
+	/* Close current log. */
+	if (log_fd >= 0) {
+		fsync(log_fd);
+		close(log_fd);
+		log_fd = -1;
+	}
+
+	/* Build rotated filename: /path/to/audit.log.YYYYMMDD_HHMMSS
+	 * Strip any existing .ext from base name for cleaner naming. */
+	now = time(NULL);
+	if (localtime_r(&now, &tm_buf) == NULL) {
+		/* If time fails, use a counter-based suffix. */
+		static unsigned int rotate_seq = 0;
+		snprintf(new_path, sizeof(new_path), "%s.%u",
+		    auditd_cfg.log_path, ++rotate_seq);
+	} else {
+		char ts[20];
+		strftime(ts, sizeof(ts), "%Y%m%d_%H%M%S", &tm_buf);
+		snprintf(new_path, sizeof(new_path), "%s.%s",
+		    auditd_cfg.log_path, ts);
+	}
+
+	/* Rename current log -> rotated name. */
+	r = rename(auditd_cfg.log_path, new_path);
+	if (r != 0 && errno != ENOENT) {
+		printf("auditd: rename %s -> %s failed: %s\n",
+		    auditd_cfg.log_path, new_path, strerror(errno));
+		/* Try to continue with a new log anyway. */
+	}
+
+	/* Open new log file. */
+	log_fd = open_log();
+	if (log_fd < 0)
+		return -1;
+
+	/* Write rotation marker. */
+	base = strrchr(new_path, '/');
+	base = (base != NULL) ? base + 1 : new_path;
+	{
+		char marker[128];
+		int n;
+
+		n = snprintf(marker, sizeof(marker),
+		    "# ROTATE: log rotated to %s\n", base);
+		if (n > 0)
+			write_raw(marker, n);
+	}
+
+	fsync(log_fd);
+	auditd_cfg.last_rotate_time = getticks();
+
+	printf("auditd: log rotated to %s\n", new_path);
+	return 0;
+}
+
+/*===========================================================================*
+ *                    Check whether rotation is needed                      *
+ *===========================================================================*/
+static void check_rotation(void)
+{
+	struct stat st;
+	clock_t now;
+
+	/* Check 1: log file size exceeded threshold? */
+	if (stat(auditd_cfg.log_path, &st) == 0) {
+		if (st.st_size / 1024 >= auditd_cfg.rotate_size_kb) {
+			rotate_log();
+			cleanup_old_logs();
+			return;
 		}
 	}
+
+	/* Check 2: time-based rotation interval elapsed? */
+	now = getticks();
+	if (auditd_cfg.last_rotate_time > 0) {
+		clock_t elapsed = now - auditd_cfg.last_rotate_time;
+		if (elapsed >= auditd_cfg.rotate_interval_ticks) {
+			rotate_log();
+			cleanup_old_logs();
+			return;
+		}
+	} else {
+		/* First check — set the baseline. */
+		auditd_cfg.last_rotate_time = now;
+	}
+}
+
+/*===========================================================================*
+ *                    Clean up old log files                                *
+ *===========================================================================*
+ * Scan the log directory and delete rotated log files older than max_days.
+ */
+static void cleanup_old_logs(void)
+{
+	DIR *dir;
+	struct dirent *entry;
+	time_t now;
+	char full_path[sizeof(auditd_cfg.log_path) + 32];
+	struct stat st;
+	time_t cutoff;
+	int deleted;
+
+	dir = opendir(AUDITD_LOG_DIR);
+	if (dir == NULL) {
+		printf("auditd: cannot open log dir %s: %s\n",
+		    AUDITD_LOG_DIR, strerror(errno));
+		return;
+	}
+
+	now = time(NULL);
+	cutoff = now - (time_t)auditd_cfg.max_days * 86400;
+	deleted = 0;
+
+	while ((entry = readdir(dir)) != NULL) {
+		/* Only match rotated files: audit.log.YYYYMMDD_HHMMSS */
+		if (strncmp(entry->d_name, "audit.log.", 10) != 0)
+			continue;
+
+		snprintf(full_path, sizeof(full_path), "%s/%s",
+		    AUDITD_LOG_DIR, entry->d_name);
+
+		if (stat(full_path, &st) != 0)
+			continue;
+
+		/* Check modification time. */
+		if (st.st_mtime >= 0 && st.st_mtime < cutoff) {
+			if (unlink(full_path) == 0) {
+				deleted++;
+			} else {
+				printf("auditd: cannot delete %s: %s\n",
+				    full_path, strerror(errno));
+			}
+		}
+	}
+
+	closedir(dir);
+
+	if (deleted > 0)
+		printf("auditd: cleaned up %d old log files\n", deleted);
 }
 
 /*===========================================================================*
@@ -193,6 +381,9 @@ static void poll_kernel_buffer(void)
 	/* Flush log after each poll cycle. */
 	if (log_fd >= 0)
 		fsync(log_fd);
+
+	/* Check if rotation is needed after writing. */
+	check_rotation();
 }
 
 /*===========================================================================*
@@ -233,6 +424,14 @@ static void load_config(void)
 			else if (strcmp(key, "poll_interval_ms") == 0)
 				auditd_cfg.poll_interval =
 				    (atol(value) * sys_hz()) / 1000;
+			else if (strcmp(key, "rotate_size_mb") == 0)
+				auditd_cfg.rotate_size_kb =
+				    atoi(value) * 1024;
+			else if (strcmp(key, "rotate_interval_s") == 0)
+				auditd_cfg.rotate_interval_ticks =
+				    atol(value) * sys_hz();
+			else if (strcmp(key, "max_days") == 0)
+				auditd_cfg.max_days = atoi(value);
 		}
 	}
 
@@ -277,12 +476,12 @@ static void sef_cb_signal_handler(int signo)
 		break;
 
 	case SIGHUP:
-		/* Reopen log (log rotation). */
+		/* Reopen log (triggered by log rotation signal). */
 		if (log_fd >= 0)
 			close(log_fd);
 		log_fd = open_log();
 
-		/* Reload config. */
+		/* Reload config (may pick up new rotation settings). */
 		load_config();
 		break;
 
@@ -296,6 +495,73 @@ static void sef_cb_signal_handler(int signo)
 			set_poll_alarm();
 		break;
 	}
+}
+
+/*===========================================================================*
+ *                    IPC handler: status                                   *
+ *===========================================================================*/
+static void handle_status(message *m)
+{
+	m->m_type = OK;
+	m->AUDITD_STATUS_LOG = (log_fd >= 0) ? 1 : 0;
+	m->AUDITD_STATUS_ENABLED = auditd_cfg.enabled ? 1 : 0;
+	m->AUDITD_STATUS_POLL_MS =
+	    (int)((auditd_cfg.poll_interval * 1000) / sys_hz());
+}
+
+/*===========================================================================*
+ *                    IPC handler: enable                                   *
+ *===========================================================================*/
+static void handle_enable(message *m)
+{
+	auditd_cfg.enabled = 1;
+	set_poll_alarm();
+	m->m_type = OK;
+}
+
+/*===========================================================================*
+ *                    IPC handler: disable                                  *
+ *===========================================================================*/
+static void handle_disable(message *m)
+{
+	auditd_cfg.enabled = 0;
+	m->m_type = OK;
+}
+
+/*===========================================================================*
+ *                    IPC handler: reopen log                               *
+ *===========================================================================*/
+static void handle_reopen(message *m)
+{
+	if (log_fd >= 0) {
+		fsync(log_fd);
+		close(log_fd);
+	}
+	log_fd = open_log();
+	m->m_type = (log_fd >= 0) ? OK : errno;
+}
+
+/*===========================================================================*
+ *                    IPC handler: force poll                               *
+ *===========================================================================*/
+static void handle_poll(message *m)
+{
+	if (auditd_cfg.enabled)
+		poll_kernel_buffer();
+	m->m_type = OK;
+}
+
+/*===========================================================================*
+ *                    IPC handler: force rotation                           *
+ *===========================================================================*/
+static void handle_rotate(message *m)
+{
+	int r;
+
+	r = rotate_log();
+	if (r == 0)
+		cleanup_old_logs();
+	m->m_type = (r == 0) ? OK : errno;
 }
 
 /*===========================================================================*
@@ -323,36 +589,27 @@ int main(int argc, char *argv[])
 
 		switch (m_in.m_type) {
 		case AUDITD_RQ_STATUS:
-			m_in.m_type = OK;
-			m_in.AUDITD_STATUS_LOG = (log_fd >= 0) ? 1 : 0;
-			m_in.AUDITD_STATUS_ENABLED = auditd_cfg.enabled ? 1 : 0;
-			m_in.AUDITD_STATUS_POLL_MS =
-			    (int)((auditd_cfg.poll_interval * 1000) /
-			    sys_hz());
+			handle_status(&m_in);
 			break;
 
 		case AUDITD_RQ_ENABLE:
-			auditd_cfg.enabled = 1;
-			set_poll_alarm();
-			m_in.m_type = OK;
+			handle_enable(&m_in);
 			break;
 
 		case AUDITD_RQ_DISABLE:
-			auditd_cfg.enabled = 0;
-			m_in.m_type = OK;
+			handle_disable(&m_in);
 			break;
 
 		case AUDITD_RQ_REOPEN:
-			if (log_fd >= 0)
-				close(log_fd);
-			log_fd = open_log();
-			m_in.m_type = (log_fd >= 0) ? OK : errno;
+			handle_reopen(&m_in);
 			break;
 
 		case AUDITD_RQ_POLL_NOW:
-			if (auditd_cfg.enabled)
-				poll_kernel_buffer();
-			m_in.m_type = OK;
+			handle_poll(&m_in);
+			break;
+
+		case AUDITD_RQ_ROTATE:
+			handle_rotate(&m_in);
 			break;
 
 		default:

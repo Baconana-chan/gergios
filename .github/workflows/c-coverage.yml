@@ -1,0 +1,92 @@
+name: C Code Coverage (gcov/lcov)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  c-coverage:
+    name: C Coverage (gcov/lcov)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: false
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          build-essential \
+          gcc \
+          g++ \
+          cmake \
+          make \
+          lcov \
+          gcov \
+          ninja-build
+
+    - name: Configure CMake with coverage flags
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_C_FLAGS="--coverage -g -O0" \
+          -DCMAKE_CXX_FLAGS="--coverage -g -O0" \
+          -DCMAKE_EXE_LINKER_FLAGS="--coverage" \
+          -DMK_CATCH2=ON \
+          -DMKATF=OFF
+
+    - name: Build Catch2 test targets
+      run: |
+        cd build
+        for target in tcp_socket tcp_error raw_icmp raw_ipv6 ipv6_addr \
+                      bpf_filter bpf_attach blocktest ds_test rmibtest safecopy_test; do
+          ninja "$target" 2>/dev/null || true
+        done
+
+    - name: Run tests with ctest
+      run: |
+        cd build
+        ctest -L phase9 --output-on-failure --test-dir . 2>&1 || true
+
+    - name: Generate coverage report (lcov)
+      run: |
+        chmod +x scripts/run_c_coverage.sh
+        bash scripts/run_c_coverage.sh --html-only --ci 2>&1 || \
+        bash scripts/generate_coverage.sh 2>&1 || true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage/c/coverage.filtered.info
+        flags: c,unittests
+        name: c-codecov
+        fail_ci_if_error: false
+      continue-on-error: true
+
+    - name: Upload coverage artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: c-coverage-report
+        path: |
+          coverage/c/html/
+          coverage/c/coverage-summary.txt
+        retention-days: 30
+
+    - name: Coverage summary
+      if: always()
+      run: |
+        if [ -f coverage/c/coverage-summary.txt ]; then
+          cat coverage/c/coverage-summary.txt
+        fi

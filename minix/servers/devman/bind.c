@@ -1,5 +1,6 @@
 #include "devman.h"
 #include "proto.h"
+#include <minix/audit.h>
 
 /*****************************************************************************
  *    do_bind_device                                                         *
@@ -40,6 +41,19 @@ int do_bind_device(message *m)
 			} else {
 				dev->state = DEVMAN_DEVICE_BOUND;
 				devman_get_device(dev);
+
+				/* Log device bind. */
+				{
+				    message audit_msg;
+
+				    memset(&audit_msg, 0, sizeof(audit_msg));
+				    audit_msg.AUDIT_OP = AUDIT_OP_LOG;
+				    audit_msg.AUDIT_LOG_TYPE = AUDIT_DEVICE_BIND;
+				    audit_msg.AUDIT_LOG_RESULT = OK;
+				    audit_msg.AUDIT_LOG_SUBJECT = src;
+				    audit_msg.AUDIT_LOG_OBJECT = (char *)(intptr_t)dev->owner;
+				    _kernel_call(SYS_AUDIT, &audit_msg);
+				}
 			}
 		} else {
 			m->DEVMAN_RESULT = ENODEV;
@@ -92,7 +106,19 @@ int do_unbind_device(message *m)
 				}
 				devman_put_device(dev);
 				m->DEVMAN_RESULT = OK;
-			}
+
+				/* Log device unbind. */
+				{
+				    message audit_msg;
+
+				    memset(&audit_msg, 0, sizeof(audit_msg));
+				    audit_msg.AUDIT_OP = AUDIT_OP_LOG;
+				    audit_msg.AUDIT_LOG_TYPE = AUDIT_DEVICE_BIND;
+				    audit_msg.AUDIT_LOG_RESULT = OK;
+				    audit_msg.AUDIT_LOG_SUBJECT = src;
+				    audit_msg.AUDIT_LOG_OBJECT = (char *)(intptr_t)dev->owner;
+				    _kernel_call(SYS_AUDIT, &audit_msg);
+				}
 		} else {
 			/* this might be the case, but perhaps its better to keep 
 			   the device in the db as long a driver is bound to it*/

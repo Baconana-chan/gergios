@@ -1,0 +1,371 @@
+#!/usr/bin/env bash
+# ============================================================================
+# qemu_test_smoke.sh — Phase 9.2: QEMU Boot Smoke Test
+#
+# Boots a MINIX test image in QEMU and verifies:
+#   1. Kernel boots without panic
+#   2. init process starts
+#   3. Shell is operational (uname, ps, df)
+#   4. No ERROR/FAIL messages in boot log
+#
+# Usage:
+#   ./scripts/qemu_test_smoke.sh                          # Build + boot
+#   ./scripts/qemu_test_smoke.sh --image <path>            # Use pre-built image
+#   ./scripts/qemu_test_smoke.sh --arch aarch64            # ARM64 test
+#   ./scripts/qemu_test_smoke.sh --timeout 120             # Custom timeout
+#   ./scripts/qemu_test_smoke.sh --no-build                # Skip image build
+#   ./scripts/qemu_test_smoke.sh --help                    # Show help
+#
+# Exit codes:
+#   0 — All smoke tests passed
+#   1 — Boot failed (kernel panic, timeout, no output)
+#   2 — Init/shell not detected
+#   3 — Smoke test failures detected
+#
+# Output:
+#   qemu-smoke-results/ — test results and logs
+#   qemu-smoke-results/summary.txt — pass/fail summary
+# ============================================================================
+
+set -euo pipefail
+
+# ─── Colors ─────────────────────────────────────────────────────────────
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
+BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+
+# ─── Paths ──────────────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build/qemu-test}"
+RESULTS_DIR="${RESULTS_DIR:-$(pwd)/qemu-smoke-results}"
+SERIAL_OUT="${RESULTS_DIR}/serial.txt"
+SUMMARY="${RESULTS_DIR}/summary.txt"
+
+# ─── Defaults ───────────────────────────────────────────────────────────
+ARCH="${ARCH:-x86_64}"
+IMAGE=""
+NO_BUILD=false
+TIMEOUT=90               # QEMU boot timeout (seconds)
+RC_LOCAL=""               # Custom rc.local (auto-generated if empty)
+
+# ─── Help ───────────────────────────────────────────────────────────────
+usage() {
+    cat <<EOF
+Usage: $0 [options]
+
+QEMU Boot Smoke Test — boots MINIX and verifies kernel/init/shell.
+
+Options:
+  --image <path>    Use pre-built test image
+  --arch <arch>     Target architecture: x86_64 (default) or aarch64
+  --timeout <sec>   Boot timeout in seconds (default: 90)
+  --no-build        Skip image build, use existing image
+  --help            Show this help
+
+Exit codes:
+  0 — All tests passed
+  1 — Boot failed (kernel panic, timeout)
+  2 — Init/shell not detected
+  3 — Smoke test failures
+
+Examples:
+  $0                          # Build + boot + test
+  $0 --image test.img         # Test with existing image
+  $0 --no-build               # Reuse cached image
+EOF
+    exit 0
+}
+
+# ─── Parse arguments ────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --image)    IMAGE="$2"; shift 2 ;;
+        --arch)     ARCH="$2"; shift 2 ;;
+        --timeout)  TIMEOUT="$2"; shift 2 ;;
+        --no-build) NO_BUILD=true; shift ;;
+        --help|-h)  usage ;;
+        *)          echo "Unknown: $1"; usage ;;
+    esac
+done
+
+# ─── Results directory ──────────────────────────────────────────────────
+mkdir -p "$RESULTS_DIR"
+
+echo -e "${BLUE}========================================${NC}"
+echo -e "${BLUE}QEMU Boot Smoke Test${NC}"
+echo -e "${BLUE}========================================${NC}"
+echo "Architecture: ${ARCH}"
+echo "Timeout:      ${TIMEOUT}s"
+echo "Results:      ${RESULTS_DIR}"
+echo ""
+
+# ─── Check QEMU ─────────────────────────────────────────────────────────
+QEMU=""
+case "$ARCH" in
+    x86_64)  QEMU="qemu-system-x86_64" ;;
+    aarch64) QEMU="qemu-system-aarch64" ;;
+    *)       echo -e "${RED}Unsupported arch: ${ARCH}${NC}"; exit 1 ;;
+esac
+
+if ! command -v "$QEMU" &>/dev/null; then
+    echo -e "${RED}Error: ${QEMU} not found${NC}"
+    echo "Install: sudo apt install qemu-system-${ARCH/86_/86}"
+    exit 1
+fi
+echo -e "${GREEN}QEMU: ${QEMU}${NC}"
+
+# ─── Locate or build image ──────────────────────────────────────────────
+if [ -n "$IMAGE" ] && [ -f "$IMAGE" ]; then
+    echo -e "${GREEN}Using image: ${IMAGE}${NC}"
+elif [ "$NO_BUILD" = true ]; then
+    # Search common paths
+    for candidate in \
+        "${BUILD_DIR}/minix-test-${ARCH}.img" \
+        "${SCRIPT_DIR}/minix.img" \
+        "${SCRIPT_DIR}/minix_x86.img" \
+        "${SCRIPT_DIR}/build/qemu/minix.img"; do
+        if [ -f "$candidate" ]; then
+            IMAGE="$candidate"
+            echo -e "${GREEN}Found pre-built image: ${IMAGE}${NC}"
+            break
+        fi
+    done
+    if [ -z "$IMAGE" ]; then
+        echo -e "${RED}No image found. Build one first or omit --no-build.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}[1/2] Building test image...${NC}"
+
+    # Generate rc.local for smoke tests
+    RC_LOCAL="${RESULTS_DIR}/rc_local.sh"
+    cat >"$RC_LOCAL" <<'SMOKE_RC'
+#!/bin/sh
+# Smoke test rc.local — generated by qemu_test_smoke.sh
+
+echo "SMOKE:START"
+START_TIME=$(date +%s 2>/dev/null || echo 0)
+
+# Ensure /proc is mounted
+mount -t procfs none /proc 2>/dev/null || true
+
+echo "SMOKE:TEST_BOOT=START"
+
+# Test 1: uname
+echo "SMOKE:TEST=uname"
+if uname -a 2>/dev/null; then
+    echo "SMOKE:PASS:uname"
+else
+    echo "SMOKE:FAIL:uname — command failed"
+fi
+
+# Test 2: process list
+echo "SMOKE:TEST=ps"
+if ps -ef 2>/dev/null || ps 2>/dev/null; then
+    echo "SMOKE:PASS:ps"
+else
+    echo "SMOKE:FAIL:ps — command failed"
+fi
+
+# Test 3: init process check
+echo "SMOKE:TEST=init"
+if ps -ef 2>/dev/null | grep -q "[i]nit"; then
+    echo "SMOKE:PASS:init"
+elif ps 2>/dev/null | grep -q "init"; then
+    echo "SMOKE:PASS:init"
+else
+    echo "SMOKE:FAIL:init — not found in process list"
+fi
+
+# Test 4: filesystem (df)
+echo "SMOKE:TEST=df"
+if df -h 2>/dev/null || df 2>/dev/null; then
+    echo "SMOKE:PASS:df"
+else
+    echo "SMOKE:FAIL:df — command failed"
+fi
+
+# Test 5: essential device nodes
+echo "SMOKE:TEST=devices"
+for dev in /dev/null /dev/tty /dev/console; do
+    if [ -e "$dev" ]; then
+        echo "SMOKE:PASS:device_$(basename $dev)"
+    else
+        echo "SMOKE:FAIL:device_$(basename $dev) — missing"
+    fi
+done
+
+# All done
+ELAPSED=$(( $(date +%s 2>/dev/null || echo 0) - START_TIME ))
+echo "SMOKE:ELAPSED=${ELAPSED}s"
+echo "SMOKE:DONE"
+sync
+SMOKE_RC
+    chmod 755 "$RC_LOCAL"
+
+    IMAGE=$("${SCRIPT_DIR}/scripts/build_test_image.sh" \
+        --arch "$ARCH" \
+        --rc-local "$RC_LOCAL" \
+        --output "${BUILD_DIR}/minix-test-${ARCH}.img" \
+        2>&1 | tee "${RESULTS_DIR}/image-build.log" | tail -1)
+
+    if [ -z "$IMAGE" ] || [ ! -f "$IMAGE" ]; then
+        echo -e "${RED}Error: image build failed${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}Image: ${IMAGE}${NC}"
+fi
+
+# ─── Boot in QEMU ───────────────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}[2/2] Booting MINIX in QEMU...${NC}"
+
+# Build QEMU arguments
+QEMU_ARGS=(
+    -nographic
+    -m 512M
+    -smp 1
+    -no-reboot
+    -serial "file:${SERIAL_OUT}"
+)
+
+case "$IMAGE" in
+    *.iso)  QEMU_ARGS+=(-cdrom "$IMAGE" -boot order=d) ;;
+    *.qcow2) QEMU_ARGS+=(-drive file="$IMAGE",format=qcow2) ;;
+    *)      QEMU_ARGS+=(-drive file="$IMAGE",format=raw) ;;
+esac
+
+echo "Booting: ${QEMU} ${QEMU_ARGS[*]}"
+echo "Serial:  ${SERIAL_OUT}"
+echo ""
+
+# Clear serial output
+: > "$SERIAL_OUT"
+
+# Boot QEMU with timeout
+set +e
+timeout "$TIMEOUT" "$QEMU" "${QEMU_ARGS[@]}" 2>&1 | tee -a "$SERIAL_OUT"
+QEMU_EXIT=$?
+set -e
+
+echo ""
+echo -e "${BLUE}QEMU exited (code: ${QEMU_EXIT})${NC}"
+
+# ─── Analyze results ───────────────────────────────────────────────────
+echo ""
+echo -e "${YELLOW}Analyzing results...${NC}"
+
+# Count serial output lines
+SERIAL_LINES=$(wc -l < "$SERIAL_OUT" 2>/dev/null || echo 0)
+
+# Initialize counters
+PASS_COUNT=0
+FAIL_COUNT=0
+BOOT_FAILURE=false
+
+# Check 1: Kernel panic detection
+if grep -qi "kernel panic\|KERNEL PANIC\|fatal\|FATAL" "$SERIAL_OUT" 2>/dev/null; then
+    echo -e "${RED}[FAIL] Kernel panic detected in boot log${NC}"
+    BOOT_FAILURE=true
+else
+    echo -e "${GREEN}[PASS] No kernel panic${NC}"
+    PASS_COUNT=$((PASS_COUNT + 1))
+fi
+
+# Check 2: Serial output exists
+if [ "$SERIAL_LINES" -gt 10 ]; then
+    echo -e "${GREEN}[PASS] Serial output: ${SERIAL_LINES} lines${NC}"
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    echo -e "${RED}[FAIL] Serial output too short: ${SERIAL_LINES} lines${NC}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+fi
+
+# Check 3: SMOKE:DONE marker
+if grep -q "SMOKE:DONE" "$SERIAL_OUT" 2>/dev/null; then
+    echo -e "${GREEN}[PASS] Smoke test completed (SMOKE:DONE detected)${NC}"
+    PASS_COUNT=$((PASS_COUNT + 1))
+else
+    echo -e "${RED}[FAIL] Smoke test did not complete (no SMOKE:DONE marker)${NC}"
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+fi
+
+# Check 4: Parse structured test results
+echo ""
+echo -e "${CYAN}--- Structured Test Results ---${NC}"
+
+# Extract PASS/FAIL lines from serial output
+while IFS= read -r line; do
+    if [[ "$line" == SMOKE:PASS:* ]]; then
+        test_name="${line#SMOKE:PASS:}"
+        echo -e "  ${GREEN}[PASS] ${test_name}${NC}"
+        PASS_COUNT=$((PASS_COUNT + 1))
+    elif [[ "$line" == SMOKE:FAIL:* ]]; then
+        test_name="${line#SMOKE:FAIL:}"
+        echo -e "  ${RED}[FAIL] ${test_name}${NC}"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
+done < "$SERIAL_OUT"
+
+# Check 5: QEMU exit code
+if [ "$QEMU_EXIT" -eq 124 ]; then
+    echo -e "${YELLOW}[WARN] QEMU timed out after ${TIMEOUT}s${NC}"
+elif [ "$QEMU_EXIT" -ne 0 ]; then
+    echo -e "${YELLOW}[WARN] QEMU exited with code ${QEMU_EXIT}${NC}"
+fi
+
+# ─── Generate summary ──────────────────────────────────────────────────
+{
+    echo "=========================================="
+    echo "QEMU Boot Smoke Test Results"
+    echo "=========================================="
+    echo "Date:         $(date)"
+    echo "Architecture: ${ARCH}"
+    echo "Image:        ${IMAGE}"
+    echo "QEMU:         ${QEMU}"
+    echo "Timeout:      ${TIMEOUT}s"
+    echo "QEMU exit:    ${QEMU_EXIT}"
+    echo "Serial lines: ${SERIAL_LINES}"
+    echo ""
+    echo "Summary: ${PASS_COUNT} passed, ${FAIL_COUNT} failed"
+    echo ""
+
+    if [ "$FAIL_COUNT" -gt 0 ]; then
+        echo "FAILURES:"
+        grep "SMOKE:FAIL:" "$SERIAL_OUT" 2>/dev/null || echo "  (no structured failures)"
+        echo ""
+    fi
+
+    echo "Boot panic: $BOOT_FAILURE"
+    echo ""
+    echo "Last 20 lines of serial output:"
+    echo "--------------------------------"
+    tail -20 "$SERIAL_OUT" 2>/dev/null
+    echo "--------------------------------"
+    echo ""
+    echo "Full serial log: ${SERIAL_OUT}"
+} > "$SUMMARY"
+
+echo ""
+echo -e "${BLUE}========================================${NC}"
+echo -e "${GREEN}Tests: ${PASS_COUNT} passed, ${FAIL_COUNT} failed${NC}"
+echo -e "Summary: ${SUMMARY}"
+echo -e "${BLUE}========================================${NC}"
+
+# ─── Determine exit code ────────────────────────────────────────────────
+if [ "$BOOT_FAILURE" = true ]; then
+    echo -e "${RED}Boot smoke test FAILED — kernel panic detected${NC}"
+    exit 1
+fi
+
+if [ "$FAIL_COUNT" -gt 0 ]; then
+    echo -e "${RED}Boot smoke test FAILED — ${FAIL_COUNT} test(s) failed${NC}"
+    exit 3
+fi
+
+if ! grep -q "SMOKE:DONE" "$SERIAL_OUT" 2>/dev/null; then
+    echo -e "${YELLOW}Boot smoke test WARNING — smoke test did not complete${NC}"
+    exit 2
+fi
+
+echo -e "${GREEN}Boot smoke test PASSED${NC}"
+exit 0

@@ -1,5 +1,5 @@
 .\"	$GergiOS$
-.Dd July 5, 2026
+.Dd July 11, 2026
 .Dt IRQTOP 1
 .Os
 .Sh NAME
@@ -11,6 +11,16 @@
 .Op Fl h
 .Op Fl m Ar warn_max
 .Op Fl n
+.Op Fl u
+.Op Fl C Ar mhz
+.Op Fl H
+.Op Fl s Ar col
+.Op Fl r
+.Op Fl i Ar irq
+.Op Fl t Ar threshold
+.Op Fl o Ar fmt
+.Op Fl l Ar file
+.Op Fl p
 .Sh DESCRIPTION
 .Nm
 displays real-time statistics for per-IRQ kernel threads.
@@ -21,6 +31,15 @@ Statistics are read from the kernel via
 with
 .Dv GET_IRQTHREAD_STATS .
 .Pp
+Latency is measured as the number of TSC (Time-Stamp Counter) ticks
+between the moment the kernel signals the IRQ thread and the moment
+the thread begins executing the handler.
+Use the
+.Fl u
+flag to convert latencies to nanoseconds (requires CPU MHz detection
+or manual specification via
+.Fl C ) .
+.Pp
 The columns are as follows:
 .Bl -tag -width "MAX_LAT"
 .It IRQ
@@ -29,27 +48,35 @@ IRQ vector number (0\(en63).
 Short descriptive name for the IRQ (timer, keyboard, serial, msix-N, ...).
 .It PRIO
 SCHED_FIFO real-time priority (1\(en99, higher = more urgent).
+.It CPU
+CPU affinity (always 0 on uniprocessor systems).
 .It HANDLED
 Total number of IRQ events handled.
 .It RUN
 Total number of times the handler was invoked.
-.It LAST_LAT
-Latency of the most recent handler invocation, in TSC ticks.
-.It AVG_LAT
-Average latency over all invocations, in TSC ticks.
-.It MAX_LAT
-Worst-case (maximum) latency observed, in TSC ticks.
+.It LAST_LAT / LAST_NS
+Latency of the most recent handler invocation.
+.It AVG_LAT / AVG_NS
+Average latency over all invocations.
+.It MAX_LAT / MAX_NS
+Worst-case (maximum) latency observed.
 .It REG
 Whether an IRQ handler has been registered for this vector.
+.It P50 / P95 / P99
+Rolling latency percentiles (requires
+.Fl H ) .
 .El
 .Pp
-Latency is measured as the number of TSC (Time-Stamp Counter) ticks
-between the moment the kernel signals the IRQ thread and the moment
-the thread begins executing the handler.
-To convert TSC ticks to nanoseconds, divide by the TSC frequency in MHz
-(displayed in the summary line).
-.Pp
-The options are as follows:
+Latency values are color-coded:
+.Bl -dash -offset indent
+.It
+Green: low latency (below ~1000 TSC ticks)
+.It
+Yellow: moderate latency (1000\(en10000 TSC ticks)
+.It
+Red: high latency (above ~10000 TSC ticks)
+.El
+.Sh OPTIONS
 .Bl -tag -width indent
 .It Fl d Ar delay
 Set the refresh interval in seconds (default: 1.0).
@@ -59,9 +86,72 @@ Display help text and exit.
 Highlight rows whose MAX_LAT exceeds
 .Ar warn_max
 TSC ticks.
+Also used as the peak detection threshold with
+.Fl p .
 .It Fl n
 One-shot mode: print statistics once and exit without clearing the screen.
 Useful for scripting or non-interactive use.
+.It Fl u
+Show latency in nanoseconds instead of TSC ticks.
+Requires CPU frequency for accurate conversion.
+Use
+.Fl C
+to specify manually, or the CPU MHz is auto-detected from sysctl or
+.Pa /proc/cpuinfo .
+.It Fl C Ar mhz
+Manually specify the CPU frequency in MHz for TSC to nanoseconds
+conversion (used with
+.Fl u ) .
+.It Fl H
+Enable rolling latency history columns (P50, P95, P99).
+Tracks up to 120 samples per IRQ in a circular buffer and displays
+percentile statistics for each IRQ.
+.It Fl s Ar col
+Sort the table by column.
+Valid columns are:
+.Bl -tag -width "name, prio" -compact
+.It irq
+By IRQ number (default)
+.It lat
+By max latency descending
+.It hits
+By handled count descending
+.It name
+Alphabetically by IRQ name
+.It prio
+By RT priority descending
+.El
+.It Fl r
+Show only registered IRQs (hide inactive slots).
+.It Fl i Ar irq
+Show only the specified IRQ vector (e.g.,
+.Fl i 4
+for serial1).
+.It Fl t Ar threshold
+Show only IRQs whose MAX_LAT exceeds the given threshold.
+.It Fl o Ar fmt
+Output format.
+Valid formats are:
+.Bl -tag -width "json, csv" -compact
+.It table
+Default formatted table (ANSI colors on supporting terminals)
+.It json
+JSON object with all IRQ statistics
+.It csv
+Comma-separated values with header row
+.El
+.It Fl l Ar file
+Log snapshot data to a file in CSV format.
+Each poll cycle appends one row per IRQ.
+The file is created if it does not exist, and a header is written
+on first write.
+.It Fl p
+Peak detection mode.
+Only log IRQs whose MAX_LAT exceeds the warning threshold
+.Pq Fl m
+to the log file.
+Defaults to
+.Pa /var/log/irqtop.peaks .
 .El
 .Sh EXAMPLES
 .Bl -tag
@@ -71,6 +161,20 @@ Display statistics with a 1-second refresh.
 Refresh every 500 ms, highlight IRQs with more than 10,000 ticks latency.
 .It Nm Fl n
 Print a single snapshot to stdout.
+.It Nm Fl s lat Fl r
+Sort by max latency, show only registered IRQs.
+.It Nm Fl u Fl C 2400
+Show latency in nanoseconds, specify 2.4 GHz CPU.
+.It Nm Fl H
+Enable rolling history with percentile columns.
+.It Nm Fl o json
+Output a single snapshot as JSON.
+.It Nm Fl l /var/log/irq.log
+Log snapshots to a file in the background.
+.It Nm Fl p Fl m 5000
+Peak detection: log only when MAX_LAT exceeds 5000 ticks.
+.It Nm Fl i 4 Fl s hits
+Show only IRQ 4 (serial1), sorted by handled count.
 .El
 .Sh SEE ALSO
 .Xr top 1 ,

@@ -54,6 +54,13 @@
 /* Buffer for one IPC message. */
 static message m_in;
 
+/* Global MAC enforcement flag.
+ * When disabled (0), all handle_mac_check() calls return MAC_ALLOW
+ * without consulting the policy engine, effectively disabling MAC
+ * enforcement without restarting the daemon.
+ * Enabled by default after successful policy load. */
+static int mac_enabled = 1;
+
 /*===========================================================================*
  *				handle_mac_check			     *
  *===========================================================================*/
@@ -62,6 +69,10 @@ static int handle_mac_check(message *m)
 	int what;
 	mac_context_t ctx;
 	int result;
+
+	/* If MAC enforcement is disabled, allow everything. */
+	if (!mac_enabled)
+		return MAC_ALLOW;
 
 	what = m->MACD_WHAT;
 
@@ -114,6 +125,33 @@ static int handle_mac_check(message *m)
 }
 
 /*===========================================================================*
+ *				handle_mac_enable			     *
+ *===========================================================================*/
+static void handle_mac_enable(int enable, message *m)
+{
+	if (enable) {
+		mac_enabled = 1;
+		printf("macd: MAC enforcement ENABLED\n");
+	} else {
+		mac_enabled = 0;
+		printf("macd: MAC enforcement DISABLED (all operations allowed)\n");
+	}
+	m->m_type = OK;
+}
+
+/*===========================================================================*
+ *				handle_mac_status			     *
+ *===========================================================================*/
+static void handle_mac_status(message *m)
+{
+	/* Count rules in policy. */
+	m->m_type = OK;
+	m->MACD_STATUS_ENABLED = mac_enabled ? 1 : 0;
+	m->MACD_STATUS_NRULES = 0;
+	policy_count_rules(&m->MACD_STATUS_NRULES);
+}
+
+/*===========================================================================*
  *				sef_cb_init_fresh			     *
  *===========================================================================*/
 static int sef_cb_init_fresh(int type, sef_init_info_t *info)
@@ -163,6 +201,18 @@ int main(int argc, char *argv[])
 		case MACD_CHECK:
 			result = handle_mac_check(&m_in);
 			m_in.m_type = result;
+			break;
+
+		case MACD_RQ_ENABLE:
+			handle_mac_enable(1, &m_in);
+			break;
+
+		case MACD_RQ_DISABLE:
+			handle_mac_enable(0, &m_in);
+			break;
+
+		case MACD_RQ_STATUS:
+			handle_mac_status(&m_in);
 			break;
 
 		default:

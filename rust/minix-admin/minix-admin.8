@@ -1,0 +1,205 @@
+.\"	$GergiOS: minix-admin.8,v 1.0 2026/07/11 $
+.\"
+.Dd July 11, 2026
+.Dt MINIX-ADMIN 8
+.Os GergiOS
+.Sh NAME
+.Nm minix-admin
+.Nd unified system administration tool
+.Sh SYNOPSIS
+.Nm
+.Cm services
+.Op Ar list | status | start | stop | restart
+.Op Ar name
+.Nm
+.Cm system
+.Op Ar info | cpu | memory | disk | uptime
+.Nm
+.Cm network
+.Op Ar interfaces | status | stats | route | arp
+.Op Ar name
+.Nm
+.Cm security
+.Cm mac
+.Op Ar status | enable | disable | rules
+.Nm
+.Cm security
+.Cm caps
+.Op Ar list | set
+.Op Ar pid Op Ar capability
+.Nm
+.Cm security
+.Cm audit
+.Op Ar status | enable | disable | events | stats
+.Op Ar limit
+.Nm
+.Cm dashboard
+.Nm
+.Cm help
+.Nm
+.Cm version
+.Sh DESCRIPTION
+.Nm
+is the unified administration tool for GergiOS.
+It provides a consistent interface for managing services, monitoring
+system resources, inspecting network state, and managing security.
+.Pp
+When invoked without arguments,
+.Nm
+starts an interactive TUI shell with line editing, command history,
+and tab completion.
+.Pp
+The commands are as follows:
+.Bl -tag -width indent
+.It Cm services
+Service management.
+.Bl -tag -width indent -compact
+.It Cm list
+List all system services with their state, endpoint, PID, and uptime.
+.It Cm status Op Ar name
+Show service status for all services or a specific service.
+.It Cm start Ar name
+Start a service via RS_UP IPC.
+.It Cm stop Ar name
+Stop a service via RS_DOWN IPC.
+.It Cm restart Ar name
+Restart a service (stop + start).
+.El
+.It Cm system
+System monitoring.
+.Bl -tag -width indent -compact
+.It Cm info
+Show all system information (hostname, kernel, uptime, CPU, memory, disk).
+.It Cm cpu
+Show CPU information (model, cores, load, frequency).
+.It Cm memory
+Show memory usage (total, used, free) with progress bar.
+.It Cm disk
+Show disk usage for all mounted filesystems.
+.It Cm uptime
+Show system uptime and load average.
+.El
+.It Cm network
+Network management.
+.Bl -tag -width indent -compact
+.It Cm interfaces
+List all network interfaces with type, MAC, IP, MTU, speed, and flags.
+.It Cm status Ar name
+Show detailed interface information and statistics.
+.It Cm stats
+Show packet/byte counters for all interfaces.
+.It Cm route
+Show the routing table with flags and metrics.
+.It Cm arp
+Show the ARP cache.
+.El
+.It Cm security
+Security management.
+.Bl -tag -width indent -compact
+.It Cm mac status
+Show MAC enforcement state, rules loaded, violation count.
+.It Cm mac enable
+Enable MAC enforcement.
+.It Cm mac disable
+Disable MAC enforcement (permissive mode).
+.It Cm mac rules
+List all loaded MAC policy rules.
+.It Cm caps list Ar pid
+Show effective, permitted, and bounding capabilities for a process.
+.It Cm caps set Ar pid Ar capability
+Set a capability for a process.
+.It Cm audit status
+Show audit daemon status (enabled, log open, pending records, total events).
+.It Cm audit enable
+Enable audit logging.
+.It Cm audit disable
+Disable audit logging.
+.It Cm audit events Op Ar limit
+Show recent audit events (default 20, max 100).
+.It Cm audit stats
+Show audit event statistics by type.
+.El
+.It Cm dashboard
+Start the real-time TUI monitoring dashboard.
+The dashboard auto-refreshes every 2 seconds and shows:
+.Bl -bullet -compact
+.It
+Service status (running/stopped with icons)
+.It
+CPU, memory, and disk usage with progress bars
+.It
+Network interface count and traffic
+.It
+MAC enforcement and audit status
+.El
+.Pp
+Dashboard key bindings:
+.Bl -tag -width indent -compact
+.It Cm q
+Quit the dashboard.
+.It Cm r
+Force immediate refresh.
+.It Cm ?
+Show help overlay.
+.El
+.It Cm help
+Show usage summary.
+.It Cm version
+Show version information.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width /usr/lib/minix-admin -compact
+.It Pa /usr/local/sbin/minix-admin
+Executable binary.
+.El
+.Sh EXAMPLES
+Start the interactive admin shell:
+.Bd -literal -offset indent
+minix-admin
+.Ed
+.Pp
+List all services:
+.Bd -literal -offset indent
+minix-admin services list
+.Ed
+.Pp
+Check memory usage:
+.Bd -literal -offset indent
+minix-admin system memory
+.Ed
+.Pp
+Show network interfaces:
+.Bd -literal -offset indent
+minix-admin network interfaces
+.Ed
+.Pp
+Show MAC security status:
+.Bd -literal -offset indent
+minix-admin security mac status
+.Ed
+.Pp
+Open the real-time dashboard:
+.Bd -literal -offset indent
+minix-admin dashboard
+.Ed
+.Pp
+Restart the Bluetooth daemon:
+.Bd -literal -offset indent
+minix-admin services restart bluetoothd
+.Ed
+.Sh SEE ALSO
+.Xr auditd 8 ,
+.Xr macd 8 ,
+.Xr auditctl 8 ,
+.Xr macctl 8 ,
+.Xr services.conf 5 ,
+.Xr macd.conf 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS 1.0.
+.Sh AUTHORS
+.Nm
+was developed for GergiOS as part of the Project A initiative.

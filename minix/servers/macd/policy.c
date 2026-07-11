@@ -21,8 +21,9 @@
 #include <minix/rs.h>
 #include <minix/endpoint.h>
 
-/* Config file path. */
+/* Config file paths. */
 #define MACD_CONF_PATH "/etc/macd.conf"
+#define MACD_BIN_PATH  "/etc/macd.policy"
 
 /* Maximum line length in config file. */
 #define MACD_CONF_LINE_MAX 256
@@ -386,11 +387,114 @@ static int rule_matches(struct mac_rule *rule, int what, mac_context_t *ctx)
 }
 
 /*===========================================================================*
+ *                    Load rules from compiled binary                        *
+ *===========================================================================*
+ * Reads a binary policy file produced by mac-compile(8).
+ * Returns number of rules loaded, or a negative errno on failure.
+ */
+int policy_load_binary(const char *path)
+{
+	FILE *fp;
+	struct mac_policy_header header;
+	struct mac_rule_bin rule_bin;
+	struct mac_rule *rule;
+	struct mac_rule **nextp = &rule_list;
+	int i, count = 0;
+
+	fp = fopen(path, "rb");
+	if (fp == NULL)
+		return -errno;
+
+	/* Read and validate header. */
+	if (fread(&header, sizeof(header), 1, fp) != 1) {
+		printf("macd: cannot read binary policy header from %s\n", path);
+		fclose(fp);
+		return -EIO;
+	}
+
+	if (header.magic != MAC_BIN_MAGIC) {
+		printf("macd: bad magic in %s (got 0x%08x, expected 0x%08x)\n",
+		    path, header.magic, MAC_BIN_MAGIC);
+		fclose(fp);
+		return -EINVAL;
+	}
+
+	if (header.version != MAC_BIN_VERSION) {
+		printf("macd: unsupported version %u in %s\n",
+		    header.version, path);
+		fclose(fp);
+		return -EINVAL;
+	}
+
+	/* Read each rule. */
+	for (i = 0; i < (int)header.num_rules; i++) {
+		if (fread(&rule_bin, sizeof(rule_bin), 1, fp) != 1) {
+			printf("macd: truncated binary policy at rule %d\n", i);
+			fclose(fp);
+			return -EIO;
+		}
+
+		rule = (struct mac_rule *)malloc(sizeof(struct mac_rule));
+		if (rule == NULL) {
+			fclose(fp);
+			return -ENOMEM;
+		}
+
+		memset(rule, 0, sizeof(*rule));
+		rule->action = rule_bin.action;
+		rule->op_type = rule_bin.op_type;
+		strlcpy(rule->from_label, rule_bin.from_label,
+		    sizeof(rule->from_label));
+		strlcpy(rule->to_label, rule_bin.to_label,
+		    sizeof(rule->to_label));
+		rule->next = NULL;
+
+		/* Pre-resolve endpoints (cache). */
+		cache_rule_endpoints(rule);
+
+		/* Append to list. */
+		*nextp = rule;
+		nextp = &rule->next;
+		count++;
+	}
+
+	fclose(fp);
+
+	printf("macd: loaded %d rule(s) from binary policy %s\n",
+	    count, path);
+	return count;
+}
+
+/*===========================================================================*
  *                    policy_init                                             *
- *===========================================================================*/
+ *===========================================================================*
+ * Try binary policy first, fall back to text config.
+ */
 void policy_init(void)
 {
+	int r;
+
+	r = policy_load_binary(MACD_BIN_PATH);
+	if (r > 0)
+		return;
+
+	/* No binary policy — load text format. */
 	load_rules();
+}
+
+/*===========================================================================*
+ *                    policy_count_rules                                      *
+ *===========================================================================*/
+void policy_count_rules(int *count)
+{
+	struct mac_rule *rule;
+	int n = 0;
+
+	for (rule = rule_list; rule != NULL; rule = rule->next)
+		n++;
+
+	if (count != NULL)
+		*count = n;
 }
 
 /*===========================================================================*
@@ -416,11 +520,15 @@ int policy_check(int what, mac_context_t *ctx)
  *===========================================================================*/
 void policy_reload(void)
 {
+	int r;
+
 	/* Free existing rules. */
 	policy_cleanup();
 
-	/* Reload from config. */
-	load_rules();
+	/* Try binary policy first, fall back to text. */
+	r = policy_load_binary(MACD_BIN_PATH);
+	if (r <= 0)
+		load_rules();
 }
 
 /*===========================================================================*

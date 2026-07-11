@@ -318,7 +318,8 @@
 #  define IRQ_DISABLE       4	/* disable interrupts */
 #  define IRQ_MSIX_ALLOC    5	/* allocate MSI-X vector */
 #  define IRQ_MSIX_FREE     6	/* free MSI-X vector */
-#  define IRQ_MSIX_SETPOLICY 7	/* set policy for MSI-X vector (no IOAPIC) */#define IRQ_REENABLE  0x001	/* reenable IRQ line after interrupt */
+#  define IRQ_MSIX_SETPOLICY 7	/* set policy for MSI-X vector (no IOAPIC) */
+#define IRQ_REENABLE  0x001	/* reenable IRQ line after interrupt */
 #define IRQ_BYTE      0x100	/* byte values */      
 #define IRQ_WORD      0x200	/* word values */
 #define IRQ_LONG      0x400	/* long values */
@@ -366,10 +367,21 @@
 #define CAPCTL_CAPS	m1_ull1	/* capability mask (uint64_t, via mess_1.m1ull1) */
 
 /* Field names for SYS_AUDIT. */
+/* SYS_AUDIT message fields.
+ * WARNING: kernel's noxfer_message only has m1_i1..m1_i3 + m1_p1.
+ * Do NOT use m1_i4 or fields beyond these — they don't exist in
+ * the kernel-side message structure and will cause compile errors. */
 #define AUDIT_OP	m1_i2	/* audit operation (AUDIT_OP_*) */
 #define AUDIT_COUNT	m1_i3	/* number of records (in/out) */
-#define AUDIT_ENABLE	m1_i4	/* enable/disable flag or status data */
 #define AUDIT_BUF	m1_p1	/* user virtual address for record buffer */
+
+/* Fields for AUDIT_OP_LOG (repurposed from above, different op).
+ * Note: kernel's noxfer_message only has m1_i1..m1_i3 + m1_p1 (no m1_i4).
+ * Subject is packed into m1_p1 (64-bit pointer can hold 32-bit endpoint_t).
+ * Object is not passed via this kernel call — callers set it to NONE. */
+#define AUDIT_LOG_TYPE		m1_i1	/* uint32_t — event type (AUDIT_*) */
+#define AUDIT_LOG_RESULT	m1_i3	/* int — result code */
+#define AUDIT_LOG_SUBJECT	m1_p1	/* endpoint_t — triggering process (as intptr) */
 
 /*===========================================================================*
  *                Messages for Audit Daemon (auditd)		             *
@@ -382,6 +394,7 @@
 #define AUDITD_RQ_DISABLE	(AUDITD_RQ_BASE + 2)	/* disable audit logging */
 #define AUDITD_RQ_REOPEN	(AUDITD_RQ_BASE + 3)	/* reopen log file */
 #define AUDITD_RQ_POLL_NOW	(AUDITD_RQ_BASE + 4)	/* force immediate poll */
+#define AUDITD_RQ_ROTATE	(AUDITD_RQ_BASE + 5)	/* force log rotation */
 
 /* Reply fields for AUDITD_RQ_STATUS. */
 #define AUDITD_STATUS_LOG	m4_l1	/* 1 if log is open */
@@ -1203,11 +1216,76 @@
 
 #define MACD_CHECK		(MACD_RQ_BASE + 0)	/* MAC check request */
 
+/* MAC daemon control messages. */
+#define MACD_RQ_ENABLE		(MACD_RQ_BASE + 1)	/* enable MAC enforcement */
+#define MACD_RQ_DISABLE		(MACD_RQ_BASE + 2)	/* disable MAC enforcement */
+#define MACD_RQ_STATUS		(MACD_RQ_BASE + 3)	/* get MAC enforcement status */
+
 /* Field names for MACD_CHECK request. */
 #define MACD_WHAT		m4_l1	/* MAC_* hook type */
 #define MACD_SRC		m4_l2	/* source endpoint (endpoint_t) */
 #define MACD_DST		m4_l3	/* target/destination endpoint */
 #define MACD_CTX1		m4_l4	/* context word 1 (int) */
+
+#define MACD_STATUS_ENABLED	m4_l1	/* 1 if MAC enforcement is active */
+#define MACD_STATUS_NRULES	m4_l2	/* number of loaded policy rules */
+
+/*===========================================================================*
+ *                Messages for Bluetooth Daemon (bluetoothd)		     *
+ *===========================================================================*/
+
+#define BT_RQ_BASE		0x1D00	/* Bluetooth daemon message range */
+
+/* Bluetooth daemon control commands. */
+#define BT_RQ_START_DISCOVERY	(BT_RQ_BASE + 0)	/* start inquiry scan */
+#define BT_RQ_STOP_DISCOVERY	(BT_RQ_BASE + 1)	/* stop inquiry scan */
+#define BT_RQ_GET_DEVICES	(BT_RQ_BASE + 2)	/* get discovered devices */
+#define BT_RQ_CONNECT		(BT_RQ_BASE + 3)	/* connect to device */
+#define BT_RQ_DISCONNECT	(BT_RQ_BASE + 4)	/* disconnect from device */
+#define BT_RQ_GET_CONNECTIONS	(BT_RQ_BASE + 5)	/* get active connections */
+#define BT_RQ_SET_NAME		(BT_RQ_BASE + 6)	/* set local device name */
+#define BT_RQ_SET_DISCOVERABLE	(BT_RQ_BASE + 7)	/* set discoverable */
+#define BT_RQ_SET_CONNECTABLE	(BT_RQ_BASE + 8)	/* set connectable */
+#define BT_RQ_GET_STATUS	(BT_RQ_BASE + 9)	/* get daemon status */
+#define BT_RQ_PAIR		(BT_RQ_BASE + 10)	/* pair with device */
+#define BT_RQ_UNPAIR		(BT_RQ_BASE + 11)	/* unpair device */
+#define BT_RQ_REGISTER_SERVICE	(BT_RQ_BASE + 12)	/* register SDP service */
+
+/* Reply fields for BT_RQ_GET_STATUS. */
+#define BT_STATUS_RUNNING	m4_l1	/* 1 if daemon is running */
+#define BT_STATUS_DEVICES	m4_l2	/* number of known devices */
+#define BT_STATUS_CONNECTIONS	m4_l3	/* number of active connections */
+#define BT_STATUS_ENABLED	m4_l4	/* 1 if BT radio is on */
+
+/* Reply fields for BT_RQ_GET_DEVICES. */
+#define BT_DEVICE_COUNT		m4_l1	/* number of device entries copied */
+#define BT_DEVICE_GRANT		m4_l2	/* grant ID for device data */
+
+/* Reply fields for BT_RQ_GET_CONNECTIONS. */
+#define BT_CONN_COUNT		m4_l1	/* number of connection entries */
+#define BT_CONN_GRANT		m4_l2	/* grant ID for connection data */
+
+/* Request fields for BT_RQ_REGISTER_SERVICE. */
+#define BT_REG_PSM		m4_l1	/* L2CAP PSM (e.g. 0x0003 for RFCOMM) */
+#define BT_REG_CHANNEL		m4_l2	/* RFCOMM channel / protocol port */
+#define BT_REG_UUID16		m4_l3	/* Service Class UUID16 (e.g. 0x1101) */
+#define BT_REG_FLAGS		m4_l4	/* flags (reserved, set to 0) */
+
+/* Reply fields for BT_RQ_REGISTER_SERVICE. */
+#define BT_REG_HANDLE		m4_l1	/* assigned service handle (u32), 0 on failure */
+
+/*===========================================================================*
+ *		Internal codes used by several services			     *
+ *===========================================================================*/
+
+/* Field names for MACD_CHECK request. */
+#define MACD_WHAT		m4_l1	/* MAC_* hook type */
+#define MACD_SRC		m4_l2	/* source endpoint (endpoint_t) */
+#define MACD_DST		m4_l3	/* target/destination endpoint */
+#define MACD_CTX1		m4_l4	/* context word 1 (int) */
+
+#define MACD_STATUS_ENABLED	m4_l1	/* 1 if MAC enforcement is active */
+#define MACD_STATUS_NRULES	m4_l2	/* number of loaded policy rules */
 
 /*===========================================================================*
  *		Internal codes used by several services			     *

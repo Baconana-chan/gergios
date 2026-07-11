@@ -15,6 +15,7 @@
 #include <minix/endpoint.h>
 #include <minix/capability.h>
 #include <minix/mac.h>
+#include <minix/audit.h>
 
 #if USE_PRIVCTL
 
@@ -46,7 +47,11 @@ int do_privctl(struct proc * caller, message * m_ptr)
    * running by the RTS_NO_PRIV flag. This flag is set when a privileged process
    * forks. 
    */
-  if (! (priv(caller)->s_flags & SYS_PROC)) return(EPERM);
+  if (! (priv(caller)->s_flags & SYS_PROC)) {
+	audit_log(AUDIT_IPC_DENIED, EPERM,
+	    caller->p_endpoint, NONE, NULL, 0);
+	return(EPERM);
+  }
   if(m_ptr->m_lsys_krn_sys_privctl.endpt == SELF) okendpt(caller->p_endpoint,
 	&proc_nr);
   else if(!isokendpt(m_ptr->m_lsys_krn_sys_privctl.endpt, &proc_nr))
@@ -60,24 +65,38 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	 * been set.
 	 */
 	if (!RTS_ISSET(rp, RTS_NO_PRIV) || priv(rp)->s_proc_nr == NONE) {
+		audit_log(AUDIT_IPC_DENIED, EPERM,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 		return(EPERM);
 	}
 	RTS_UNSET(rp, RTS_NO_PRIV);
+	audit_log(AUDIT_PRIV_CHANGE, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   case SYS_PRIV_YIELD:
 	/* Allow process to run and suspend the caller. */
 	if (!RTS_ISSET(rp, RTS_NO_PRIV) || priv(rp)->s_proc_nr == NONE) {
+		audit_log(AUDIT_IPC_DENIED, EPERM,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 		return(EPERM);
 	}
 	RTS_SET(caller, RTS_NO_PRIV);
 	RTS_UNSET(rp, RTS_NO_PRIV);
+	audit_log(AUDIT_PRIV_CHANGE, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   case SYS_PRIV_DISALLOW:
 	/* Disallow process from running. */
-	if (RTS_ISSET(rp, RTS_NO_PRIV)) return(EPERM);
+	if (RTS_ISSET(rp, RTS_NO_PRIV)) {
+		audit_log(AUDIT_IPC_DENIED, EPERM,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
+		return(EPERM);
+	}
 	RTS_SET(rp, RTS_NO_PRIV);
+	audit_log(AUDIT_PRIV_CHANGE, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   case SYS_PRIV_CLEAR_IPC_REFS:
@@ -94,6 +113,8 @@ int do_privctl(struct proc * caller, message * m_ptr)
 		mac_ctx.privctl.mac_target = rp->p_endpoint;
 		mac_ctx.privctl.mac_request = SYS_PRIV_SET_SYS;
 		if (mac_kernel_check(MAC_PRIVCTL_SET_SYS, &mac_ctx) != MAC_ALLOW) {
+			audit_log(AUDIT_MAC_VIOLATION, EPERM,
+			    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 			return EPERM;
 		}
 	}
@@ -194,6 +215,8 @@ int do_privctl(struct proc * caller, message * m_ptr)
 		} 
 	}
 
+	audit_log(AUDIT_SYSCALL_AUTH, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   case SYS_PRIV_SET_USER:
@@ -210,6 +233,8 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	priv(rp)->s_cap_permitted = CAP_BASE;
 	priv(rp)->s_cap_bound = CAP_BASE;
 
+	audit_log(AUDIT_SYSCALL_AUTH, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   case SYS_PRIV_ADD_IO:
@@ -229,7 +254,11 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	data_copy(caller->p_endpoint, m_ptr->m_lsys_krn_sys_privctl.arg_ptr,
 		KERNEL, (vir_bytes) &io_range, sizeof(io_range));
 	/* Add the I/O range */
-	return priv_add_io(rp, &io_range);
+	r = priv_add_io(rp, &io_range);
+	if (r == OK)
+		audit_log(AUDIT_PRIV_CHANGE, OK,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
+	return r;
 
   case SYS_PRIV_ADD_MEM:
 	if (RTS_ISSET(rp, RTS_NO_PRIV))
@@ -241,7 +270,11 @@ int do_privctl(struct proc * caller, message * m_ptr)
 		(vir_bytes) &mem_range, sizeof(mem_range))) != OK)
 		return r;
 	/* Add the memory range */
-	return priv_add_mem(rp, &mem_range);
+	r = priv_add_mem(rp, &mem_range);
+	if (r == OK)
+		audit_log(AUDIT_PRIV_CHANGE, OK,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
+	return r;
 
   case SYS_PRIV_ADD_IRQ:
 	if (RTS_ISSET(rp, RTS_NO_PRIV))
@@ -255,7 +288,11 @@ int do_privctl(struct proc * caller, message * m_ptr)
 	data_copy(caller->p_endpoint, m_ptr->m_lsys_krn_sys_privctl.arg_ptr,
 		KERNEL, (vir_bytes) &irq, sizeof(irq));
 	/* Add the IRQ. */
-	return priv_add_irq(rp, irq);
+	r = priv_add_irq(rp, irq);
+	if (r == OK)
+		audit_log(AUDIT_PRIV_CHANGE, OK,
+		    caller->p_endpoint, rp->p_endpoint, NULL, 0);
+	return r;
 
   case SYS_PRIV_QUERY_MEM:
   {
@@ -293,6 +330,8 @@ int do_privctl(struct proc * caller, message * m_ptr)
 		return r;
 	}
 
+	audit_log(AUDIT_PRIV_CHANGE, OK,
+	    caller->p_endpoint, rp->p_endpoint, NULL, 0);
 	return(OK);
 
   default:
@@ -407,4 +446,3 @@ static int update_priv(struct proc *rp, struct priv *priv)
 }
 
 #endif /* USE_PRIVCTL */
-

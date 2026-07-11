@@ -30,7 +30,7 @@
 #define IRQ_THREAD_H
 
 #include "proc.h"
-#include <minix/types.h>
+#include <minix/type.h>
 
 /* Stack size for each IRQ thread (4KB = one page). */
 #define IRQ_THREAD_STACK_SIZE   4096

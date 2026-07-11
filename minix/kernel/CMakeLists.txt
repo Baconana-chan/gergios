@@ -307,6 +307,7 @@ target_compile_options(kernel_objects PRIVATE
 
 # MINIX system flag
 target_compile_definitions(kernel_objects PRIVATE _MINIX_SYSTEM=1)
+target_compile_definitions(kernel_objects PRIVATE _SYSTEM=1)
 
 # Architecture-specific compile options
 if(MACHINE_ARCH STREQUAL "x86_64")

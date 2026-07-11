@@ -9,3 +9,6 @@ name = "net_parse"
 crate-type = ["staticlib", "lib"]
 
 [dependencies]
+
+[dev-dependencies]
+proptest = { version = "1", default-features = false, features = ["std"] }

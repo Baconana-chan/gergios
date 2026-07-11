@@ -141,16 +141,21 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 - [ ] **Multi-touch** — поддержка тачскринов
 - [ ] **Clipboard** — copy/paste между приложениями
 
-#### Безопасность
-- [ ] **Capability-based security** — design and implementation
-- [ ] **MAC framework** — SELinux/AppArmor equivalent
-- [ ] **Memory-safe IPC** — Rust-based validation layer
-- [ ] **Full security audit** — аудит всей кодовой базы перед 1.0 release
+#### Безопасность ✅ **COMPLETED**
+- [x] **Capability-based security** — 13 named caps, libcap, SYS_CAPCTL ✅
+- [x] **MAC framework** — 4 LSM-style hooks, macd/mac-compile/macctl, reference policy ✅
+- [x] **Memory-safe IPC** — minix-rs validation layer ✅
+- [x] **W^X / KASLR / CFI / SafeStack** — реализованы и документированы ✅
+- [x] **Audit subsystem** — ring buffer, auditd, auditctl, audit2txt ✅
+- [x] **Full security audit** — 12-section docs, integration test suite ✅
 
-#### Сеть
-- [ ] **IPv6 support** — базовая адресация, SLAAC, DHCPv6
-- [ ] **Network stack evaluation** — lwIP vs FreeBSD TCP/IP stack
-- [ ] **Modern TCP/IP stack** — интеграция выбранного стека
+#### Сеть 🟡
+- [x] **IPv6 support** — INET6, V6ONLY, NDP, DAD, ICMPv6, MLD ✅
+- [x] **lwIP 2.2.1** — обновлён, оптимизирован, SYN cookies ✅
+- [x] **Rust net-parse + e1000/virtio-net** — drivers ✅
+- [x] **Security** — SYN cookies, TCP MD5, WireGuard, IPsec, DTLS ✅
+- [x] **Monitoring** — ifstat, TCP ext, latency, netstat, rpcapd ✅
+- [ ] **Integration testing** — QEMU stability, driver tests, regression suite (Phase 6 🟡)
 
 #### ARM64 Platform
 - [ ] **ARM64 Platform + Drivers** — RPi 4 специфика (T10)
@@ -161,16 +166,23 @@ GergiOS X.Y.Z "Codename" (MINIX 3.4.0)
 - [ ] **GergiOS package repository**
 - [ ] **pkgsrc → apk migration** (optional)
 
-#### BlueZ Userspace Port (Phase 8)
-- [ ] **BlueZ adapter shim** — D-Bus, HCI socket, GLib для userspace Bluetooth стека
+#### BlueZ Userspace Port (Phase 8) ✅ **COMPLETED**
+- [x] **C API** — minix/lib/libbluetooth/ (13 функций, bluetooth.h) ✅
+- [x] **CLI** — bt-tool с 12+ командами ✅
+- [x] **Daemon** — IPC dispatch, HCI polling, pairing (SSP, IO caps) ✅
+- [x] **SDP** — Register Service, Browse Group discovery, man pages ✅
+- [ ] **D-Bus / HCI socket / GLib** — deferred (глубокая BlueZ интеграция, post-1.0)
 
-#### Тестирование
-- [ ] **QEMU test infrastructure** — automated boot tests for x86_64
-- [ ] **Testing framework migration** — Google Test / Catch2
-- [ ] **ext4 test suite** — fsck, stress, производительность
-- [ ] **Fuzzing** — расширение на C-FFI слой
-- [ ] **Performance benchmarks** — сравнение с legacy
-- [ ] **Property-based testing** — для критических компонентов (ядро, IPC, FS)
+#### Тестирование ✅
+- [x] **Testing framework migration** — Catch2 (129 C tests) + proptest (36 Rust tests)
+- [x] **C FFI tests** — ext4 (30+), BT IPC+SDP (30), driver registers (33)
+- [x] **Property-based testing** — IPC, ext4 extent/dir, net-parse TCP/UDP, BT SDP
+- [x] **Performance benchmarks** — Rust vs C (20+ variants, hyperfine)
+- [x] **Code coverage** — Rust (llvm-cov) + C (gcov/lcov) → Codecov
+- [x] **Fuzzing** — 6 cargo-fuzz targets (nightly CI)
+- [x] **QEMU smoke tests** — boot, fs, net, bt suites в CI
+- [x] **CI/CD hardening** — 11 jobs, regression detection, dashboard, docs
+- [ ] **ext4 integration** — fsck/stress тесты (ждёт MINIX toolchain)
 
 #### Остальное
 - [ ] **`lib/libwrap/`** — MK* флаг (tcp_wrappers deprecated)

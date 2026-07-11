@@ -227,3 +227,159 @@ pub const IOBUF_SIZE: usize = 16384;
 
 /// EERD read timeout (number of poll iterations before giving up)
 pub const EERD_READ_TIMEOUT: u32 = 100_000;
+
+// ============================================================================
+// C FFI test verification functions
+// ============================================================================
+
+/// Return e1000 version code: 0x1008254E (device ID family).
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn e1000_test_version() -> u32 {
+    0x1008254E
+}
+
+/// Return register byte offset by register ID (0..=34).
+/// Returns 0xFFFFFFFF for unknown IDs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn e1000_test_reg_offset(reg_id: u32) -> u32 {
+    match reg_id {
+        0  => CTRL,
+        1  => STATUS,
+        2  => EERD,
+        3  => FCAL,
+        4  => FCAH,
+        5  => FCT,
+        6  => FCTTV,
+        7  => ICR,
+        8  => IMS,
+        9  => RCTL,
+        10 => TCTL,
+        11 => RDBAL,
+        12 => RDBAH,
+        13 => RDLEN,
+        14 => RDH,
+        15 => RDT,
+        16 => TDBAL,
+        17 => TDBAH,
+        18 => TDLEN,
+        19 => TDH,
+        20 => TDT,
+        21 => CRCERRS,
+        22 => RXERRC,
+        23 => MPC,
+        24 => COLC,
+        25 => TPR,
+        26 => TPT,
+        27 => RAL,
+        28 => RAH,
+        29 => MTA,
+        30 => IVAR,
+        31 => EICR,
+        32 => EIAC,
+        33 => EIMS,
+        34 => EIMC,
+        _  => 0xFFFFFFFF,
+    }
+}
+
+/// Return bitfield/constant value by bitfield ID (0..=44).
+/// Returns 0xFFFFFFFF for unknown IDs.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn e1000_test_bitfield(bf_id: u32) -> u32 {
+    match bf_id {
+        // CTRL bitfields (0-6)
+        0  => CTRL_LRST,
+        1  => CTRL_ASDE,
+        2  => CTRL_SLU,
+        3  => CTRL_ILOS,
+        4  => CTRL_RST,
+        5  => CTRL_VME,
+        6  => CTRL_PHY_RST,
+        // STATUS bitfields (7-14)
+        7  => STATUS_FD,
+        8  => STATUS_LU,
+        9  => STATUS_TXOFF,
+        10 => STATUS_SPEED,
+        11 => STATUS_SPEED_10,
+        12 => STATUS_SPEED_100,
+        13 => STATUS_SPEED_1000_A,
+        14 => STATUS_SPEED_1000_B,
+        // EERD bitfields (15-18)
+        15 => EERD_START,
+        16 => EERD_DONE,
+        17 => EERD_ADDR,
+        18 => EERD_DATA,
+        // ICR/IMS bitfields (19-23)
+        19 => ICR_TXDW,
+        20 => ICR_TXQE,
+        21 => ICR_LSC,
+        22 => ICR_RXO,
+        23 => ICR_RXT,
+        // RCTL bitfields (24-29)
+        24 => RCTL_EN,
+        25 => RCTL_UPE,
+        26 => RCTL_MPE,
+        27 => RCTL_BAM,
+        28 => RCTL_BSIZE,
+        29 => RCTL_BSEX,
+        // TCTL bitfields (30-31)
+        30 => TCTL_EN,
+        31 => TCTL_PSP,
+        // RAH (32)
+        32 => RAH_AV,
+        // IVAR (33)
+        33 => IVAR_VALID,
+        // EICR (34-36)
+        34 => EICR_RX0,
+        35 => EICR_TX0,
+        36 => EICR_OTHER,
+        // Config constants (37-40)
+        37 => RXDESC_NR as u32,
+        38 => TXDESC_NR as u32,
+        39 => IOBUF_SIZE as u32,
+        40 => EERD_READ_TIMEOUT,
+        // IVAR entry offsets (41-45)
+        41 => IVAR_RX0,
+        42 => IVAR_TX0,
+        43 => IVAR_RX1,
+        44 => IVAR_TX1,
+        45 => IVAR_OTHER,
+        _  => 0xFFFFFFFF,
+    }
+}
+
+#[cfg(test)]
+mod ffi_tests {
+    use super::*;
+
+    #[test]
+    fn test_version_consistency() {
+        assert_eq!(unsafe { e1000_test_version() }, 0x1008254E);
+    }
+
+    #[test]
+    fn test_reg_offset_roundtrip() {
+        // Spot-check: known register offsets
+        assert_eq!(unsafe { e1000_test_reg_offset(0) },  CTRL);     // 0x00000
+        assert_eq!(unsafe { e1000_test_reg_offset(1) },  STATUS);  // 0x00008
+        assert_eq!(unsafe { e1000_test_reg_offset(9) },  RCTL);    // 0x00100
+        assert_eq!(unsafe { e1000_test_reg_offset(10) }, TCTL);    // 0x00400
+        assert_eq!(unsafe { e1000_test_reg_offset(11) }, RDBAL);   // 0x02800
+        assert_eq!(unsafe { e1000_test_reg_offset(30) }, IVAR);    // 0x00E00
+        // Unknown
+        assert_eq!(unsafe { e1000_test_reg_offset(99) }, 0xFFFFFFFF);
+    }
+
+    #[test]
+    fn test_bitfield_roundtrip() {
+        // Spot-check: known bitfields
+        assert_eq!(unsafe { e1000_test_bitfield(0) },  CTRL_LRST);
+        assert_eq!(unsafe { e1000_test_bitfield(4) },  CTRL_RST);
+        assert_eq!(unsafe { e1000_test_bitfield(7) },  STATUS_FD);
+        assert_eq!(unsafe { e1000_test_bitfield(19) }, ICR_TXDW);
+        assert_eq!(unsafe { e1000_test_bitfield(24) }, RCTL_EN);
+        assert_eq!(unsafe { e1000_test_bitfield(32) }, RAH_AV);
+        // Unknown
+        assert_eq!(unsafe { e1000_test_bitfield(99) }, 0xFFFFFFFF);
+    }
+}

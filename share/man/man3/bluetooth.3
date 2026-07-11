@@ -1,0 +1,136 @@
+.\" $GergiOS: bluetooth.3,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt BLUETOOTH 3
+.Os GergiOS
+.Sh NAME
+.Nm libbluetooth
+.Nd Bluetooth daemon client library
+.Sh LIBRARY
+.lb libbluetooth
+.Sh SYNOPSIS
+.In bluetooth.h
+.Ft bt_handle_t *
+.Fn bt_open void
+.Ft void
+.Fn bt_close "bt_handle_t *handle"
+.Ft int
+.Fn bt_start_discovery "bt_handle_t *handle"
+.Ft int
+.Fn bt_stop_discovery "bt_handle_t *handle"
+.Ft int
+.Fn bt_get_devices "bt_handle_t *handle" "bt_device_t *devices" "int max"
+.Ft int
+.Fn bt_connect "bt_handle_t *handle" "const bt_bdaddr_t *bdaddr"
+.Ft int
+.Fn bt_disconnect "bt_handle_t *handle" "uint16_t conn_handle" "uint8_t reason"
+.Ft int
+.Fn bt_get_connections "bt_handle_t *handle" "bt_connection_t *conns" "int max"
+.Ft int
+.Fn bt_set_name "bt_handle_t *handle" "const char *name"
+.Ft int
+.Fn bt_set_discoverable "bt_handle_t *handle" "int enable"
+.Ft int
+.Fn bt_set_connectable "bt_handle_t *handle" "int enable"
+.Ft int
+.Fn bt_get_status "bt_handle_t *handle" "bt_status_t *status"
+.Ft int
+.Fn bt_pair "bt_handle_t *handle" "const bt_bdaddr_t *bdaddr"
+.Ft int
+.Fn bt_unpair "bt_handle_t *handle" "const bt_bdaddr_t *bdaddr"
+.Ft int
+.Fn bt_bdaddr_parse "const char *str" "bt_bdaddr_t *bdaddr"
+.Ft char *
+.Fn bt_bdaddr_format "const bt_bdaddr_t *bdaddr" "char *buf" "size_t bufsize"
+.Sh DESCRIPTION
+The
+.Nm
+library provides a C API for communicating with the Bluetooth daemon
+.Pq bluetoothd
+on GergiOS.
+.Pp
+The library communicates with the daemon via MINIX IPC:
+it looks up the daemon endpoint in the Data Store and sends
+command messages using
+.Xr sendrec 2 .
+.Pp
+All functions return
+.Dv BT_OK
+(0) on success, or a negative errno on failure.
+.Sh INITIALIZATION
+.Bl -tag -width indent
+.It Fn bt_open
+Opens a connection to the Bluetooth daemon.
+Returns a handle, or
+.Dv NULL
+on error with
+.Va errno
+set.
+.It Fn bt_close
+Closes the connection and frees the handle.
+.El
+.Sh DEVICE DISCOVERY
+.Bl -tag -width indent
+.It Fn bt_start_discovery
+Starts an inquiry scan for nearby Bluetooth devices.
+.It Fn bt_stop_discovery
+Stops the ongoing inquiry scan.
+.It Fn bt_get_devices
+Retrieves the list of discovered devices.
+The
+.Fa devices
+array must have room for at least
+.Fa max
+elements.
+Returns the number of devices written, or a negative errno.
+.El
+.Sh CONNECTION MANAGEMENT
+.Bl -tag -width indent
+.It Fn bt_connect
+Initiates a connection to the remote device at the given BD_ADDR.
+.It Fn bt_disconnect
+Disconnects from the remote device identified by the HCI connection handle.
+The
+.Fa reason
+is an HCI status code (default 0x13 = Remote User Terminated).
+.It Fn bt_get_connections
+Retrieves the list of active connections.
+.El
+.Sh LOCAL CONFIGURATION
+.Bl -tag -width indent
+.It Fn bt_set_name
+Sets the local Bluetooth device name.
+.It Fn bt_set_discoverable
+Enables or disables inquiry scan (discoverability).
+.It Fn bt_set_connectable
+Enables or disables page scan (connectability).
+.El
+.Sh STATUS AND PAIRING
+.Bl -tag -width indent
+.It Fn bt_get_status
+Returns the daemon status: running flag, device count, connection count.
+.It Fn bt_pair
+Initiates pairing with a remote device.
+.It Fn bt_unpair
+Removes pairing with a remote device.
+.El
+.Sh UTILITY
+.Bl -tag -width indent
+.It Fn bt_bdaddr_parse
+Parses a BD_ADDR string in the format
+.Dq XX:XX:XX:XX:XX:XX
+into a
+.Ft bt_bdaddr_t .
+.It Fn bt_bdaddr_format
+Formats a
+.Ft bt_bdaddr_t
+as a colon-separated hexadecimal string.
+.El
+.Sh SEE ALSO
+.Xr bt-tool 8 ,
+.Xr bluetoothd 8 ,
+.Xr sendrec 2
+.Sh HISTORY
+The
+.Nm
+library appeared in GergiOS Phase 8.6.

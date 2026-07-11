@@ -1,0 +1,8 @@
+[package]
+name = "minix-fb"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal framebuffer API for GergiOS — pixel/fill/blit/flip via /dev/fb"
+
+[dependencies]
+libc = "0.2"

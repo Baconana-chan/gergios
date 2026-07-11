@@ -152,10 +152,24 @@ members = [
     "minix-hda",
     "minix-ko-loader",
     "minix-bt-hci",
+    "minix-bt-stack",
+    "bt-tool",
+    "gertoys",
+    "minix-fb",
+    "minix-term",
+    "minix-audio",
+    "minix-net",
+    "minish",
+    "minix-admin",
+    "proptest-helpers",
 ]
 
-# Global profile: panic=abort for no_std drivers and other workspace members
+# Global profile: use unwind for dev (needed by proptest in integration tests).
+# no_std crates are not affected — they only get panic=abort in release builds.
 [profile.dev]
+panic = "unwind"
+
+[profile.release]
 panic = "abort"
 
 resolver = "2"

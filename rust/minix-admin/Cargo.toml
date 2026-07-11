@@ -1,0 +1,13 @@
+[package]
+name = "minix-admin"
+version = "0.1.0"
+edition = "2021"
+description = "Admin shell for GergiOS — service management, system monitoring, security, audit"
+
+[dependencies]
+libc = "0.2"
+minix-term = { path = "../minix-term" }
+
+[features]
+default = []
+std = []

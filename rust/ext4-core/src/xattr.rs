@@ -7,6 +7,12 @@
 //! **Note**: EA_INODE (INCOMPAT_EA_INODE) feature is NOT supported.
 //! Values must fit within a single block or the inode's extra space.
 
+use alloc::format;
+
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+
 use crate::types::*;
 
 // ─── Constants ────────────────────────────────────────────────────────

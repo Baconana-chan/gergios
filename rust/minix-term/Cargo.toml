@@ -1,0 +1,9 @@
+[package]
+name = "minix-term"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal terminal library for GergiOS — raw mode, key input, ANSI output"
+
+[dependencies]
+libc = "0.2"
+bitflags = "2.6"

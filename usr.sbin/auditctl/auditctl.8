@@ -1,0 +1,72 @@
+.\"	$GergiOS: auditctl.8,v 1.0 2026/07/10 $
+.\"
+.Dd July 10, 2026
+.Dt AUDITCTL 8
+.Os GergiOS
+.Sh NAME
+.Nm auditctl
+.Nd control the audit daemon
+.Sh SYNOPSIS
+.Nm
+.Fl s
+.Nm
+.Fl e
+.Cm enable | disable
+.Nm
+.Fl f
+.Nm
+.Fl r
+.Nm
+.Fl R
+.Nm
+.Fl h
+.Sh DESCRIPTION
+The
+.Nm
+command controls the audit daemon
+.Xr auditd 8 .
+It communicates with
+.Nm auditd
+via IPC and allows the administrator to check status and
+perform management actions.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl s
+Show audit daemon status including whether logging is enabled,
+whether the log file is open, and the poll interval.
+.It Fl e Cm enable | disable
+Enable or disable audit logging.
+When disabled, auditd stops polling the kernel audit buffer
+until it is re-enabled.
+.It Fl f
+Force an immediate poll of the kernel audit buffer.
+All pending audit records are flushed to the log file.
+.It Fl r
+Reopen the audit log file.
+This is useful when an external tool rotates the log.
+.It Fl R
+Force log rotation.
+auditd will rename the current log with a timestamp, open a new
+log file, and clean up old rotated logs according to the retention
+policy in
+.Xr auditd.conf 5 .
+.It Fl h
+Show usage summary.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh FILES
+.Bl -tag -width /var/log/audit/audit.log -compact
+.It Pa /etc/auditd.conf
+Audit daemon configuration file.
+.It Pa /var/log/audit/audit.log
+Default audit log file.
+.El
+.Sh SEE ALSO
+.Xr auditd 8 ,
+.Xr auditd.conf 5
+.Sh HISTORY
+The
+.Nm
+command first appeared in GergiOS 1.0.

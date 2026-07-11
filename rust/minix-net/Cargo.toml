@@ -1,0 +1,12 @@
+[package]
+name = "minix-net"
+version = "0.1.0"
+edition = "2021"
+description = "Game networking for GergiOS — TCP client/server, UDP messaging, message framing"
+
+[dependencies]
+libc = "0.2"
+
+[features]
+default = []
+std = []

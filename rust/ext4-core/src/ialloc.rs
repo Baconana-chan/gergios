@@ -3,6 +3,8 @@
 //! Manages inode allocation and deallocation: finds free inodes,
 //! updates inode bitmaps, and adjusts group descriptor free counts.
 
+use alloc::vec;
+
 use crate::types::*;
 use crate::inode::inode_to_group;
 

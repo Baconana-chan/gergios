@@ -26,7 +26,8 @@
 //! }
 //! ```
 
-#![no_std]
+//! Test mode needs `panic = "unwind"` for proptest, which requires `std`.
+//! Use `#![no_std]` only for freestanding builds (handled by MINIX build system).
 #![deny(unsafe_code)]
 
 pub mod tcp;
@@ -51,9 +52,4 @@ pub enum ParseError {
 /// Result type for packet parsing operations.
 pub type ParseResult<T> = Result<T, ParseError>;
 
-// Panic handler for no_std builds (required when linking as a staticlib).
-#[cfg(not(test))]
-#[panic_handler]
-fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
+

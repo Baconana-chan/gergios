@@ -1,0 +1,23 @@
+[package]
+name = "minix-bt-stack"
+version = "0.1.0"
+edition = "2024"
+description = "Native Rust Bluetooth stack for GergiOS — L2CAP, RFCOMM, SDP, GATT"
+
+[lib]
+name = "minix_bt_stack"
+crate-type = ["staticlib", "lib"]
+
+[dependencies]
+# Platform deps (enabled for all builds to allow type-checking):
+minix-rs = { path = "../minix-rs" }
+# minix-bt-hci = { path = "../minix-bt-hci" }
+# minix-driver = { path = "../minix-driver" }
+
+[dev-dependencies]
+proptest = { version = "1", default-features = false, features = ["std"] }
+
+[features]
+default = []
+std = []
+sanitize = []

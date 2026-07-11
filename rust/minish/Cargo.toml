@@ -1,0 +1,11 @@
+[package]
+name = "minish"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal Rust shell for GergiOS — builtins, pipes, redirects, tab-completion"
+
+[dependencies]
+libc = "0.2"
+
+[features]
+default = []
