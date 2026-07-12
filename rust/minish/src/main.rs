@@ -26,14 +26,21 @@ mod complete;
 mod exec;
 mod history;
 mod input;
+mod jobs;
 mod parser;
 mod prompt;
+mod shellopts;
 
 use std::io::{self, BufRead};
 
 /// Main entry point — runs the REPL loop.
 fn main() {
+    // Set up signal handling for job control
+    setup_signal_handlers();
+
     let mut hist = history::History::new(500);
+    let mut jobs_mgr = jobs::JobManager::new();
+    let mut shell_opts = shellopts::ShellOptions::new();
     let mut last_exit_code: i32 = 0;
 
     // Non-interactive mode: execute script from stdin
@@ -44,7 +51,7 @@ fn main() {
                 Ok(text) => {
                     let trimmed = text.trim().to_string();
                     if !trimmed.is_empty() && !trimmed.starts_with('#') {
-                        last_exit_code = execute_line(&trimmed, &mut hist, last_exit_code);
+                        last_exit_code = execute_line(&trimmed, &mut hist, &mut jobs_mgr, &mut shell_opts, last_exit_code);
                     }
                 }
                 Err(_) => break,
@@ -60,6 +67,9 @@ fn main() {
     println!("Type 'help' for available commands.\n");
 
     loop {
+        // Reap completed background jobs and print notifications
+        reap_background_jobs(&mut jobs_mgr);
+
         // Render prompt
         let prompt_str = prompt::render(last_exit_code);
 
@@ -87,13 +97,25 @@ fn main() {
             break;
         }
 
-        last_exit_code = execute_line(&trimmed, &mut hist, last_exit_code);
+        last_exit_code = execute_line(&trimmed, &mut hist, &mut jobs_mgr, &mut shell_opts, last_exit_code);
     }
 }
 
 /// Execute a parsed command line.
-fn execute_line(line: &str, _hist: &mut history::History, last_ec: i32) -> i32 {
-    // Parse the command line
+///
+/// Delegates everything to `exec::run_pipeline()`, which handles:
+/// - Single commands (builtins first, then external) with job control
+/// - Conditional chains (`&&`, `||`)
+/// - Pipe chains (`cmd1 | cmd2`) with real OS pipes
+/// - Background jobs (`cmd &`) via JobManager
+/// - Shell options (`-e`, `pipefail`) for script behavior
+fn execute_line(
+    line: &str,
+    _hist: &mut history::History,
+    jobs: &mut jobs::JobManager,
+    opts: &mut shellopts::ShellOptions,
+    last_ec: i32,
+) -> i32 {
     let pipeline = match parser::parse_line(line) {
         Ok(p) => p,
         Err(e) => {
@@ -106,27 +128,7 @@ fn execute_line(line: &str, _hist: &mut history::History, last_ec: i32) -> i32 {
         return 0;
     }
 
-    // Single command execution
-    if pipeline.commands.len() == 1 {
-        let cmd = &pipeline.commands[0];
-        if cmd.args.is_empty() {
-            return 0;
-        }
-
-        let command = &cmd.args[0];
-        let cmd_args = &cmd.args[1..];
-
-        // Try builtins first
-        if let Some(code) = builtins::try_builtin(command, cmd_args) {
-            return code;
-        }
-
-        // External command
-        exec::run_external(cmd, last_ec)
-    } else {
-        // Pipeline: multiple commands
-        exec::run_pipeline(&pipeline, last_ec)
-    }
+    exec::run_pipeline(&pipeline, last_ec, jobs, opts)
 }
 
 /// Check if running interactively (has a TTY).
@@ -138,5 +140,79 @@ fn is_interactive() -> bool {
     #[cfg(not(unix))]
     {
         true // assume interactive on non-Unix
+    }
+}
+
+/// Set up signal handlers for job control.
+///
+/// The shell ignores SIGINT and SIGTSTP so they don't kill the shell
+/// itself. Children reset these to default via pre_exec.
+fn setup_signal_handlers() {
+    #[cfg(unix)]
+    {
+        unsafe {
+            // Ignore SIGINT so Ctrl+C doesn't kill the shell
+            libc::signal(libc::SIGINT, libc::SIG_IGN);
+            // Ignore SIGTSTP so Ctrl+Z doesn't stop the shell
+            libc::signal(libc::SIGTSTP, libc::SIG_IGN);
+            // Ignore SIGQUIT so Ctrl+\ doesn't kill the shell
+            libc::signal(libc::SIGQUIT, libc::SIG_IGN);
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = ();
+    }
+}
+
+/// Check for completed/stopped background jobs and print notifications.
+///
+/// Uses non-blocking waitpid (WNOHANG) to check all tracked pgrps
+/// without blocking the shell loop.
+fn reap_background_jobs(jobs: &mut jobs::JobManager) {
+    #[cfg(unix)]
+    {
+        // Collect pgrps to check before modifying jobs
+        let pgrps: Vec<i32> = jobs.list().iter()
+            .filter(|j| matches!(j.state, jobs::JobState::Running | jobs::JobState::Stopped))
+            .map(|j| j.pgrp)
+            .collect();
+
+        let mut changed = false;
+        for pgrp in pgrps {
+            // Loop until no more children in this pgrp (handles multi-process jobs)
+            loop {
+                let mut status: i32 = 0;
+                let ret = unsafe {
+                    libc::waitpid(-pgrp, &mut status, libc::WNOHANG | libc::WUNTRACED)
+                };
+
+                if ret == 0 || ret == -1 {
+                    break; // no more children to reap
+                }
+
+                if unsafe { libc::WIFEXITED(status) } {
+                    let code = unsafe { libc::WEXITSTATUS(status) };
+                    jobs.update_state(pgrp, jobs::JobState::Done(code as i32));
+                    changed = true;
+                } else if unsafe { libc::WIFSIGNALED(status) } {
+                    let sig = unsafe { libc::WTERMSIG(status) };
+                    jobs.update_state(pgrp, jobs::JobState::Killed(sig));
+                    changed = true;
+                } else if unsafe { libc::WIFSTOPPED(status) } {
+                    jobs.update_state(pgrp, jobs::JobState::Stopped);
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            jobs.print_notifications();
+            jobs.reap();
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = jobs;
     }
 }

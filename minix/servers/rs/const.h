@@ -24,6 +24,15 @@
                                          */
 #define MAX_DET_RESTART      10         /* maximum number of detached restarts. */
 
+/* Healthcheck refresh flag — set when a healthcheck triggers a restart. */
+#define RS_HEALTHCHECK_FAIL 0x20000
+
+/* Dependency flag — set when a cascade restart is in progress. */
+#define RS_DEP_FAIL 0x40000
+
+/* Diagnostic flags — reserved for future use. */
+/* #define RS_DIAG_COLLECTED 0x80000 */
+
 /* Flag values. */
 #define RS_IN_USE       0x001    /* set when process slot is in use */
 #define RS_EXITING      0x002    /* set when exit is expected */

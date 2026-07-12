@@ -2,7 +2,11 @@
 name = "minix-fb"
 version = "0.1.0"
 edition = "2021"
-description = "Minimal framebuffer API for GergiOS — pixel/fill/blit/flip via /dev/fb"
+description = "MINIX framebuffer backend — software and hardware display support"
+license = "BSD-3-Clause"
 
 [dependencies]
-libc = "0.2"
+minix-compositor = { path = "../minix-compositor" }
+
+[features]
+default = []

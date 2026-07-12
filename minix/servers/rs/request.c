@@ -512,8 +512,8 @@ int do_init_ready(message *m_ptr)
       }
   }
   else {
-      /* Mark the slot as no longer initializing. */
-      rp->r_flags &= ~RS_INITIALIZING;
+      /* Mark the slot as no longer initializing and clear recovery flags. */
+      rp->r_flags &= ~(RS_INITIALIZING | RS_DEP_FAIL);
       rp->r_check_tm = 0;
       rp->r_alive_tm = getticks();
     
@@ -954,6 +954,13 @@ message *m_ptr;
       update_period(m_ptr);
   }
 
+  /* Run registered healthchecks for active services. */
+  for (rp=BEG_RPROC_ADDR; rp<END_RPROC_ADDR; rp++) {
+      if ((rp->r_flags & RS_ACTIVE) && rp->r_healthchecks) {
+          check_service_health(rp, now);
+      }
+  }
+
   /* Search system services table. Only check slots that are in use and not
    * updating.
    */
@@ -961,6 +968,11 @@ message *m_ptr;
       rpub = rp->r_pub;
 
       if ((rp->r_flags & RS_ACTIVE) && (!SRV_IS_UPDATING(rp) || ((rp->r_flags & (RS_INITIALIZING|RS_INIT_DONE|RS_INIT_PENDING)) == RS_INITIALIZING))) {
+
+          /* Skip if a healthcheck failure is already being processed. */
+          if (rp->r_flags & RS_HEALTHCHECK_FAIL) {
+              continue;
+          }
 
           /* Compute period. */
           period = rp->r_period;

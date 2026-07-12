@@ -1,0 +1,19 @@
+[package]
+name = "minix-input"
+version = "0.1.0"
+edition = "2021"
+description = "MINIX input subsystem — keyboard/mouse event types, HID chardev source, event loop"
+license = "BSD-3-Clause"
+
+[dependencies]
+minix-compositor = { path = "../minix-compositor" }
+minix-rs = { path = "../minix-rs", optional = true }
+
+[features]
+default = []
+# Enable MINIX HID chardev backend (requires MINIX IPC)
+minix = ["minix-rs"]
+
+[lib]
+name = "minix_input"
+path = "src/lib.rs"

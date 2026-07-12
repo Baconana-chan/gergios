@@ -223,19 +223,33 @@ rust/minish/
 | `export` | 20 | Переменные окружения |
 | `source` | 20 | Выполнить скрипт |
 
-### 4.4 Оценка
+### 4.4 Статус реализации
 
-| Компонент | LOC | Сложность |
-|-----------|-----|-----------|
-| REPL цикл | 100 | 🟢 Легко |
-| Парсер (трубы, перенаправления) | 300 | 🟡 Средне |
-| Builtins | 500 | 🟢 Легко |
-| fork/exec | 200 | 🟡 Средне (POSIX специфика) |
-| prompt | 100 | 🟢 Легко |
-| Tab-completion | 200 | 🟡 Средне |
-| История | 100 | 🟢 Легко |
-| Job control | 300 | 🔴 Сложно (сигналы, pgrp) |
-| **Итого** | **~1,800** | |
+#### Реализовано ✅ (87 тестов)
+
+| Компонент | LOC | Статус | Детали |
+|-----------|-----|--------|--------|
+| REPL цикл | 140 | ✅ | Интерактивный и скриптовый режимы, Ctrl+D exit |
+| Парсер (трубы, перенаправления) | 310 | ✅ | `\|`, `>`, `>>`, `<`, `2>`, `&&`, `\|\|`, `&`, `;`, кавычки, escape |
+| Builtins (15) | 550 | ✅ | cd, ls, echo, pwd, cat, rm, mv, cp, mkdir, ps, kill, help, export, source, true/false |
+| exec (single + внешние) | 100 | ✅ | `std::process::Command`, перенаправления |
+| **exec (pipe chain)** | **130** | **✅ NEW** | **Настоящие OS pipes через `Stdio::piped()`, spawn всех команд, wait, exit code последней** |
+| Prompt | 80 | ✅ | Цветной user@host:cwd$ с цветом по exit code |
+| Tab-completion | 130 | ✅ | Builtins, PATH, файлы, env vars |
+| История | 120 | ✅ | In-memory (500 записей), навигация ↑↓, поиск, dedup |
+| Raw-mode input | 220 | ✅ | termios raw mode, ↑↓←→ Home/End, Tab, Ctrl+D/U/L, Backspace/Delete |
+| Job control | 320 | ✅ | jobs, fg, bg, background (&), process groups, SigCtl |
+| **Итого core** | **~1,680** | | **87 тестов, 0 ошибок** |
+
+#### Ключевые особенности exec
+
+- **Single command** (`echo hello`): builtin → external `run_external()`
+- **Conditionals** (`cmd1 && cmd2`, `cmd1 || cmd2`): последовательно с short-circuit (первая команда всегда выполняется)
+- **Pipe chain** (`cmd1 | cmd2 | cmd3`): настоящие OS pipes — `Stdio::piped()` между всеми командами, конкурентный spawn, поддержка stdin/stdout/stderr redirects на любом этапе пайпа
+- **Background** (`cmd &`): spawn в отдельном pgrp, `[1] 1234`, JobManager (jobs/fg/bg), SIGCONT, waitpid с WUNTRACED
+- **Process groups**: `setpgid()` через `pre_exec` + родительская safetynet, сигналы SIGINT/SIGTSTP/SIGQUIT → SIG_DFL в дочерних процессах
+- **Job Manager**: `jobs` (список), `fg %N` (foreground + wait), `bg %N` (SIGCONT + Running)
+- **Cleanup**: `kill_children()` убивает частично запущенные процессы при ошибке
 
 ---
 

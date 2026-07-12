@@ -3187,7 +3187,6 @@
 ./usr/share/misc/acronyms-o                             minix-base
 ./usr/share/misc/acronyms                               minix-base
 ./usr/share/misc/acronyms.comp                          minix-base
-./usr/share/misc/airport                                minix-base
 ./usr/share/misc/ascii                                  minix-base
 ./usr/share/misc/birthtoken                             minix-base
 ./usr/share/misc/bsd-family-tree                        minix-base
@@ -3213,7 +3212,6 @@
 ./usr/share/misc/texinfo.tex                            minix-base
 ./usr/share/misc/texinfo.xsl                            minix-base
 ./usr/share/misc/units.lib                              minix-base
-./usr/share/misc/zipcodes                               minix-base
 ./usr/share/mk                                          minix-base
 ./usr/share/mk/bsd.README                               minix-base
 ./usr/share/mk/bsd.buildinstall.mk                      minix-base

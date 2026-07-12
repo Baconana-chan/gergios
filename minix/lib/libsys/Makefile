@@ -39,6 +39,7 @@ SRCS+=  \
 	safecopies.c \
 	sched_start.c \
 	sched_stop.c \
+	sched_boost.c \
 	sef.c \
 	sef_fi.c \
 	sef_init.c \

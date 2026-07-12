@@ -246,10 +246,42 @@ int do_start_scheduling(message *m_ptr)
 	m_ptr->m_sched_lsys_scheduling_start.scheduler = SCHED_PROC_NR;
 
 	return OK;
+}/*===========================================================================*
+ *				do_boost				     *
+ *===========================================================================*/
+int do_boost(message *m_ptr)
+{
+	struct schedproc *rmp;
+	int rv, proc_nr_n;
+
+	/* check who can send you requests */
+	if (!accept_message(m_ptr))
+		return EPERM;
+
+	if (sched_isokendpt(m_ptr->SCHED_BOOST_ENDPOINT, &proc_nr_n) != OK) {
+		printf("SCHED: WARNING: got an invalid endpoint in BOOST msg "
+		"%d\n", m_ptr->SCHED_BOOST_ENDPOINT);
+		return EBADEPT;
+	}
+
+	rmp = &schedproc[proc_nr_n];
+
+	/* Update priority and time slice. */
+	rmp->max_priority = m_ptr->SCHED_BOOST_PRIORITY;
+	rmp->priority = m_ptr->SCHED_BOOST_PRIORITY;
+	rmp->time_slice = m_ptr->SCHED_BOOST_QUANTUM;
+
+	/* Reschedule the process with the new parameters. */
+	if ((rv = schedule_process_local(rmp)) != OK) {
+		printf("SCHED: do_boost: schedule_process_local failed: %d\n", rv);
+		return rv;
+	}
+
+	return OK;
 }
 
 /*===========================================================================*
- *				do_nice					     *
+ *				do_nice				     *
  *===========================================================================*/
 int do_nice(message *m_ptr)
 {

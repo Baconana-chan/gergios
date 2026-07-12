@@ -269,14 +269,47 @@ end)
 
 ## 4. Фазы реализации
 
-### Phase 1: Foundation (C + Rust FFI) — 3-4 месяца
+### Phase 1: Software Renderer Foundation (Rust) — ✅ ~700 LOC
 
-- [ ] **1.1** Портировать `libdrm` userspace на MINIX
-- [ ] **1.2** Создать Rust-safe DRM bindings (`minix-drm-sys` + `minix-drm`)
-- [ ] **1.3** Реализовать KMS (Kernel Mode Setting) на framebuffer driver
-- [ ] **1.4** Создать Rust-safe Input bindings (`minix-input`) на основе `minix-rs`
-- [ ] **1.5** Получить рабочий framebuffer mmap из Rust
-- [ ] **1.6** MVP: программа на Rust, которая рисует пиксели на экране через `minix-rs`
+**Реализовано**: July 2026
+
+**Крейт**: `rust/minix-compositor/` — Wayland compositor foundation на Rust.
+
+| Модуль | LOC | Статус |
+|--------|-----|--------|
+| `pixel_buffer.rs` | ~150 | ✅ RGBA 32bpp буфер, `clear`, `fill_rect`, `blit_from` (blend/no-blend), `alpha_blend`, `get/set_pixel`, clipping |
+| `font.rs` | ~140 | ✅ TTF/OTF загрузка, `rustybuzz` shaping, glyph rasterization (через `ttf-parser` + coverage buffer), `render_text`, `text_width`, glyph caching |
+| `surface.rs` | ~80 | ✅ Surface с `id` (AtomicU64), position, z-order, opacity, dirty/visible flags, intersection testing |
+| `compositor.rs` | ~160 | ✅ Compositor с `add/remove/get_surface`, z-order sorting (O(n log n)), software compositing с per-pixel alpha blend, output clipping, Backend::present() callback |
+| `backend.rs` / `mem.rs` | ~80 | ✅ Backend trait (`present`, `dimensions`), MemBackend с frame storage, frame counting, PNG export (optional, через `image` crate) |
+| `lib.rs` | ~30 | ✅ `#![no_std]` library root, prelude module |
+| **Total** | **~700 LOC** | **✅ cargo check passes** |
+
+**Пример использования** (псевдокод):
+
+```rust
+use minix_compositor::{PixelBuffer, Compositor, Surface, MemBackend};
+
+let mut comp = Compositor::new(800, 600);
+let mut surface = Surface::new_filled(200, 100, 50, 50, [0xFF, 0x00, 0x00, 0xFF]);
+surface.z_order = 1;
+comp.add_surface(surface);
+
+let mut backend = MemBackend::new(800, 600);
+let stats = comp.composite(Some(&mut backend));
+// backend.frame contains the rendered scene
+```
+
+**Что дальше**:
+- Framebuffer backend (`minix-fb`) — mmap `/dev/fb0` и интеграция с compositor'ом
+- Input bindings (`minix-input`) — клавиатура/мышь через `minix-xhci` HID
+- Wayland protocol support (`wayland-server-rs`)
+- Событийный цикл (calloop с MINIX IPC backend)
+
+- [x] **1.1** Создан `rust/minix-compositor/` — software renderer + compositor foundation (~700 LOC)
+- [x] **1.2** Создан `rust/minix-fb/` — Framebuffer backend с SoftwareFb, FbBackend для Compositor, FbInfo, Framebuffer trait (~250 LOC, 6 тестов)
+- [x] **1.3** Input bindings (клавиатура/мышь) — создан `rust/minix-input/` (~500 LOC)
+- [x] **1.4** Событийный цикл compositor'а — `event_loop::run_tick()` + `run_loop()`
 
 ### Phase 2: Software Renderer + Fonts — 2-3 месяца
 

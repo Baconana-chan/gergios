@@ -162,6 +162,9 @@ members = [
     "minish",
     "minix-admin",
     "proptest-helpers",
+    "minix-compositor",
+    "minix-fb",
+    "minix-input",
 ]
 
 # Global profile: use unwind for dev (needed by proptest in integration tests).

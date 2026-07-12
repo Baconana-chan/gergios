@@ -10,7 +10,12 @@ use std::path::Path;
 /// Try to execute a built-in command.
 /// Returns `Some(exit_code)` if the command was a builtin,
 /// `None` if it should be passed to an external executor.
-pub fn try_builtin(command: &str, args: &[String]) -> Option<i32> {
+pub fn try_builtin(
+    command: &str,
+    args: &[String],
+    jobs: &mut crate::jobs::JobManager,
+    opts: &mut crate::shellopts::ShellOptions,
+) -> Option<i32> {
     match command {
         "cd" => Some(cd(args)),
         "pwd" => Some(pwd(args)),
@@ -25,7 +30,11 @@ pub fn try_builtin(command: &str, args: &[String]) -> Option<i32> {
         "kill" => Some(kill(args)),
         "help" => Some(help(args)),
         "export" => Some(export(args)),
-        "source" => Some(source(args)),
+        "source" => Some(source(args, jobs, opts)),
+        "set" => Some(crate::shellopts::ShellOptions::apply(args, opts)),
+        "jobs" => Some(crate::jobs::builtin_jobs(args, jobs)),
+        "fg" => Some(crate::jobs::builtin_fg(args, jobs)),
+        "bg" => Some(crate::jobs::builtin_bg(args, jobs)),
         "true" | ":" => Some(0),
         "false" => Some(1),
         _ => None,
@@ -426,31 +435,73 @@ fn export(args: &[String]) -> i32 {
 }
 
 /// Source (execute) a script file.
-fn source(args: &[String]) -> i32 {
+///
+/// Reads the file line by line, parses each line through the
+/// shell's own parser and executor. Supports:
+/// - All builtins (cd, echo, export, etc.) — state changes persist
+/// - Pipes, redirects, conditionals
+/// - Comments (#) and blank lines
+/// - Background jobs (&) via JobManager
+/// - Nested `source` calls
+/// - `set -e` / `set -o pipefail` — applied per-line
+///
+/// Returns the exit code of the last executed command (or 0).
+fn source(args: &[String], jobs: &mut crate::jobs::JobManager, opts: &mut crate::shellopts::ShellOptions) -> i32 {
     if args.is_empty() {
         eprintln!("source: missing filename");
         return 1;
     }
 
     let path = &args[0];
-    match std::fs::read_to_string(path) {
-        Ok(contents) => {
-            for line in contents.lines() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() || trimmed.starts_with('#') {
-                    continue;
-                }
-                // Note: in a real shell, this would call the main executor
-                // For now, print a message
-                println!("source: executing: {}", trimmed);
-            }
-            0
-        }
+    let contents = match std::fs::read_to_string(path) {
+        Ok(c) => c,
         Err(e) => {
             eprintln!("source: {}: {}", path, e);
-            1
+            return 1;
+        }
+    };
+
+    let mut exit_code = 0;
+
+    for line in contents.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("#!") {
+            continue;
+        }
+
+        // Parse the line
+        let pipeline = match crate::parser::parse_line(trimmed) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("minish: parse error in sourced file '{}': {}", path, e);
+                exit_code = 1;
+                if opts.exit_on_error {
+                    break; // set -e: stop on first error
+                }
+                continue;
+            }
+        };
+
+        if pipeline.commands.is_empty() {
+            continue;
+        }
+
+        // Reset suppress flag before each line (set by exec_sequential
+        // on short-circuit from non-last AND-OR commands)
+        opts.suppress_set_e = false;
+
+        // Execute through the main pipeline executor
+        exit_code = crate::exec::run_pipeline(&pipeline, exit_code, jobs, opts);
+
+        // set -e: stop processing the script on first non-zero exit
+        // BUT NOT if the error came from a non-last AND-OR command
+        // (e.g., `false && echo never` should NOT trigger -e)
+        if opts.exit_on_error && exit_code != 0 && !opts.suppress_set_e {
+            break;
         }
     }
+
+    exit_code
 }
 
 // ============================================================================
@@ -461,20 +512,32 @@ fn source(args: &[String]) -> i32 {
 mod tests {
     use super::*;
 
+    fn make_opts() -> crate::shellopts::ShellOptions {
+        crate::shellopts::ShellOptions::new()
+    }
+
     #[test]
     fn test_try_builtin_known() {
-        assert!(try_builtin("cd", &[]).is_some());
-        assert!(try_builtin("ls", &[]).is_some());
-        assert!(try_builtin("echo", &["hello".to_string()]).is_some());
-        assert!(try_builtin("help", &[]).is_some());
-        assert!(try_builtin("true", &[]).is_some());
-        assert!(try_builtin(":", &[]).is_some());
-        assert!(try_builtin("false", &[]).is_some());
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert!(try_builtin("cd", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("ls", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("echo", &["hello".to_string()], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("help", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("true", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin(":", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("false", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("jobs", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("fg", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("bg", &[], &mut jm, &mut opts).is_some());
+        assert!(try_builtin("set", &[], &mut jm, &mut opts).is_some());
     }
 
     #[test]
     fn test_try_builtin_unknown() {
-        assert!(try_builtin("nonexistent_cmd_12345", &[]).is_none());
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert!(try_builtin("nonexistent_cmd_12345", &[], &mut jm, &mut opts).is_none());
     }
 
     #[test]
@@ -547,6 +610,41 @@ mod tests {
     }
 
     #[test]
+    fn test_try_builtin_jobs_no_panic() {
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert!(try_builtin("jobs", &[], &mut jm, &mut opts).is_some());
+    }
+
+    #[test]
+    fn test_try_builtin_fg_no_jobs() {
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert!(try_builtin("fg", &[], &mut jm, &mut opts).is_some());
+    }
+
+    #[test]
+    fn test_try_builtin_bg_no_jobs() {
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert!(try_builtin("bg", &[], &mut jm, &mut opts).is_some());
+    }
+
+    #[test]
+    fn test_try_builtin_fg_invalid_arg() {
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert_eq!(try_builtin("fg", &["xyz".to_string()], &mut jm, &mut opts), Some(1));
+    }
+
+    #[test]
+    fn test_try_builtin_bg_invalid_arg() {
+        let mut jm = crate::jobs::JobManager::new();
+        let mut opts = make_opts();
+        assert_eq!(try_builtin("bg", &["xyz".to_string()], &mut jm, &mut opts), Some(1));
+    }
+
+    #[test]
     fn test_export_empty() {
         assert_eq!(export(&[]), 0);
     }
@@ -556,14 +654,133 @@ mod tests {
         assert_eq!(export(&["TEST_VARIABLE_SET=hello".to_string()]), 0);
     }
 
+    fn make_jm_opts<'a>() -> (crate::jobs::JobManager, crate::shellopts::ShellOptions) {
+        (crate::jobs::JobManager::new(), crate::shellopts::ShellOptions::new())
+    }
+
     #[test]
     fn test_source_no_args() {
-        assert_eq!(source(&[]), 1);
+        let (mut jm, mut opts) = make_jm_opts();
+        assert_eq!(source(&[], &mut jm, &mut opts), 1);
     }
 
     #[test]
     fn test_source_nonexistent() {
-        assert_eq!(source(&["/nonexistent_xyz_file".to_string()]), 1);
+        let (mut jm, mut opts) = make_jm_opts();
+        assert_eq!(source(&["/nonexistent_xyz_file".to_string()], &mut jm, &mut opts), 1);
+    }
+
+    #[test]
+    fn test_source_empty_file() {
+        let path = "/tmp/_minish_test_source_empty.sh";
+        let _ = std::fs::write(path, b"");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_comments_only() {
+        let path = "/tmp/_minish_test_source_comments.sh";
+        let _ = std::fs::write(path, b"# comment 1\n# comment 2\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_simple_echo() {
+        let path = "/tmp/_minish_test_source_echo.sh";
+        let _ = std::fs::write(path, b"echo hello\necho world\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_source_with_cd() {
+        // Script: cd to root, then pwd
+        let path = "/tmp/_minish_test_source_cd.sh";
+        let _ = std::fs::write(path, b"cd /\npwd\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let cwd_before = std::env::current_dir().unwrap();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        // cd inside script should persist to the caller
+        assert_eq!(std::env::current_dir().unwrap().to_string_lossy(), "/");
+        // Restore
+        let _ = std::env::set_current_dir(&cwd_before);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_with_export() {
+        let path = "/tmp/_minish_test_source_export.sh";
+        let _ = std::fs::write(path, b"export TEST_SOURCE_VAR=from_script\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        assert_eq!(std::env::var("TEST_SOURCE_VAR").unwrap(), "from_script");
+        let _ = std::fs::remove_file(path);
+        std::env::remove_var("TEST_SOURCE_VAR");
+    }
+
+    #[test]
+    fn test_source_exit_code_tracking() {
+        let path = "/tmp/_minish_test_source_exit.sh";
+        let _ = std::fs::write(path, b"true\nfalse\ntrue\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        // Last command was true → exit code 0
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_with_conditional() {
+        let path = "/tmp/_minish_test_source_cond.sh";
+        let _ = std::fs::write(path, b"true && echo ok\nfalse || echo backup\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_shebang_skip() {
+        let path = "/tmp/_minish_test_source_shebang.sh";
+        let _ = std::fs::write(path, b"#!/bin/sh\necho hello\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        assert_eq!(result, 0);
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_set_e_stops_on_error() {
+        let path = "/tmp/_minish_test_set_e.sh";
+        let _ = std::fs::write(path, b"set -e\nfalse\necho should_not_run\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        // set -e: script stops at 'false', return code 1
+        assert_eq!(result, 1);
+        assert!(opts.exit_on_error); // set -e persists after script
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_source_set_e_with_and() {
+        let path = "/tmp/_minish_test_set_e_and.sh";
+        let _ = std::fs::write(path, b"set -e\ntrue && false\necho should_not_run\n");
+        let (mut jm, mut opts) = make_jm_opts();
+        let result = source(&[path.to_string()], &mut jm, &mut opts);
+        // true && false: false is last in AND-OR, exit 1 → -e triggers
+        assert_eq!(result, 1);
+        let _ = std::fs::remove_file(path);
     }
 
     #[test]

@@ -2,7 +2,7 @@
 
 # Makefile for Reincarnation Server (RS)
 PROG=	rs
-SRCS=	exec.c main.c request.c manager.c table.c utility.c error.c update.c
+SRCS=	exec.c main.c request.c manager.c table.c utility.c error.c update.c health.c deps.c diag.c analyze.c strategy.c surrender.c
 
 .if ${USE_PCI} != "no"
 CPPFLAGS+= -DUSE_PCI

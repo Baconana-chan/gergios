@@ -108,10 +108,31 @@ int main(void)
           case RS_CLONE: 	result = do_clone(&m); 		break;
 	  case RS_UNCLONE: 	result = do_unclone(&m);	break;
           case RS_EDIT: 	result = do_edit(&m); 		break;
-	  case RS_SYSCTL:	result = do_sysctl(&m);		break;
-	  case RS_FI:	result = do_fi(&m);		break;
+	  case RS_SYSCTL:	result = do_sysctl(&m);		break;          case RS_FI:	result = do_fi(&m);		break;
           case RS_GETSYSINFO:  result = do_getsysinfo(&m);     break;
 	  case RS_LOOKUP:	result = do_lookup(&m);		break;
+	  /* Healthcheck requests. */
+	  case RS_REGISTER_HEALTHCHECK:
+	      result = do_register_healthcheck(&m);
+	      break;
+	  case RS_UNREGISTER_HEALTHCHECK:
+	      result = do_unregister_healthcheck(&m);
+	      break;
+	  /* Dependency requests. */
+	  case RS_REGISTER_DEP:
+	      result = do_register_dep(&m);
+	      break;
+	  case RS_UNREGISTER_DEP:
+	      result = do_unregister_dep(&m);
+	      break;
+	  /* Diagnostic requests (Level 4). */
+	  case RS_DIAG_REPORT:
+	      result = do_diag_report(&m);
+	      break;
+	  case RS_DIAG_CLEAR:
+	      clear_diag_log();
+	      result = OK;
+	      break;
 	  /* Ready messages. */
 	  case RS_INIT: 	result = do_init_ready(&m); 	break;
 	  case RS_LU_PREPARE: 	result = do_upd_ready(&m); 	break;
@@ -428,6 +449,12 @@ static int sef_cb_init_fresh(int UNUSED(type), sef_init_info_t *UNUSED(info))
           panic("unable to get pid: %d", rp->r_pid);
       }
   }
+
+  /* Initialize dependency table (Level 3). */
+  deps_init_table();
+
+  /* Initialize diagnostic subsystem (Level 4). */
+  diag_init();
 
   /* Set alarm to periodically check service status. */
   if (OK != (s=sys_setalarm(RS_DELTA_T, 0)))

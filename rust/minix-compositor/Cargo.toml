@@ -1,0 +1,37 @@
+[package]
+name = "minix-compositor"
+version = "0.1.0"
+edition = "2021"
+description = "MINIX Wayland compositor — software renderer, font system, surface management"
+license = "BSD-3-Clause"
+
+[dependencies]
+# Core rendering
+ttf-parser = "0.25"
+rustybuzz = "0.18"
+
+# Event loop
+calloop = "0.13"
+
+# MINIX bindings
+minix-rs = { path = "../minix-rs", optional = true }
+
+# Host testing (non-MINIX)
+image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
+
+[features]
+default = []
+# Enable MINIX framebuffer backend
+fb = ["minix-rs"]
+# Enable PNG rendering backend (for host-side testing without MINIX)
+png = ["image"]
+
+[lib]
+name = "minix_compositor"
+path = "src/lib.rs"
+
+# Example: disabled until examples/demo.rs exists
+# [[example]]
+# name = "demo"
+# path = "examples/demo.rs"
+# required-features = ["png"]

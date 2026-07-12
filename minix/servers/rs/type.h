@@ -105,6 +105,15 @@ struct rproc {
   char r_ipc_list[MAX_IPC_LIST];
   int r_nr_control;
   char r_control[RS_NR_CONTROL][RS_MAX_LABEL_LEN];
+
+  /* Healthchecks (Level 2). Allocated on demand. */
+  struct rs_healthcheck *r_healthchecks;
+
+  /* Dependencies (Level 3). Allocated on demand. */
+  struct rs_dep *r_deps;
+
+  /* Recovery tracking (Level 5). Zero-initialized. */
+  struct rs_recovery_data r_recovery;
 };
 
 #endif /* RS_TYPE_H */

@@ -48,6 +48,11 @@
 #include <assert.h>
 #include <sys/param.h>
 
+#include "health.h"
+#include "deps.h"
+#include "diag.h"
+#include "strategy.h"
+#include "surrender.h"
 #include "proto.h"
 #include "const.h"
 #include "type.h"

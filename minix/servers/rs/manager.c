@@ -364,6 +364,10 @@ void end_srv_init(struct rproc *rp)
 
       if(rs_verbose)
           printf("RS: %s completed restart\n", srv_to_string(rp));
+
+      /* Level 5: reset recovery tracking after a successful restart.
+       * The new instance starts with a clean recovery slate. */
+      recovery_reset(rp);
   }
   rp->r_next_rp = NULL;
 }
@@ -1073,11 +1077,40 @@ void terminate_service(struct rproc *rp)
   struct rprocpub *rpub;
   int nr_rps, norestart;
   int i, r;
+  struct rs_diag_packet diag_packet;
 
   rpub = rp->r_pub;
 
   if(rs_verbose)
      printf("RS: %s terminated\n", srv_to_string(rp));
+
+  /* Collect diagnostics (Level 4) before any restart decisions.
+   * This captures the state at crash time for analysis.
+   * Best-effort: if collection fails, we continue anyway. */
+  if (collect_diagnostics(rp, &diag_packet) == OK) {
+      save_diag_report(&diag_packet);
+      save_diag_report_to_disk(&diag_packet);
+
+      /* Level 5: Proactive recovery — analyze cause and execute recovery
+       * plan. Only for unexpected crashes, not init failures or expected
+       * exits. The recovery plan may set RS_EXITING (surrender). */
+      if (!(rp->r_flags & RS_INITIALIZING) &&
+          !(rp->r_flags & RS_EXITING)) {
+          enum fail_reason reason;
+          int recovery_rv;
+
+          reason = analyze_failure(&diag_packet);
+          diag_packet.d_reason = reason;
+
+          recovery_rv = execute_recovery_plan(rp, reason, &diag_packet);
+          if (recovery_rv == RS_RECOVERY_SURRENDER) {
+              rp->r_flags |= RS_EXITING;
+              if (rs_verbose)
+                  printf("RS: %s surrendered, no more restarts\n",
+                      srv_to_string(rp));
+          }
+      }
+  }
 
   /* Deal with failures during initialization. */
   if(rp->r_flags & RS_INITIALIZING) {
@@ -1165,9 +1198,37 @@ void terminate_service(struct rproc *rp)
           rp->r_flags &= ~RS_REINCARNATE;
           reincarnate_service(rp);
       }
-  }
-  else if(rp->r_flags & RS_REFRESHING) {
+  }  else if(rp->r_flags & RS_REFRESHING) {
       /* Restart service. */
+      restart_service(rp);
+  }
+  else if(rp->r_flags & RS_HEALTHCHECK_FAIL) {
+      /* Healthcheck detected failure — check dependencies first. */
+      rp->r_flags &= ~RS_HEALTHCHECK_FAIL;
+
+      /* Check if any critical dependencies are dead. */
+      if (check_dependencies(rp) > 0) {
+          if (rs_verbose)
+              printf("RS: %s has dead deps, starting cascade restart\n",
+                  srv_to_string(rp));
+          rp->r_flags |= RS_DEP_FAIL;
+          cascade_restart(rp);
+          return;
+      }
+
+      /* Normal restart path (no dep issues). */
+      if (rp->r_restarts > 0) {
+          if (!(rpub->sys_flags & SF_NO_BIN_EXP)) {
+              rp->r_backoff = 1 << MIN(rp->r_restarts,(BACKOFF_BITS-2));
+              rp->r_backoff = MIN(rp->r_backoff,MAX_BACKOFF);
+              if ((rpub->sys_flags & SF_USE_COPY) && rp->r_backoff > 1)
+                  rp->r_backoff= 1;
+          }
+          else {
+              rp->r_backoff = 1;
+          }
+          return;
+      }
       restart_service(rp);
   }
   else {
@@ -1852,6 +1913,7 @@ struct rproc **clone_rpp;
   /* Deep copy. */
   clone_rp->r_init_err = ERESTART; /* default init error */
   clone_rp->r_flags &= ~RS_ACTIVE; /* the clone is not active yet */
+  clone_rp->r_flags &= ~RS_HEALTHCHECK_FAIL; /* clone starts fresh */
   clone_rp->r_pid = -1;            /* no pid yet */
   clone_rpub->endpoint = -1;       /* no endpoint yet */
   clone_rp->r_pub = clone_rpub;    /* restore pointer to public entry */
@@ -2125,6 +2187,13 @@ struct rproc *rp;
   if(rpub->sys_flags & SF_USE_COPY) {
       free_exec(rp);
   }
+
+  /* Note: r_healthchecks is NOT freed here intentionally.
+   * On restart, clone_slot shallow-copies the pointer; freeing it
+   * would leave the new instance with a dangling pointer.
+   * The array is small (~256 bytes), allocated once per service
+   * lifetime, and survives across restarts via the shared pointer.
+   */
 
   /* Mark slot as no longer in use.. */
   rp->r_flags = 0;

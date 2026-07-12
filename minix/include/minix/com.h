@@ -543,6 +543,12 @@
 #define RS_EDIT		(RS_RQ_BASE + 22)	/* edit system service */
 #define RS_SYSCTL	(RS_RQ_BASE + 23)	/* perform system ctl action */
 #define RS_FI		(RS_RQ_BASE + 24)	/* inject fault into service */
+#define RS_REGISTER_HEALTHCHECK   (RS_RQ_BASE + 25)	/* register healthcheck */
+#define RS_UNREGISTER_HEALTHCHECK (RS_RQ_BASE + 26)	/* unregister healthcheck */
+#define RS_REGISTER_DEP           (RS_RQ_BASE + 27)	/* register dependency */
+#define RS_UNREGISTER_DEP         (RS_RQ_BASE + 28)	/* unregister dependency */
+#define RS_DIAG_REPORT            (RS_RQ_BASE + 29)	/* retrieve diagnostic log */
+#define RS_DIAG_CLEAR             (RS_RQ_BASE + 30)	/* clear diagnostic log */
 
 /* Subfunctions for RS_SYSCTL. */
 #define RS_SYSCTL_SRV_STATUS    1
@@ -869,6 +875,12 @@
 #define SCHEDULING_STOP		(SCHEDULING_BASE+3)
 #define SCHEDULING_SET_NICE	(SCHEDULING_BASE+4)
 #define SCHEDULING_INHERIT	(SCHEDULING_BASE+5)
+#define SCHEDULING_BOOST	(SCHEDULING_BASE+10)	/* boost priority/quantum */
+
+/* Field names for SCHEDULING_BOOST (reuses mess_lsys_sched_scheduling_start). */
+#define SCHED_BOOST_ENDPOINT	m_lsys_sched_scheduling_start.endpoint
+#define SCHED_BOOST_PRIORITY	m_lsys_sched_scheduling_start.maxprio
+#define SCHED_BOOST_QUANTUM	m_lsys_sched_scheduling_start.quantum
 
 /*===========================================================================*
  *              Messages for USB                                             *

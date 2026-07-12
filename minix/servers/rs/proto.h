@@ -4,6 +4,54 @@
 struct rproc;
 struct rprocupd;
 
+/* health.c */
+int do_register_healthcheck(message *m_ptr);
+int do_unregister_healthcheck(message *m_ptr);
+int check_service_health(struct rproc *rp, clock_t now);
+void handle_healthcheck_failure(struct rproc *rp,
+    struct rs_healthcheck *hc, int result);
+int healthcheck_count(struct rproc *rp);
+
+/* diag.c */
+int do_diag_report(message *m_ptr);
+int collect_diagnostics(struct rproc *rp, struct rs_diag_packet *dp);
+void save_diag_report(const struct rs_diag_packet *dp);
+void save_diag_report_to_disk(const struct rs_diag_packet *dp);
+void diag_init(void);
+void clear_diag_log(void);
+const struct rs_diag_log_entry *get_diag_log(int *count);
+
+/* analyze.c */
+enum fail_reason analyze_failure(const struct rs_diag_packet *dp);
+const char *fail_reason_to_string(enum fail_reason reason);
+const char *signal_num_to_string(int signo);
+
+/* strategy.c */
+const struct recovery_plan *recovery_get_plan(enum fail_reason reason);
+int execute_recovery_plan(struct rproc *rp, enum fail_reason reason,
+    const struct rs_diag_packet *dp);
+void recovery_reset(struct rproc *rp);
+
+/* surrender.c */
+void surrender_set_output(enum rs_surrender_output mode);
+void surrender_log_attempt(struct rproc *rp, enum recovery_strategy strategy,
+    int result, const char *desc);
+void surrender_render(struct rproc *rp, enum fail_reason reason,
+    const struct rs_diag_packet *dp);
+void surrender_notify(const char *service_label, enum fail_reason reason,
+    int signal);
+
+/* deps.c */
+int do_register_dep(message *m_ptr);
+int do_unregister_dep(message *m_ptr);
+void deps_init_table(void);
+int check_dependencies(struct rproc *rp);
+int cascade_restart(struct rproc *rp);
+int dep_count(struct rproc *rp);
+struct rs_dep *dep_find(struct rproc *rp, endpoint_t target);
+int dep_collect_status(struct rproc *rp, struct rs_dep_status *statuses,
+    int max_statuses);
+
 /* exec.c */
 int srv_execve(int proc_e, char *exec, size_t exec_len, char *progname,
 	char *argv[], char **env);
