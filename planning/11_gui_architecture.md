@@ -313,12 +313,51 @@ let stats = comp.composite(Some(&mut backend));
 
 ### Phase 2: Software Renderer + Fonts — 2-3 месяца
 
-- [ ] **2.1** Software rasterizer для 2D (Rust pixmap ops: fill, blend, blit)
-- [ ] **2.2** Font rendering стэк: `ttf-parser` + `rustybuzz` + `swash`
-- [ ] **2.3** Вывод текста на экран (UTF-8, left-to-right, bi-directional)
-- [ ] **2.4** Базовая композиция (overlay, alpha-blending)
-- [ ] **2.5** Курсор мыши (software cursor)
-- [ ] **2.6** Демо: Rust программа с текстом и простой анимацией
+#### Phase 2.1: Software Rasterizer — ✅ July 2026
+
+В `PixelBuffer` добавлены:
+
+| Функция | Алгоритм | Статус |
+|---------|----------|--------|
+| `fill_rounded_rect` | Body + strips + 4 quarter-circle corners | ✅ |
+| `fill_linear_gradient_h/v` | Multi-stop интерполяция ColorStop | ✅ |
+| `fill_radial_gradient` | Distance-based от центра к радиусу | ✅ |
+| `fill_triangle` | Barycentric coordinates + bounding box | ✅ |
+| `draw_line` | Bresenham (все октанты) | ✅ |
+| `fill_corner` | Helper: quarter-circle через sqrt(r²−y²) | ✅ |
+| `alpha_blend` (+ тесты) | 13 новых unit-тестов (31 всего) | ✅ |
+
+**Ключевые решения**:
+- `fill_corner` использует `checked_add` для безопасного вычисления координат во всех 4 квадрантах
+- Градиенты поддерживают произвольное количество ColorStop'ов
+- `fill_triangle` использует epsilon `1e-6` для edge tolerance
+
+#### Phase 2.2: Font Rendering — ✅ July 2026
+
+**Полная замена placeholder'а на настоящую растеризацию glyph'ов:**
+
+| Компонент | LOC | Описание |
+|-----------|-----|----------|
+| `EdgeCollector` | ~80 | `impl OutlineBuilder` с curve flattening (quad/cubic Bézier, recursive de Casteljau, 1px flatness) |
+| `scanline_rasterize` | ~60 | Active-edge-list + non-zero winding fill |
+| `build_minimal_ttf()` | ~120 | Генерация валидного TTF (10 таблиц, triangle glyph) |
+| `build_glyf_triangle()` | ~50 | TrueType simple glyph (3-point triangle) |
+| `rasterize()` | — | Теперь вызывает `face.outline_glyph()` → `EdgeCollector` → `scanline_rasterize()` |
+
+**Отладка (4 корневые причины ошибок в TTF-генерации)**:
+1. 🔴 `hhea` table: не хватало 8 reserved bytes → `NoHheaTable`
+2. 🔴 Directory entries: 20 bytes вместо 16 (лишний `padded_len`) → misaligned records
+3. 🔴 Assembly loop: padding использовал grand-total `offset=732` вместо per-table positions
+4. 🔴 Glyf data: 29 bytes, но loca short-format требует even byte offsets → out-of-bounds
+
+**Все 40 тестов проходят** ✅
+
+- [x] **2.1** Software rasterizer для 2D (Rust pixmap ops: fill_rounded_rect, fill_triangle, draw_line, градиенты)
+- [x] **2.2** Font rendering стэк: `ttf-parser` + `rustybuzz` + собственный scanline rasterizer + glyph caching
+- [x] **2.3** Вывод текста на экран (UTF-8, word wrap `wrap_text()`, alignment `TextAlignment`, ellipsis `truncate_with_ellipsis()`, multi-line `render_text_rect()`, `text_height()`) — 14 тестов
+- [ ] **2.4** Базовая композиция (overlay, alpha-blending) — ✅ уже в Phase 1
+- [x] **2.5** Курсор мыши — `Cursor` struct (16×16 arrow bitmap, hotspot, position, alpha-blend compositing, bounds clipping, visibility) + интеграция в `Compositor` + 10 тестов
+- [ ] **2.6** Демо: Rust программа с текстом, UI элементами и анимацией
 
 ### Phase 3: Wayland Compositor MVP — 4-6 месяцев
 

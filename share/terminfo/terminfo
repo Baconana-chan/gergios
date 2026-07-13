@@ -3817,7 +3817,7 @@ iTerm2.app|iterm2|terminal emulator for Mac OS X,
 	kPRV3=\E\E[5~, kRIT3=\E\E[C, kRIT4=\E[1;10C,
 	kRIT5=\E[1;5C, kRIT6=\E[1;6C, kUP3=\E\E[A, kUP4=\E[1;10A,
 	kUP5=\E[1;5A, kUP6=\E[1;6A, use=ecma+index,
-	use=xterm+alt+title, use=ecma+italics, use=iterm,
+	use=xterm+alt+title, use=ecma+italics,
 	use=bracketed+paste,
 
 # xnuppc - Darwin PowerPC Console (a.k.a. "darwin")
@@ -5434,7 +5434,7 @@ xterm-direct|xterm with direct-color indexing,
 
 # Here are corresponding flavors for terminals which could use the feature:
 iterm2-direct|iTerm2 with direct-color indexing,
-	use=xterm+direct, use=iterm2,
+	use=xterm+direct,
 mlterm-direct|mlterm with direct-color indexing,
 	use=xterm+direct, use=mlterm,
 
@@ -13247,7 +13247,7 @@ msk22714|mskermit22714|UCB MS-DOS Kermit 2.27 UCB 227.14 IBM PC,
 	    \sIBM\sPC\s3-17-85\n,
 	kf0=\E0, kf1=\E1, kf2=\E2, kf3=\E3, kf4=\E4, kf5=\E5, kf6=\E6,
 	kf7=\E7, kf8=\E8, kf9=\E9, rev=\E[7m, rmso=\E[m, rmul=\E[m,
-	sgr0=\E[m, smso=\E[1m, smul=\E[4m, use=mskermit227,
+	sgr0=\E[m, smso=\E[1m, smul=\E[4m
 # This was designed for a VT320 emulator, but it is probably a good start
 # at support for the VT320 itself.
 # Please send changes with explanations to bug-gnu-emacs@prep.ai.mit.edu.

@@ -55,6 +55,10 @@ pub mod font;
 pub mod surface;
 pub mod compositor;
 pub mod backend;
+pub mod cursor;
+
+/// Re-export the main rendering primitive at the crate root.
+pub use pixel_buffer::PixelBuffer;
 
 /// Re-exports for convenient `use minix_compositor::prelude::*`.
 pub mod prelude {

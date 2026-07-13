@@ -8,6 +8,7 @@ use alloc::vec::Vec;
 use crate::pixel_buffer::PixelBuffer;
 use crate::surface::Surface;
 use crate::backend::Backend;
+use crate::cursor::Cursor;
 
 /// Statistics from the last composite cycle.
 #[derive(Debug, Clone, Default)]
@@ -17,6 +18,11 @@ pub struct CompositeStats {
     pub total_surfaces: u32,
     pub output_width: u32,
     pub output_height: u32,
+    /// Whether the cursor was rendered on this frame.
+    pub cursor_rendered: bool,
+    /// Cursor position on this frame.
+    pub cursor_x: i32,
+    pub cursor_y: i32,
 }
 
 /// The main compositor: manages surfaces, composites into an output buffer.
@@ -35,6 +41,9 @@ pub struct Compositor {
     pub background_color: [u8; 4],
     /// Dirty flag: set when any surface is dirty, cleared after composite.
     pub needs_composite: bool,
+    /// Software cursor rendered on top of all surfaces.
+    pub cursor: Cursor,
+
 }
 
 impl Compositor {
@@ -46,8 +55,9 @@ impl Compositor {
             output: PixelBuffer::new(width, height),
             output_width: width,
             output_height: height,
-            background_color: [0x20, 0x30, 0x40, 0xFF], // dark slate
+            background_color: [0x20, 0x30, 0x40, 0xFF],
             needs_composite: true,
+            cursor: Cursor::new(),
         }
     }
 
@@ -102,8 +112,8 @@ impl Compositor {
             ..Default::default()
         };
 
-        // Only composite if something changed
-        if !self.needs_composite {
+        // Only composite if something changed, or if cursor is visible (may have moved)
+        if !self.needs_composite && !self.cursor.visible {
             return stats;
         }
 
@@ -174,6 +184,14 @@ impl Compositor {
                 // Fast path: no opacity adjustment
                 self.output.blit_from(&surface.buffer, dx, dy, sx, sy, final_w, final_h, true);
             }
+        }
+
+        // Composite the software cursor on top of all surfaces
+        if self.cursor.visible {
+            self.cursor.composite(&mut self.output);
+            stats.cursor_rendered = true;
+            stats.cursor_x = self.cursor.x;
+            stats.cursor_y = self.cursor.y;
         }
 
         // Clear all dirty flags
