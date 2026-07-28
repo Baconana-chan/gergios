@@ -1,0 +1,27 @@
+[package]
+name = "minix-wayland"
+version = "0.1.0"
+edition = "2021"
+description = "MINIX Wayland protocol implementation — wire format, core protocol, transport abstraction"
+license = "BSD-3-Clause"
+
+[dependencies]
+# The compositor we build on top of
+minix-compositor = { path = "../minix-compositor" }
+# Input event types for seat handling
+minix-input = { path = "../minix-input" }
+# MINIX IPC bindings (optional — only for MINIX target)
+minix-rs = { path = "../minix-rs", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+# Unix domain sockets for host development
+nix = { version = "0.29", default-features = false, features = ["socket", "ioctl", "fs"] }
+
+[features]
+default = []
+# Enable MINIX IPC transport
+minix = ["minix-rs"]
+
+[lib]
+name = "minix_wayland"
+path = "src/lib.rs"

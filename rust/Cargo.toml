@@ -165,6 +165,8 @@ members = [
     "minix-compositor",
     "minix-fb",
     "minix-input",
+    "minix-wayland",
+    "minix-widgets",
 ]
 
 # Global profile: use unwind for dev (needed by proptest in integration tests).

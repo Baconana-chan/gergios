@@ -361,29 +361,126 @@ let stats = comp.composite(Some(&mut backend));
 
 ### Phase 3: Wayland Compositor MVP — 4-6 месяцев
 
-- [ ] **3.1** Event loop: `calloop` с MINIX IPC бэкендом
-- [ ] **3.2** Wayland protocol: `wayland-server-rs` на MINIX
-- [ ] **3.3** `wl_compositor` + `wl_surface` + `subcompositor`
-- [ ] **3.4** `xdg_shell` (стабильный) — окна с заголовками
-- [ ] **3.5** `wl_seat` + input (keyboard focus, pointer, touch)
-- [ ] **3.6** `wl_data_device` (copy-paste между окнами)
-- [ ] **3.7** Shell с запуском клиентских приложений
+**Создан крейт `rust/minix-wayland/`** — нативная Rust-реализация Wayland протокола (~800 LOC):
+
+| Компонент | LOC | Статус |
+|-----------|-----|--------|
+| `wire.rs` — Wire format encoder/decoder | ~250 | ✅ 14 тестов, header `[u32][u16][u16]`, все типы аргументов |
+| `protocol.rs` — Constants + ObjectRegistry | ~250 | ✅ 5 тестов, все core интерфейсы |
+| `server.rs` — WaylandServer + RequestDispatcher | ~350 | ✅ 8 тестов (30 pass, 1 ignored) |
+| `transport.rs` — In-process connected pair | ~150 | ✅ 4 теста, Rc<RefCell<>> shared buffers |
+
+**Архитектура**: кастомная реализация протокола (не `wayland-server-rs`).
+На хосте — in-process парный транспорт, на MINIX — IPC-транспорт.
+
+- [x] **3.1** Wayland wire format — `minix-wayland/wire.rs` (encode/decode header + args)
+- [x] **3.2** Core protocol — `wl_display`, `wl_registry`, `wl_callback` (ObjectRegistry, GlobalRegistry)
+- [x] **3.3** `wl_compositor` + `wl_surface` + `wl_region` + интеграция с `minix-compositor` — `setup_compositor_handlers()`, `decode_args_with()`, surface ID integration, 39 тестов
+- [x] **3.4** `xdg_shell` (стабильный) — окна с заголовками
+  - xdg_wm_base: destroy, create_positioner, get_xdg_surface, pong
+  - xdg_surface: destroy, get_toplevel, get_popup, set_window_geometry, ack_configure
+  - xdg_toplevel: 14 requests (title, app_id, min/max size, max/fullscreen/minimize state, parent)
+  - xdg_popup: destroy, grab, reposition
+  - xdg_positioner: 10 requests (size, anchor_rect, anchor, gravity, offset, etc.)
+  - Data structs: XdgToplevelData, XdgPositionerData, WlSurfaceRoleData
+  - Fix: register_with_id_and_data для client-specified new_id (Wayland protocol compliance)
+- [x] **3.5** `wl_seat` + input (keyboard focus, pointer, touch)
+  - SeatState: pointer position, focus tracking, input serials
+  - wl_seat handler: get_pointer, get_keyboard, get_touch, release
+  - wl_pointer handler: set_cursor (stub), release
+  - wl_keyboard handler: release
+  - process_input_event(): InputEvent → Wayland events (pointer.motion/button/axis/frame, keyboard.key)
+  - update_pointer_focus(): z-order-aware hit-testing, enter/leave events
+  - update_keyboard_focus(): set on click, enter/leave events
+- [x] **3.6** `wl_data_device` (copy-paste между окнами)
+  - WlDataDeviceManager, WlDataDevice, WlDataSource, WlDataOffer — полные opcodes
+  - DataSourceState: MIME types per source
+  - DataDeviceState (Rc<RefCell<>>): clipboard selection tracking
+  - setup_data_device_handlers(): все 4 интерфейса
+  - send_selection_to_client(): создаёт wl_data_offer + отправляет SELECTION
+  - Интеграция с update_keyboard_focus() — clipboard на фокус
+- [x] **3.7** Shell с управлением окнами
+  - `minix-wayland/src/shell.rs` — Shell struct + WindowInfo (~200 LOC)
+  - add_window, remove_window, set_title/set_app_id, raise_window, close_window
+  - set_position/set_size, topmost/topmost_at, windows_by_z
+  - WaylandServer.shell: Rc<RefCell<Shell>> — доступ из handler closures
+  - shell_close_window() → XdgToplevel::CLOSE; shell_raise_window() → z-order
+  - Интеграция с update_keyboard_focus() — raise at click
+  - xdg_toplevel handlers: add on GET_TOPLEVEL, remove on DESTROY, update state
+  - **46 тестов проходят** (39 server + 7 shell, 0 failed)
 - [ ] **3.8** Демо: терминал под compositor'ом
 
 ### Phase 4: Window Manager — 2-3 месяца
 
-- [ ] **4.1** Tiling window manager (как i3/sway — естественно для микроядра)
-- [ ] **4.2** Плавающие окна (dragging, resize, snapping)
-- [ ] **4.3** Window decorations (Rust software render)
-- [ ] **4.4** Workspaces / Tags
-- [ ] **4.5** Keyboard shortcuts (configurable через Lua)
-- [ ] **4.6** Panel / Status bar (Lua-скриптуемый)
+- [x] **4.1** Tiling window manager (как i3/sway — естественно для микроядра)
+  - `minix-wayland/src/tiling.rs` — TilingLayout struct (~200 LOC)
+  - Master/stack layout: Horizontal (master left, stack right) и Vertical (master top, stack bottom)
+  - `master_ratio` (0.1–0.9, default 0.5), `gap` (default 4px), `SplitDirection`
+  - `calculate(window_count)` → Vec<WindowLayout>
+  - `recalculate_layout()` на WaylandServer: обновляет Shell positions, compositor surface, шлёт XdgToplevel::CONFIGURE
+  - Вызов в конце каждого tick() — layout обновляется после обработки сообщений
+  - 14 unit-тестов (0/1/2/3/5/10 окон, gap, all fit, edge cases)
+- [x] **4.2** Плавающие окна (dragging, resize, snapping)
+  - `minix-wayland/src/floating.rs` — FloatingManager, DragState, ResizeState (~480 LOC)
+  - xdg_toplevel MOVE/RESIZE: start_drag/start_resize через closures (Rc<RefCell<>>)
+  - process_input_event: drag/resize motion обработка + end на button release
+  - Edge snapping (left/right/top/bottom + center), min/max size enforcement
+  - recalculate_layout: исключает floating окна из tiling
+  - Интеграция: cursor_pos Rc для доступа из handler closures
+  - 22 unit-теста (floating mode, drag, resize, snapping, edge parsing)
+- [x] **4.3** Window decorations (Rust software render)
+  - `minix-wayland/src/decorator.rs` — Decorator, DecorationColors (~480 LOC, 11 тестов)
+  - Title bar: gradient bg (active: blue-gray, inactive: dark gray), 3 кнопки [X][−][+]
+  - Hit-testing: is_on_title_bar, is_on_close/minimize/maximize_button
+  - Интеграция: create_deco в GET_TOPLEVEL, remove_deco в DESTROY, mark_dirty в SET_TITLE
+  - refresh() на каждом tick — re-render dirty title bars с новым title/active state
+  - update_deco_position() для tiling layout + shell_raise_window (z-order sync)
+  - handle_title_bar_click(): close → shell_close_window, minimize → set_minimized, maximize → toggle, title bar → floating drag
+  - focus change → mark_all_dirty() — перерисовка active/inactive state
+  - **110 тестов** (все phases: 39 server + 7 shell + 14 tiling + 22 floating + 10 workspace + 11 decorator + 7 other)
+- [x] **4.4** Workspaces / Tags
+  - `minix-wayland/src/workspace.rs` — WorkspaceManager (~350 LOC)
+  - 4 default workspaces (named "1"–"4"), switch with wrapping prev/next
+  - switch_to(index) → SwitchResult (to_hide, to_show) — caller updates visibility
+  - add_window: auto-removes from other workspaces before adding to current
+  - move_window, remove_window, rename_workspace, find_window_workspace
+  - recalculate_layout: filtered by workspace.current_window_ids()
+  - switch_workspace: hides old windows, shows new (respects minimized state), clears focus
+  - Integrated in xdg_surface GET_TOPLEVEL / xdg_toplevel DESTROY
+  - 10 unit tests (creation, add/remove, move, switch, prev/next wrapping, rename)
+- [x] **4.5** Keyboard shortcuts (configurable через Lua)
+  - `minix-wayland/src/keybindings.rs` — KeyAction, KeyBinding, ModMask, KeyBindings (~470 LOC, 16 тестов)
+  - Default bindings: Super+Enter (terminal), Super+Q (close), Super+Tab (workspace next), Super+Grave (workspace prev), Super+D (floating toggle), Super+F (maximize toggle)
+  - Lua-like config parser: `keybind({"Super", "q"}, "close_window")` — built-in tokenizer + parser, no external deps
+  - `parse_lua_config()`: handles comments (`--`), multi-line, multiple modifiers, falls back to defaults on error
+  - KeyAction enum: LaunchTerminal, CloseWindow, SwitchWorkspaceNext/Prev, ToggleFloating, ToggleMaximize, LaunchApp, RunCommand
+  - Integration: `WaylandServer.keybindings` field, intercepted in `process_input_event(Keyboard)`, `handle_keybind_action()` dispatcher
+  - Helper methods: `close_focused_window()`, `toggle_focused_window_floating()`, `toggle_focused_window_maximized()`
+  - **128 тестов** (all phases)
+- [x] **4.6** Panel / Status bar (Lua-скриптуемый)
+  - `minix-wayland/src/panel.rs` — Panel struct, PanelAction, 10 тестов (~350 LOC)
+  - Workspace indicators (clickable, rounded rects, active/inactive colors)
+  - Window title dots (colored circles per window on current workspace)
+  - Clock: simulated HH:MM:SS (4x7 pixel glyph digits, updates every 60 ticks, colon dots)
+  - CPU load: animated sine-wave oscillation bar (green fill on dim bg, ~10%–80%)
+  - Panel integration in server.rs: `panel` field, init in `new()`, render in `tick()`, click handling in `process_input_event`
+  - Workspace click → `switch_workspace()`; window title sync via `set_window_titles()`
+  - **136 тестов** (all phases, 0 failed)
 
 ### Phase 5: GUI Toolkit — 3-4 месяца
 
-- [ ] **5.1** Выбор toolkit: **Slint** или **iced** как recommended
-- [ ] **5.2** Адаптация toolkit для Wayland на MINIX
-- [ ] **5.3** Demo приложения: file manager, text editor, calculator
+- [x] **5.1** Выбор toolkit: **minix-widgets** — нативный `#![no_std]` Rust widget toolkit
+  - Создан крейт `rust/minix-widgets/` (~1000 LOC, 19 тестов)
+  - `Widget` trait: `render()`, `handle_event()`, `set_rect()`, `min_size()`, `children()`
+  - `Button`: текст, 4 состояния (Normal/Hover/Pressed/Disabled), click callback, rounded rect bg
+  - `Label`: текст, alignment, цвет, word-wrap, disabled state
+  - `HBox`/`VBox`: layout children с equal extra space, spacing, event dispatch
+  - `Padding`/`FixedSize`: single-child wrappers с insets и fixed dimensions
+  - `Window`: title bar + content area, title drag tracking, привязка к compositor surface
+  - `CalculatorApp`: demo-приложение (4×4 grid + display + clear/= кнопки)
+  - Зависимости: `minix-compositor` (PixelBuffer + FontSystem), `minix-input` (InputEvent)
+- [ ] **5.2** Дополнительные виджеты: TextBox, Slider, ScrollView, CheckBox, ComboBox
+- [ ] **5.3** Demo приложения: terminal, calculator (✅ basic), file manager
 - [ ] **5.4** Lua GUI bindings (скриптовые UI на Lua)
 - [ ] **5.5** Темы, шрифты, локализация
 

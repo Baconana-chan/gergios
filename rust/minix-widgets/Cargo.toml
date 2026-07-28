@@ -1,0 +1,10 @@
+[package]
+name = "minix-widgets"
+version = "0.1.0"
+edition = "2021"
+description = "MINIX GUI widget toolkit — no_std, software-rendered UI components"
+license = "BSD-3-Clause"
+
+[dependencies]
+minix-compositor = { path = "../minix-compositor" }
+minix-input = { path = "../minix-input" }
