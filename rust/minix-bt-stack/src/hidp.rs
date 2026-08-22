@@ -296,6 +296,11 @@ impl HidGamepadProfile {
     /// Detect profile from device name and appearance.
     pub fn detect(name: &str, _appearance: Option<u16>) -> Self {
         let lower = name.to_lowercase();
+        // Xbox must be checked before DS4: "Xbox Wireless Controller" also
+        // contains the substring "wireless controller".
+        if lower.contains("xbox") {
+            return Self::XboxBle;
+        }
         if lower.contains("dualshock") || lower.contains("ds4") || lower.contains("wireless controller") {
             return Self::DualShock4;
         }
@@ -304,9 +309,6 @@ impl HidGamepadProfile {
         }
         if lower.contains("switch") || lower.contains("pro controller") || lower.contains("joy-con") {
             return Self::SwitchPro;
-        }
-        if lower.contains("xbox") || lower.contains("xbox controller") {
-            return Self::XboxBle;
         }
         if lower.contains("8bitdo") || lower.contains("8bit") {
             return Self::Generic;
@@ -798,7 +800,7 @@ mod tests {
         report[0] = 0x01;  // report ID
         report[1] = 0xFF;  // buttons low byte (bits 0-7)
         report[2] = 0xFF;  // buttons high byte (bits 8-15)
-        report[3] = 0x0F;  // HAT=SouthEast (0x03) + extra buttons
+        report[3] = 0x03;  // HAT=SouthEast (low nibble), no extra buttons
 
         // Sticks at max
         report[4] = 0xFF;  // LX

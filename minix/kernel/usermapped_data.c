@@ -13,3 +13,8 @@ struct kuserinfo kuserinfo __section(".usermapped");
 struct arm_frclock arm_frclock __section(".usermapped");
 	/* ARM free running timer information */
 struct kclockinfo kclockinfo __section(".usermapped");	/* clock information */
+
+/* KASLR: virtual offset applied to the kernel at boot (0 when disabled).
+ * Declared extern in limine.c / pre_init.c; lives in .usermapped so
+ * services can read it. */
+u64_t kaslr_virt_offset_slot __section(".usermapped");

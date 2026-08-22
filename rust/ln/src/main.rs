@@ -68,7 +68,7 @@ fn main() {
             eprintln!("ln: {}: not a directory", target);
             std::process::exit(1);
         }
-        if let Err(e) = do_link(sources[0], target, symbolic, force) {
+        if let Err(e) = do_link(&sources[0], target, symbolic, force) {
             eprintln!("ln: {e}");
             std::process::exit(1);
         }
@@ -86,7 +86,14 @@ fn do_link(src: &str, dest: &str, symbolic: bool, force: bool) -> io::Result<()>
     }
 
     if symbolic {
-        std::os::unix::fs::symlink(src, dest)?;
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(src, dest)?;
+        }
+        #[cfg(windows)]
+        {
+            std::os::windows::fs::symlink_file(src, dest)?;
+        }
     } else {
         fs::hard_link(src, dest)?;
     }

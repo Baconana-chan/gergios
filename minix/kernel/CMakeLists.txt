@@ -83,6 +83,8 @@ set(KERNEL_SYSTEM_SOURCES
     system/do_schedctl.c
     system/do_setscheduler.c
     system/do_statectl.c
+    system/do_capctl.c
+    system/mac_hooks.c
 )
 
 # do_devio / do_vdevio are x86-specific (use inb/outb port I/O).

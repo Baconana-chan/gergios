@@ -1,6 +1,6 @@
 //! # e1000 — Rust Intel PRO/1000 Gigabit Ethernet Driver for MINIX
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod ffi;
 pub mod reg;
@@ -242,7 +242,7 @@ pub unsafe extern "C" fn e1000_rust_main(argc: c_int, argv: *mut *mut c_char) ->
 // Panic handler
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}

@@ -21,13 +21,14 @@
 //! This matches the validation logic from the MINIX / NetBSD `bpf_validate()`
 //! function in `bpf_filter.c`.
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 #![deny(unsafe_code)]
 
 pub mod ffi;
 
 // Panic handler for no_std staticlib builds.
 #[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo<'_>) -> ! {
     loop {}

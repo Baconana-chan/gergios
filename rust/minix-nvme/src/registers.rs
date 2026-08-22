@@ -646,7 +646,7 @@ pub struct IdentifyController {
     /// Replay Protected Memory Block Support (RPMBS)
     pub rpmbs: u32,
     /// Reserved
-    pub reserved_1: [u8; 316],
+    pub reserved_1: [u8; 38],
     /// Submission Queue Entry Size (SQES)
     pub sqes: u8,
     /// Completion Queue Entry Size (CQES)
@@ -922,7 +922,7 @@ mod tests {
         assert_eq!(sq.dword[6], 0x1000);
         assert_eq!(sq.dword[7], 0);
         sq.set_prp1(0xF000_0000_1000);
-        assert_eq!(sq.dword[7], 0xF000_0000);
+        assert_eq!(sq.dword[7], 0xF000);
     }
 
     #[test]

@@ -12,7 +12,7 @@
 //!   - Supports ISA bridge detection (PIIX, VIA, AMD, SIS)
 //!   - Integrates with ACPI for IRQ routing (when available)
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod ffi;
 pub mod devices;
@@ -78,7 +78,7 @@ pub unsafe extern "C" fn pci_rust_main(argc: c_int, argv: *mut *mut c_char) -> c
 // Panic handler
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}

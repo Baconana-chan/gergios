@@ -30,6 +30,11 @@ harness = false
 [dependencies]
 libc = "0.2"
 
+[features]
+default = []
+# Enables the mkfs module (std::os::unix file I/O). The core parser stays no_std.
+std = []
+
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = { version = "1", default-features = false, features = ["std"] }

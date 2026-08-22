@@ -435,12 +435,12 @@ mod ffi_tests {
     fn ahci_test_reg_offsets_are_correct() {
         unsafe {
             // HBA registers (byte offsets = index * 4)
-            assert_eq!(ahci_test_reg_offset(0), hba::CAP * 4);   // HBA_CAP
-            assert_eq!(ahci_test_reg_offset(1), hba::GHC * 4);   // HBA_GHC
-            assert_eq!(ahci_test_reg_offset(2), hba::IS * 4);    // HBA_IS
-            assert_eq!(ahci_test_reg_offset(3), hba::PI * 4);    // HBA_PI
-            assert_eq!(ahci_test_reg_offset(12), port::IS * 4);  // PORT_IS
-            assert_eq!(ahci_test_reg_offset(14), port::CMD * 4); // PORT_CMD
+            assert_eq!(ahci_test_reg_offset(0), (hba::CAP * 4) as u32);   // HBA_CAP
+            assert_eq!(ahci_test_reg_offset(1), (hba::GHC * 4) as u32);   // HBA_GHC
+            assert_eq!(ahci_test_reg_offset(2), (hba::IS * 4) as u32);    // HBA_IS
+            assert_eq!(ahci_test_reg_offset(3), (hba::PI * 4) as u32);    // HBA_PI
+            assert_eq!(ahci_test_reg_offset(12), (port::IS * 4) as u32);  // PORT_IS
+            assert_eq!(ahci_test_reg_offset(14), (port::CMD * 4) as u32); // PORT_CMD
 
             // Unknown ID
             assert_eq!(ahci_test_reg_offset(99), 0xFFFFFFFF);

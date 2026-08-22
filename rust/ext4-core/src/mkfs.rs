@@ -9,29 +9,29 @@
 
 use core::ffi::c_int;
 
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::fs::File;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::os::unix::fs::FileExt;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::os::unix::io::FromRawFd;
 
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::time::SystemTime;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::collections::hash_map::DefaultHasher;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use std::hash::{Hash, Hasher};
 
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use crate::types::*;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use crate::superblock::serialize_superblock;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use crate::group_desc::serialize_group_desc;
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use crate::inode::{new_inode, serialize_inode, init_extent_tree};
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 use crate::dir::init_dir_block;
 
 /// Maximum number of blocks in a single block group (128MB at 4096-byte blocks).
@@ -60,20 +60,20 @@ const LOST_FOUND_INO: u32 = 11;
 #[no_mangle]
 pub unsafe extern "C" fn ext4_mkfs(fd: c_int, block_size: u32, blocks_count: u64) -> c_int {
     // On non-Unix platforms, return ENOTSUP
-    #[cfg(not(unix))]
+    #[cfg(not(all(feature = "std", unix)))]
     {
         let _ = (fd, block_size, blocks_count);
         return 95;
     }
 
-    #[cfg(unix)]
+    #[cfg(all(feature = "std", unix))]
     {
         ext4_mkfs_impl(fd, block_size, blocks_count)
     }
 }
 
 /// Actual implementation (Unix only).
-#[cfg(unix)]
+#[cfg(all(feature = "std", unix))]
 unsafe fn ext4_mkfs_impl(fd: c_int, block_size: u32, blocks_count: u64) -> c_int {
     if fd < 0 {
         return 9; // EBADF

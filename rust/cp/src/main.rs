@@ -53,7 +53,7 @@ fn main() {
             }
         }
     } else {
-        if let Err(e) = copy_entry(sources[0], target, recursive) {
+        if let Err(e) = copy_entry(&sources[0], target, recursive) {
             eprintln!("cp: {e}");
             std::process::exit(1);
         }

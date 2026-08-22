@@ -507,13 +507,13 @@ void arch_proc_setcontext(struct proc *p, struct stackframe_s *state,
  * This is a one-way door — after IRETQ, the kthread runs independently
  * and returns to the kernel scheduler via switch_to_user() when it yields.
  */
-static void __noreturn restore_kthread_context(struct proc *p)
+static void _Noreturn restore_kthread_context(struct proc *p)
 {
 	reg_t rsp = p->p_reg.sp;
 	reg_t rip = p->p_reg.pc;
 	reg_t rflags = p->p_reg.psw | IF_MASK;
-	reg_t rbx = p->p_reg.rbx;
-	reg_t rbp = p->p_reg.rbp;
+	reg_t rbx = p->p_reg.bx;
+	reg_t rbp = p->p_reg.fp;
 	reg_t r12 = p->p_reg.r12;
 	reg_t r13 = p->p_reg.r13;
 	reg_t r14 = p->p_reg.r14;

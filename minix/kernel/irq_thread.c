@@ -191,7 +191,8 @@ static void irq_thread_entry(void)
             "movq %%r13, %4\n\t"
             "movq %%r14, %5\n\t"
             "movq %%r15, %6\n\t"
-            "leaq 1f(%%rip), %7\n\t"
+            "leaq 1f(%%rip), %%rax\n\t"
+            "movq %%rax, %7\n\t"
             : "=m" (self->p_reg.sp),
               "=m" (self->p_reg.bx),
               "=m" (self->p_reg.fp),
@@ -201,7 +202,7 @@ static void irq_thread_entry(void)
               "=m" (self->p_reg.r15),
               "=m" (self->p_reg.pc)
             :
-            : "memory"
+            : "rax", "memory"
         );
 
         /* Wait for an IRQ notification. May block (RTS_RECEIVING).

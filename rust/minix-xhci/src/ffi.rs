@@ -279,10 +279,22 @@ mod platform {
     }
     pub unsafe fn vm_unmap_phys(_endpt: c_int, _base: *mut c_void, _size: usize) -> c_int { -1 }
 
-    pub unsafe fn alloc_contig(_size: usize, _flags: c_int, _phys: *mut u64) -> *mut c_void {
-        ptr::null_mut()
+    pub unsafe fn alloc_contig(size: usize, _flags: c_int, phys: *mut u64) -> *mut c_void {
+        // Host-side stand-in for DMA allocation: use the heap so that unit
+        // tests can exercise ring logic without a MINIX kernel underneath.
+        let layout = core::alloc::Layout::from_size_align(size, 4096).unwrap();
+        let ptr = std::alloc::alloc_zeroed(layout);
+        if !ptr.is_null() && !phys.is_null() {
+            *phys = ptr as u64; // fake "physical" address = virtual
+        }
+        ptr as *mut c_void
     }
-    pub unsafe fn free_contig(_addr: *mut c_void, _size: usize) {}
+    pub unsafe fn free_contig(addr: *mut c_void, size: usize) {
+        if !addr.is_null() {
+            let layout = core::alloc::Layout::from_size_align(size, 4096).unwrap();
+            std::alloc::dealloc(addr as *mut u8, layout);
+        }
+    }
 
     pub unsafe fn sys_irqsetpolicy(_irq: c_int, _policy: c_int, _hook_id: *mut c_int) -> c_int { -1 }
     pub unsafe fn sys_irqenable(_hook_id: *mut c_int) -> c_int { -1 }

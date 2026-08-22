@@ -831,7 +831,7 @@ mod tests {
 
     #[test]
     fn xhci_crate_exists() {
-        // Basic compile check
-        assert_eq!(core::mem::size_of::<ffi::Blockdriver>(), 8 * core::mem::size_of::<usize>());
+        // Basic compile check: bdr_type (c_int + padding) + 8 function pointers
+        assert_eq!(core::mem::size_of::<ffi::Blockdriver>(), 8 * core::mem::size_of::<usize>() + 8);
     }
 }

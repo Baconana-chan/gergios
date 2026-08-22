@@ -342,13 +342,13 @@ mod tests {
     #[test]
     fn ring_wrap() {
         let mut ring = TrbRing::new(8, true).unwrap();
-        // Fill ring
-        for i in 0..6 {
+        // Fill ring. With dequeue parked at 0 the ring accepts num_trbs - 1
+        // = 7 TRBs; the last slot stays empty so enqueue never meets dequeue.
+        for i in 0..7 {
             let slot = ring.reserve();
             assert!(slot.is_some(), "Failed at index {}", i);
         }
-        // Should be full now (7th would fail because of 1-slot gap)
         let slot = ring.reserve();
-        assert!(slot.is_none());
+        assert!(slot.is_none(), "8th reserve should fail (ring full)");
     }
 }

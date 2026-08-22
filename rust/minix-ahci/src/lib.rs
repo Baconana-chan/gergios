@@ -4,7 +4,7 @@
 //! original C main() in the AHCI driver. Calls into libblockdriver via FFI
 //! and handles AHCI hardware operations in pure Rust.
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod registers;
 pub mod ffi;
@@ -366,7 +366,7 @@ pub unsafe extern "C" fn ahci_rust_main(argc: c_int, argv: *mut *mut c_char) -> 
 // Panic handler (required for no_std; ignored by test builds where std provides one)
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}

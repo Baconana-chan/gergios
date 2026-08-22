@@ -26,11 +26,12 @@
 //! let block_size = sb.block_size();
 //! ```
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 // Global allocator (wraps C malloc/free) and panic handler.
 // Required when building with -Zbuild-std=core,alloc for a custom target.
 // For native builds, this never conflicts because the library is no_std.
+#[cfg(all(not(test), not(feature = "std"), target_os = "minix"))]
 mod allocator;
 
 extern crate alloc;
@@ -57,6 +58,8 @@ pub mod journal;
 pub mod xattr;
 pub mod acl;
 pub mod quota;
+// mkfs uses std::os::unix file I/O; only available with the "std" feature on unix.
+#[cfg(all(feature = "std", unix))]
 pub mod mkfs;
 
 pub use types::*;

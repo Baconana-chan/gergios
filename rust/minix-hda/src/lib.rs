@@ -11,7 +11,7 @@
 //! codec enumeration → stream allocation → chardev_task()
 //! ```
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod ffi;
 pub mod registers;
@@ -867,7 +867,7 @@ pub unsafe extern "C" fn hda_rust_main(argc: c_int, argv: *mut *mut c_char) -> c
 // Panic handler
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -889,12 +889,14 @@ mod tests {
 
     #[test]
     fn audio_info_size() {
-        assert_eq!(core::mem::size_of::<AudioInfo>(), 100);
+        // play + record (2×56) + monitor_gain, blocksize, hiwat, lowat, _ispare1, mode (6×4)
+        assert_eq!(core::mem::size_of::<AudioInfo>(), 136);
     }
 
     #[test]
     fn audio_prinfo_size() {
-        assert_eq!(core::mem::size_of::<AudioPrinfo>(), 44);
+        // 12×u32 (48) + 8×u8 (8) = 56
+        assert_eq!(core::mem::size_of::<AudioPrinfo>(), 56);
     }
 
     #[test]

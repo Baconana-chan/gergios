@@ -109,12 +109,23 @@ else()
     if(MACHINE_ARCH STREQUAL "x86_64")
         set(CMAKE_C_COMPILER_TARGET "x86_64-elf")
         set(CMAKE_ASM_COMPILER_TARGET "x86_64-elf")
+        set(_MINIX_TARGET_TRIPLE "x86_64-elf")
     elseif(MACHINE_ARCH STREQUAL "aarch64")
         set(CMAKE_C_COMPILER_TARGET "aarch64-elf")
         set(CMAKE_ASM_COMPILER_TARGET "aarch64-elf")
+        set(_MINIX_TARGET_TRIPLE "aarch64-elf")
     elseif(MACHINE_ARCH STREQUAL "earm")
         set(CMAKE_C_COMPILER_TARGET "armv7a-unknown-none-eabi")
         set(CMAKE_ASM_COMPILER_TARGET "armv7a-unknown-none-eabi")
+        set(_MINIX_TARGET_TRIPLE "armv7a-unknown-none-eabi")
+    endif()
+    # CMake >= 3.29 no longer reliably propagates CMAKE_<LANG>_COMPILER_TARGET
+    # into the compile rules; append -target directly so every CMake version
+    # compiles for the bare-metal ELF triple instead of the host (MSVC) one.
+    if(_MINIX_TARGET_TRIPLE)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -target ${_MINIX_TARGET_TRIPLE}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -target ${_MINIX_TARGET_TRIPLE}")
+        set(CMAKE_ASM_FLAGS "${CMAKE_ASM_FLAGS} -target ${_MINIX_TARGET_TRIPLE}")
     endif()
     # Use LLVM's lld for cross-linking (supports all targets via -fuse-ld)
     # Clang ignores CMAKE_LINKER and searches for prefixed linker names.

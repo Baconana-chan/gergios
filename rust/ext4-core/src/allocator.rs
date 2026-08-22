@@ -51,6 +51,7 @@ static ALLOCATOR: MinixAllocator = MinixAllocator;
 /// The `"panic-strategy": "abort"` in the target spec should normally
 /// eliminate the need for a panic handler, but `-Zbuild-std` sometimes
 /// requires one explicitly. This handler loops with an abort hint.
+#[cfg(target_os = "minix")]
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}

@@ -78,6 +78,7 @@ pub const MESSAGE_SIZE: usize = 64;
 /// On MINIX, the kernel copies exactly 64 bytes between sender and receiver.
 /// The `m_source` field is set by the kernel on receive to identify the
 /// sender. The `m_type` field is the message type / request number.
+#[derive(Debug)]
 #[repr(C, align(16))]
 pub struct Message {
     /// Who sent the message (filled by kernel on receive).

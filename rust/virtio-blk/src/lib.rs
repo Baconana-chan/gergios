@@ -9,7 +9,7 @@
 //!   - Split virtqueue (descriptor/avail/used rings) with indirect descriptors
 //!   - blockdriver_mt interface with per-thread request buffers
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod ffi;
 pub mod virtio;
@@ -349,7 +349,7 @@ pub unsafe extern "C" fn virtio_blk_rust_main(argc: c_int, argv: *mut *mut c_cha
 // Panic handler (no_std)
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}

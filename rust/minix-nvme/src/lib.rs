@@ -11,7 +11,7 @@
 //! enable controller → Identify → I/O queues → blockdriver_mt_task()
 //! ```
 
-#![no_std]
+#![cfg_attr(target_os = "minix", no_std)]
 
 pub mod ffi;
 pub mod registers;
@@ -402,7 +402,7 @@ pub unsafe extern "C" fn nvme_rust_main(argc: c_int, argv: *mut *mut c_char) -> 
 // Panic handler
 // ============================================================================
 
-#[cfg(not(test))]
+#[cfg(all(not(test), target_os = "minix"))]
 #[panic_handler]
 fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -426,14 +426,16 @@ mod tests {
 
     #[test]
     fn device_partition_layout() {
-        assert_eq!(PART.len(), 4);
-        assert_eq!(SUBPART.len(), 4);
+        // PART/SUBPART are mutable statics; read lengths via addr_of! to avoid
+        // creating a reference to a mutable static (UB).
+        assert_eq!(unsafe { (*core::ptr::addr_of!(PART)).len() }, 4);
+        assert_eq!(unsafe { (*core::ptr::addr_of!(SUBPART)).len() }, 4);
     }
 
     #[test]
     fn blockdriver_table_layout() {
-        let expected = core::mem::size_of::<c_int>() + 4 +
-            core::mem::size_of::<usize>() * 9;
+        // bdr_type (c_int) + padding to pointer alignment + 8 function pointers
+        let expected = 8 + core::mem::size_of::<usize>() * 8;
         assert_eq!(core::mem::size_of::<ffi::Blockdriver>(), expected);
     }
 

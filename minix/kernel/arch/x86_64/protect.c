@@ -297,7 +297,8 @@ void prot_init(void)
 
   pg_clear();
   pg_identity(&kinfo);
-  pg_mapkernel();
+  /* Legacy (GRUB/Multiboot) path: no KASLR relocation, virt_offset is 0. */
+  kinfo.freepde_start = pg_mapkernel(0);
   pg_load();
 
   prot_init_done = 1;

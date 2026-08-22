@@ -934,9 +934,8 @@ mod tests {
     #[test]
     fn codec_cmd_build() {
         let cmd = CodecCmd::new(0, 0x01, verb::GET_PARAM, 0x00); // VENDOR_ID
-        assert_eq!(cmd.raw(), 0x01_0F00_0000 >> 0); // CAD=0, NID=1, verb=F00
-        // Actually: CAD=0 <<28=0, NID=1<<20=0x100000, verb=F00<<8=0xF0000
-        assert_eq!(cmd.raw(), 0x001F0000);
+        // CAD=0 <<28=0, NID=1<<20=0x100000, verb=F00<<8=0xF0000
+        assert_eq!(cmd.raw(), 0x001F_0000u32);
     }
 
     #[test]

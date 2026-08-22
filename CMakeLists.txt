@@ -13,7 +13,7 @@ cmake_minimum_required(VERSION 3.21)
 project(MINIX
     VERSION 3.4.0
     DESCRIPTION "MINIX 3 Operating System"
-    LANGUAGES C ASM
+    LANGUAGES C CXX ASM
 )
 
 # ============================================================================

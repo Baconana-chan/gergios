@@ -235,6 +235,11 @@ impl GamepadProfile {
     /// Detect profile from device name string.
     pub fn detect(name: &str) -> Self {
         let lower = name.to_lowercase();
+        // Xbox must be checked before DS4: "Xbox Wireless Controller" also
+        // contains the substring "wireless controller".
+        if lower.contains("xbox") {
+            return Self::XboxBle;
+        }
         if lower.contains("dualshock") || lower.contains("ds4") || lower.contains("wireless controller") {
             return Self::DualShock4;
         }
@@ -243,9 +248,6 @@ impl GamepadProfile {
         }
         if lower.contains("switch") || lower.contains("pro controller") || lower.contains("joy-con") {
             return Self::SwitchPro;
-        }
-        if lower.contains("xbox") {
-            return Self::XboxBle;
         }
         if lower.contains("8bitdo") || lower.contains("8bit") {
             return Self::Generic;
@@ -709,7 +711,7 @@ mod tests {
     fn test_parse_switch_pro_report() {
         let mut report = [0u8; 8];
         report[0] = 0x30;
-        report[3] = 0x00;  // DPad center
+        report[3] = 0x08;  // DPad center (Switch encodes center as values >= 8)
         report[4] = 0b00000111;  // A + B + X
 
         let state = parse_report(GamepadProfile::SwitchPro, &report);
@@ -723,11 +725,13 @@ mod tests {
     #[test]
     fn test_parse_generic_report() {
         let mut report = [0u8; 8];
+        report[0] = 0x01;  // report ID (parser skips it)
         report[1] = 0b00000011;  // A + B
-        report[2] = 0x80;  // LX center
-        report[3] = 0x80;  // LY center
-        report[4] = 0x80;  // RX center
-        report[5] = 0x80;  // RY center
+        report[2] = 0x00;  // buttons high byte
+        report[3] = 0x80;  // LX center
+        report[4] = 0x80;  // LY center
+        report[5] = 0x80;  // RX center
+        report[6] = 0x80;  // RY center
 
         let state = parse_report(GamepadProfile::Generic, &report);
         assert!(state.connected);

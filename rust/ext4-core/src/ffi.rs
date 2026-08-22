@@ -12,7 +12,7 @@ use core::slice;
 use crate::types::*;
 
 // Allow snake_case for C-compatible FFI callback type names.
-#![allow(non_camel_case_types)]
+#[allow(non_camel_case_types)]
 
 // ─── Error code mapping ──────────────────────────────────────────────
 
@@ -1253,8 +1253,8 @@ pub unsafe extern "C" fn ext4_unlink(
     let dir_inode_table_block = gd.inode_table(&sb);
     let inodes_per_block = block_size as u64 / inode_size as u64;
     let dir_block_offset = dir_index as u64 / inodes_per_block;
-    let _dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
-    let _dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
+    let dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
+    let dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
 
     // write_block closure
     let mut wb = move |block_nr: u64, data: &[u8]| -> Ext4Result<()> {
@@ -1811,8 +1811,8 @@ pub unsafe extern "C" fn ext4_rmdir(
     let dir_inode_table_block = dir_gd.inode_table(&sb);
     let inodes_per_block = block_size as u64 / inode_size as u64;
     let dir_block_offset = dir_index as u64 / inodes_per_block;
-    let _dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
-    let _dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
+    let dir_in_block_offset = (dir_index as u64 % inodes_per_block) * inode_size as u64;
+    let dir_inode_block_nr = dir_inode_table_block + dir_block_offset;
 
     // Re-read parent inode (it may have been modified by insert_in_dir in another call)
     let mut dir_inode_for_update = match crate::block::read_inode(&sb, &dir_groups, dir_ino, &mut reader) {
